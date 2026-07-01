@@ -1,0 +1,41 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col pb-24 zilo-page-enter">
+  <%- include('../partials/back-header', { backUrl: '/cliente', label: 'Actividad', title: 'Historial' }) %>
+
+  <main class="flex-1 px-5 py-5">
+    <% if (requests.length === 0) { %>
+      <div class="zilo-empty zilo-card-premium rounded-2xl mt-8">
+        <p class="zilo-display">Sin servicios aún</p>
+        <p class="text-sm mb-6">Tu historial aparecerá aquí</p>
+        <a href="/cliente" class="zilo-btn-primary !w-auto !inline-flex !px-8">Solicitar ahora</a>
+      </div>
+    <% } else { %>
+      <div class="space-y-3">
+        <% requests.forEach((req, i) => { %>
+          <article class="p-4 rounded-2xl zilo-card-premium zilo-page-enter" style="animation-delay:<%= i * 0.05 %>s">
+            <div class="flex justify-between items-start mb-3">
+              <div>
+                <strong class="text-sm block"><%= req.serviceName %></strong>
+                <% if (req.isGift) { %>
+                  <span class="text-[10px] text-zilo-accent">Regalo · <%= req.beneficiaryName %></span>
+                <% } %>
+                <span class="text-xs text-zilo-muted block mt-1 line-clamp-1"><%= req.address %></span>
+              </div>
+              <span class="zilo-badge zilo-badge-muted"><%= req.status %></span>
+            </div>
+            <div class="zilo-divider mb-3"></div>
+            <div class="flex justify-between text-xs">
+              <span class="text-zilo-muted"><%= new Date(req.createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' }) %></span>
+              <span class="text-zilo-accent font-medium"><%= formatCLP(req.amountDue ?? req.estimatedVisit) %></span>
+            </div>
+          </article>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+
+  <%- include('../partials/nav-client', { navActive: 'historial' }) %>
+</div>
+
+<%- include('../partials/footer') %>

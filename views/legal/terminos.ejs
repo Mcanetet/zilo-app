@@ -1,0 +1,40 @@
+<%- include('../partials/head') %>
+
+<article class="max-w-2xl mx-auto px-5 py-8 pb-16 legal-page">
+  <a href="/" class="text-sm text-blue-400 hover:underline mb-6 inline-block">← Volver a Zilo</a>
+  <h1 class="text-3xl font-extrabold mb-2">Términos y Condiciones</h1>
+  <p class="text-white/40 text-sm mb-8">Última actualización: <%= lastUpdated %></p>
+
+  <div class="prose-legal space-y-6 text-sm text-white/70 leading-relaxed">
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">1. Aceptación</h2>
+      <p>Al usar Zilo aceptas estos términos. Si no estás de acuerdo, no utilices la plataforma.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">2. Servicio</h2>
+      <p>Zilo es una plataforma intermediaria que conecta clientes con proveedores independientes de servicios del hogar en Santiago, Chile. Zilo no ejecuta directamente los trabajos técnicos.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">3. Pagos</h2>
+      <p>La visita técnica se paga anticipadamente vía Mercado Pago. Los servicios adicionales se acuerdan en sitio. Zilo retiene una comisión del 15% sobre la visita técnica.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">4. Cancelaciones</h2>
+      <p>El cliente puede cancelar antes de la asignación del proveedor. Una vez asignado, aplican políticas de reembolso parcial según evaluación de soporte.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">5. Responsabilidad</h2>
+      <p>Los proveedores son responsables de la calidad del trabajo. Zilo verifica antecedentes básicos pero no garantiza resultados específicos del servicio técnico.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">6. Reclamos</h2>
+      <p>Los reclamos se gestionan vía la plataforma o WhatsApp oficial: <%= company.whatsappDisplay %>. Plazo de respuesta: 48 horas hábiles.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">7. Ley aplicable</h2>
+      <p>Estos términos se rigen por las leyes de la República de Chile. Tribunales de Santiago.</p>
+    </section>
+  </div>
+</article>
+
+<%- include('../partials/footer') %>

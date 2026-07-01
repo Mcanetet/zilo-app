@@ -1,12 +1,12 @@
 <%- include('../partials/head') %>
 
-<div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6 text-center">
-  <div class="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
-    <svg class="w-10 h-10 text-red-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+<div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6 text-center zilo-page-enter">
+  <div class="w-20 h-20 rounded-full bg-zilo-danger/10 border border-zilo-danger/25 flex items-center justify-center mb-6">
+    <svg class="w-10 h-10 text-zilo-danger" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
   </div>
-  <h1 class="text-2xl font-bold mb-2">Pago no completado</h1>
-  <p class="text-white/50 mb-8">No se pudo procesar tu pago. Puedes intentar nuevamente.</p>
-  <a href="/cliente" class="w-full max-w-xs py-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 font-semibold">Volver al inicio</a>
+  <h1 class="zilo-display text-2xl mb-2">Pago no completado</h1>
+  <p class="text-zilo-muted mb-8 max-w-xs leading-relaxed">No pudimos procesar el pago. Puedes intentar de nuevo desde el checkout.</p>
+  <a href="/cliente" class="zilo-btn-primary !w-auto !px-10">Volver al inicio</a>
 </div>
 
 <%- include('../partials/footer') %>

@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "autoBackup": true,
+  "scheduleHour": 3,
+  "scheduleMinute": 0,
+  "dailyRetentionDays": 14,
+  "weeklyRetentionWeeks": 8,
+  "monthlyRetentionMonths": 12,
+  "includeUploads": true,
+  "includeSecurityLogs": true
+}

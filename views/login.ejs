@@ -1,60 +1,63 @@
 <%- include('partials/head') %>
 
 <div class="min-h-screen flex items-center justify-center p-5 relative">
-  <div class="fixed inset-0 bg-gradient-to-b from-blue-600/15 to-zilo-bg pointer-events-none"></div>
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-zilo-accent/6 rounded-full blur-3xl"></div>
+  </div>
 
-  <div class="relative z-10 w-full max-w-md bg-zilo-card border border-white/8 rounded-3xl p-8 shadow-2xl">
-    <a href="/" class="flex items-center justify-center gap-2.5 mb-8">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center font-extrabold text-lg">Z</div>
-      <span class="font-extrabold text-xl">Zilo</span>
+  <div class="relative z-10 w-full max-w-md zilo-card-premium rounded-3xl p-8">
+    <a href="/" class="flex flex-col items-center mb-8">
+      <%- include('partials/logo', { className: 'w-14 h-14 mb-3', logoId: 'login' }) %>
+      <span class="zilo-display text-2xl tracking-wide">Zilo</span>
     </a>
 
-    <h1 class="text-2xl font-bold text-center mb-1">Bienvenido</h1>
-    <p class="text-white/50 text-center text-sm mb-6">Ingresa para continuar</p>
+    <h1 class="zilo-display text-3xl text-center mb-1">Bienvenido</h1>
+    <p class="text-zilo-muted text-center text-sm mb-6">Accede a tu cuenta</p>
+
+    <% if (typeof referralCode !== 'undefined' && referralCode) { %>
+      <div class="mb-4 p-3 rounded-xl border border-zilo-accent/25 bg-zilo-accent/5 text-center">
+        <p class="text-sm text-zilo-accent-soft">Código: <strong class="font-mono"><%= referralCode %></strong></p>
+        <p class="text-xs text-zilo-muted mt-1">$5.000 de crédito al ingresar</p>
+      </div>
+    <% } %>
 
     <% if (error) { %>
-      <div class="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center"><%= error %></div>
+      <div class="mb-4 p-3 rounded-xl bg-zilo-danger/10 border border-zilo-danger/30 text-zilo-danger text-sm text-center"><%= error %></div>
     <% } %>
 
     <form action="/login" method="POST" class="space-y-4">
       <div>
-        <label for="email" class="block text-xs font-medium text-white/50 mb-1.5">Correo electrónico</label>
-        <input type="email" id="email" name="email" required autocomplete="email" placeholder="tu@email.com"
-          class="w-full px-4 py-3.5 rounded-xl bg-zilo-bg border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
+        <label for="email" class="zilo-label block mb-1.5">Correo</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="tu@email.com" class="zilo-input">
       </div>
       <div>
-        <label for="password" class="block text-xs font-medium text-white/50 mb-1.5">Contraseña</label>
-        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••"
-          class="w-full px-4 py-3.5 rounded-xl bg-zilo-bg border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
+        <label for="password" class="zilo-label block mb-1.5">Contraseña</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" class="zilo-input">
       </div>
-      <button type="submit" class="w-full py-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 font-semibold shadow-lg shadow-blue-600/25 hover:-translate-y-0.5 transition-all">Ingresar</button>
+      <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+        <input type="checkbox" name="consent" required class="mt-0.5 rounded accent-[#C9A962]">
+        <span>Acepto la <a href="/legal/privacidad" target="_blank" class="text-zilo-accent underline">Privacidad</a> y <a href="/legal/terminos" target="_blank" class="text-zilo-accent underline">Términos</a></span>
+      </label>
+      <button type="submit" class="zilo-btn-primary">Ingresar</button>
     </form>
 
-    <div class="mt-6 pt-6 border-t border-white/8">
-      <p class="text-xs text-white/30 text-center uppercase tracking-wider mb-3">Cuentas demo</p>
-      <div class="space-y-2">
-        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl bg-zilo-bg border border-white/8 hover:border-blue-500/50 transition text-left" data-email="cliente@zilo.cl" data-password="cliente123">
-          <span class="font-semibold text-sm">Cliente</span>
-          <span class="text-xs text-white/40">cliente@zilo.cl</span>
+    <details class="mt-6 pt-6 border-t border-zilo-border">
+      <summary class="text-xs text-zilo-muted text-center cursor-pointer uppercase tracking-wider">Acceso demo</summary>
+      <div class="space-y-2 mt-4">
+        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl zilo-card-premium hover:border-zilo-accent/30 transition text-left text-sm" data-email="cliente@zilo.cl" data-password="cliente123">
+          <span class="font-medium">Cliente</span>
+          <span class="text-xs text-zilo-muted">María González</span>
         </button>
-        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl bg-zilo-bg border border-white/8 hover:border-blue-500/50 transition text-left" data-email="pedro@zilo.cl" data-password="proveedor123">
-          <span class="font-semibold text-sm">Pedro Gómez · Gásfiter</span>
-          <span class="text-xs text-white/40">pedro@zilo.cl</span>
+        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl zilo-card-premium text-left text-sm" data-email="pedro@zilo.cl" data-password="proveedor123">
+          <span class="font-medium">Proveedor</span>
+          <span class="text-xs text-zilo-muted">Pedro Gómez</span>
         </button>
-        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl bg-zilo-bg border border-white/8 hover:border-blue-500/50 transition text-left" data-email="marta@zilo.cl" data-password="proveedor123">
-          <span class="font-semibold text-sm">Marta Quiroz · Eléctrica</span>
-          <span class="text-xs text-white/40">marta@zilo.cl</span>
-        </button>
-        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl bg-zilo-bg border border-white/8 hover:border-blue-500/50 transition text-left" data-email="juancarlos@zilo.cl" data-password="proveedor123">
-          <span class="font-semibold text-sm">Juan Carlos · Cerrajero</span>
-          <span class="text-xs text-white/40">juancarlos@zilo.cl</span>
-        </button>
-        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl bg-zilo-bg border border-white/8 hover:border-blue-500/50 transition text-left" data-email="admin@zilo.cl" data-password="admin123">
-          <span class="font-semibold text-sm">Administrador</span>
-          <span class="text-xs text-white/40">admin@zilo.cl</span>
+        <button type="button" class="demo-card w-full flex justify-between items-center p-3 rounded-xl zilo-card-premium text-left text-sm" data-email="admin@zilo.cl" data-password="admin123">
+          <span class="font-medium">Admin</span>
+          <span class="text-xs text-zilo-muted">Panel</span>
         </button>
       </div>
-    </div>
+    </details>
   </div>
 </div>
 

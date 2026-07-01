@@ -1,49 +1,78 @@
 <%- include('partials/head') %>
 
 <div class="min-h-screen relative overflow-hidden">
-  <div class="fixed inset-0 bg-gradient-to-b from-blue-600/20 via-zilo-bg to-zilo-bg pointer-events-none"></div>
-  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-zilo-accent/5 rounded-full blur-3xl"></div>
+  </div>
 
   <header class="relative z-10 flex items-center justify-between px-5 py-5 max-w-lg mx-auto">
-    <div class="flex items-center gap-2.5">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center font-extrabold text-lg shadow-lg shadow-blue-500/30">Z</div>
-      <span class="font-extrabold text-xl tracking-tight">Zilo</span>
+    <div class="flex items-center gap-3">
+      <%- include('partials/logo', { className: 'w-10 h-10', logoId: 'landing' }) %>
+      <span class="zilo-display text-2xl tracking-tight">Zilo</span>
     </div>
-    <a href="/login" class="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium hover:bg-white/10 transition">Ingresar</a>
+    <a href="/login" class="zilo-btn-ghost text-sm !w-auto !py-2">Ingresar</a>
   </header>
 
-  <main class="relative z-10 px-5 pt-8 pb-12 max-w-lg mx-auto text-center">
-    <span class="inline-block px-4 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-semibold mb-6">Santiago, Chile</span>
-    <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight mb-4">
-      Servicios premium<br>
-      <span class="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">a tu puerta</span>
+  <main class="relative z-10 px-5 pt-6 pb-12 max-w-lg mx-auto">
+    <p class="zilo-label mb-4">Concierge del hogar · Santiago</p>
+    <h1 class="zilo-display text-[2.75rem] leading-[1.1] mb-5">
+      Tu hogar,<br>
+      <span class="text-zilo-accent italic">atendido con distinción</span>
     </h1>
-    <p class="text-white/60 text-base mb-8 max-w-sm mx-auto">Eléctricos, gásfiter, cerrajeros y más. Profesionales verificados en minutos.</p>
+    <p class="text-zilo-muted text-base leading-relaxed mb-8 max-w-sm">
+      Técnicos verificados, seguimiento en tiempo real y el único Pasaporte Hogar digital de Chile.
+    </p>
 
-    <div class="flex items-center justify-center gap-0 bg-zilo-card border border-white/8 rounded-2xl p-5 mb-8 max-w-sm mx-auto">
-      <div class="flex-1"><strong class="block text-lg font-bold">4.9★</strong><span class="text-xs text-white/40">Valoración</span></div>
-      <div class="w-px h-8 bg-white/10"></div>
-      <div class="flex-1"><strong class="block text-lg font-bold">&lt;30 min</strong><span class="text-xs text-white/40">Respuesta</span></div>
-      <div class="w-px h-8 bg-white/10"></div>
-      <div class="flex-1"><strong class="block text-lg font-bold">500+</strong><span class="text-xs text-white/40">Técnicos</span></div>
+    <% if (typeof referralBanner !== 'undefined' && referralBanner) { %>
+      <div class="mb-6 p-4 rounded-2xl zilo-card-premium border border-zilo-accent/25">
+        <p class="text-sm font-medium text-zilo-accent-soft">Invitación recibida</p>
+        <p class="text-xs text-zilo-muted mt-1">Código <strong class="font-mono text-zilo-accent"><%= referralBanner %></strong> — $5.000 de crédito al ingresar</p>
+      </div>
+    <% } %>
+
+    <div class="grid grid-cols-3 gap-px rounded-2xl overflow-hidden zilo-card-premium mb-8">
+      <div class="p-4 text-center bg-zilo-card">
+        <strong class="zilo-display text-xl text-zilo-accent block">4.9</strong>
+        <span class="text-[10px] text-zilo-muted uppercase tracking-wider">Valoración</span>
+      </div>
+      <div class="p-4 text-center bg-zilo-card border-x border-zilo-border">
+        <strong class="zilo-display text-xl block">24/7</strong>
+        <span class="text-[10px] text-zilo-muted uppercase tracking-wider">Emergencias</span>
+      </div>
+      <div class="p-4 text-center bg-zilo-card">
+        <strong class="zilo-display text-xl block">100%</strong>
+        <span class="text-[10px] text-zilo-muted uppercase tracking-wider">Verificados</span>
+      </div>
     </div>
 
-    <a href="/login" class="flex items-center justify-center gap-2 w-full max-w-sm mx-auto py-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 font-semibold shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all">
-      Comenzar ahora
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    <a href="/login" class="zilo-btn-primary mb-10">
+      Solicitar servicio
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
+
+    <div class="zilo-card-premium rounded-2xl p-5 mb-8">
+      <p class="zilo-label mb-3">Solo en Zilo</p>
+      <ul class="space-y-3 text-sm text-zilo-muted">
+        <li class="flex gap-3"><span class="text-zilo-accent">◆</span> Pasaporte Hogar — historial técnico de tu propiedad</li>
+        <li class="flex gap-3"><span class="text-zilo-accent">◆</span> Modo Guardián — familia sigue el servicio sin app</li>
+        <li class="flex gap-3"><span class="text-zilo-accent">◆</span> Regala visitas técnicas a quien quieras</li>
+      </ul>
+    </div>
   </main>
 
-  <section class="relative z-10 px-5 pb-8 max-w-lg mx-auto text-center">
-    <h2 class="text-sm text-white/50 mb-4 font-medium">Servicios disponibles</h2>
+  <section class="relative z-10 px-5 pb-10 max-w-lg mx-auto">
+    <p class="zilo-label mb-4 text-center">Especialidades</p>
     <div class="flex flex-wrap justify-center gap-2">
-      <% ['⚡ Eléctrico','🔧 Gásfiter','🔑 Cerrajero','🔥 Termos','🍽️ Lavavajillas','🫧 Lavadora'].forEach(s => { %>
-        <span class="px-3.5 py-2 rounded-full bg-zilo-card border border-white/8 text-sm text-white/60"><%= s %></span>
+      <% services.forEach(s => { %>
+        <span class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full zilo-card-premium text-sm text-zilo-muted">
+          <%- include('partials/service-icon', { icon: s.icon, color: s.color, size: 'xs' }) %>
+          <%= s.name %>
+        </span>
       <% }); %>
     </div>
   </section>
 
-  <footer class="relative z-10 text-center py-6 text-white/30 text-xs">© 2026 Zilo. Todos los derechos reservados.</footer>
+  <footer class="relative z-10 text-center py-8 text-zilo-muted text-xs border-t border-zilo-border">© 2026 Zilo SpA · Santiago, Chile</footer>
 </div>
 
 <%- include('partials/footer') %>

@@ -3,3 +3,11 @@ node_modules/
 .DS_Store
 *.log
 npm-debug.log*
+
+# Backups locales (se generan en el servidor)
+data/backups/
+data/backup-config.json
+
+# Documentos subidos por proveedores (KYC) — no van a GitHub
+public/uploads/providers/*
+!public/uploads/providers/.gitkeep

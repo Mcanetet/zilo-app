@@ -1,97 +1,169 @@
 <%- include('../partials/head') %>
 
-<div class="max-w-lg mx-auto min-h-screen flex flex-col" id="clientDashboard">
-  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-white/8 px-5 py-4">
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="clientDashboard">
+  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4" data-tour="welcome">
     <div class="flex items-center justify-between">
-      <div>
-        <span class="text-xs text-white/40">Hola,</span>
-        <h1 class="text-xl font-bold"><%= user.name.split(' ')[0] %></h1>
-      </div>
-      <a href="/logout" class="w-10 h-10 rounded-full bg-zilo-card border border-white/8 flex items-center justify-center text-white/50 hover:text-white transition" title="Cerrar sesión">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      <a href="/cliente/perfil" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl zilo-card-premium flex items-center justify-center text-sm font-semibold text-zilo-accent border border-zilo-accent/20 group-hover:border-zilo-accent/40 transition">
+          <%= typeof profile !== 'undefined' ? profile.name.split(' ').map(n=>n[0]).join('').slice(0,2) : '?' %>
+        </div>
+        <div>
+          <span class="zilo-label !text-[9px]">Bienvenida</span>
+          <h1 class="text-base font-semibold leading-tight"><%= user.name.split(' ')[0] %></h1>
+        </div>
       </a>
-    </div>
-    <div class="flex items-center gap-1.5 mt-2 text-sm text-white/50">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      Santiago, Chile
+      <div class="flex items-center gap-2">
+        <% if (typeof referral !== 'undefined' && referral.creditsCLP > 0) { %>
+          <span class="px-2.5 py-1 rounded-full bg-zilo-success/15 text-zilo-success text-[10px] font-semibold"><%= formatCLP(referral.creditsCLP) %></span>
+        <% } %>
+        <a href="/logout" class="w-10 h-10 rounded-full zilo-card-premium flex items-center justify-center text-zilo-muted hover:text-white transition" title="Cerrar sesión">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </a>
+      </div>
     </div>
   </header>
 
   <main class="flex-1 px-5 py-5 pb-24">
-    <h2 class="text-lg font-semibold mb-4">¿Qué necesitas hoy?</h2>
+    <%- include('../partials/guide-card', {
+      summary: 'Elige un servicio, paga la visita y sigue al técnico en tiempo real. Puedes usar créditos, regalar visitas y compartir el Modo Guardián.',
+      linkText: 'Abrir guía del cliente'
+    }) %>
 
-    <div id="servicesGrid" class="grid grid-cols-2 gap-3">
-      <% services.forEach(service => { %>
-        <a href="/cliente/servicio/<%= service.id %>" data-service-id="<%= service.id %>"
-          class="service-item group flex flex-col items-center gap-2 p-5 rounded-2xl bg-zilo-card border border-white/8 hover:border-blue-500/50 hover:-translate-y-0.5 transition-all duration-300">
-          <span class="text-3xl group-hover:scale-110 transition-transform"><%= service.icon %></span>
-          <span class="font-semibold text-sm text-center"><%= service.name %></span>
-          <span class="text-xs text-white/40">desde <%= formatCLP(service.visitPrice) %></span>
+    <% if (typeof passport !== 'undefined' && passport) { %>
+    <a href="/cliente/hogar" data-tour="passport" class="block zilo-card-premium rounded-2xl p-4 mb-5 border border-zilo-accent/15 hover:border-zilo-accent/30 transition">
+      <div class="flex items-center gap-4">
+        <div class="zilo-health-ring !w-16 !h-16 shrink-0">
+          <svg width="64" height="64" viewBox="0 0 64 64" class="!w-16 !h-16">
+            <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+            <circle cx="32" cy="32" r="28" fill="none" stroke="#C9A962" stroke-width="5" stroke-linecap="round"
+              stroke-dasharray="<%= 2 * Math.PI * 28 %>"
+              stroke-dashoffset="<%= 2 * Math.PI * 28 * (1 - passport.healthScore / 100) %>"/>
+          </svg>
+          <div class="score">
+            <strong class="text-lg text-zilo-accent font-semibold"><%= passport.healthScore %></strong>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="zilo-label mb-0.5">Pasaporte Hogar</p>
+          <strong class="text-sm block"><%= passport.level %></strong>
+          <span class="text-xs text-zilo-muted"><%= passport.entries.length %> registros de mantenimiento</span>
+        </div>
+        <svg class="w-5 h-5 text-zilo-muted shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </a>
+    <% } %>
+
+    <div data-tour="promos" class="flex gap-3 overflow-x-auto scrollbar-hide mb-5 -mx-1 px-1 pb-1">
+      <% promos.forEach(p => { %>
+        <a href="<%= p.id === 'refer' ? '/cliente/invitar' : p.id === 'gift' ? '/cliente/servicio/gasfiter?gift=1' : '/cliente' %>"
+          class="flex-shrink-0 w-56 p-4 rounded-2xl zilo-card-premium relative overflow-hidden hover:border-zilo-accent/25 transition">
+          <strong class="text-sm block mb-1"><%= p.title %></strong>
+          <p class="text-xs text-zilo-muted"><%= p.desc %></p>
+          <% if (p.code) { %><span class="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-mono text-zilo-accent border border-zilo-accent/20"><%= p.code %></span><% } %>
         </a>
       <% }); %>
     </div>
 
-    <% if (services.length === 0) { %>
-      <div class="text-center py-16 text-white/40">
-        <p class="text-4xl mb-3">🔒</p>
-        <p class="text-sm">No hay servicios disponibles en este momento.</p>
+    <% if (typeof referral !== 'undefined') { %>
+    <div data-tour="points" class="flex items-center justify-between p-4 mb-5 rounded-2xl zilo-card-premium">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-zilo-accent/10 flex items-center justify-center">
+          <svg class="w-4 h-4 text-zilo-accent" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div>
+          <strong class="text-sm"><%= referral.points %> Puntos</strong>
+          <span class="text-[10px] text-zilo-muted block">= <%= formatCLP(referral.points * 100) %> en checkout</span>
+        </div>
       </div>
+      <a href="/cliente/invitar" class="text-xs text-zilo-accent font-medium">Invitar →</a>
+    </div>
     <% } %>
+
+    <h2 class="zilo-label mb-3">Servicios</h2>
+
+    <div id="servicesGrid" data-tour="services" class="grid grid-cols-2 gap-3">
+      <% services.forEach(service => { %>
+        <a href="/cliente/servicio/<%= service.id %>" data-service-id="<%= service.id %>"
+          class="service-item group flex flex-col items-center gap-3 p-5 rounded-2xl zilo-card-premium hover:border-zilo-accent/25 hover:-translate-y-0.5 transition-all duration-300">
+          <%- include('../partials/service-icon', { icon: service.icon, color: service.color, size: 'lg' }) %>
+          <span class="font-medium text-sm text-center leading-tight"><%= service.name %></span>
+          <span class="text-xs text-zilo-muted">desde <%= formatCLP(service.visitPrice) %></span>
+        </a>
+      <% }); %>
+    </div>
 
     <% if (activeRequests.length > 0) { %>
     <section class="mt-8">
-      <h2 class="text-lg font-semibold mb-3">Solicitudes recientes</h2>
+      <h2 class="zilo-label mb-3">En curso</h2>
       <div class="space-y-2">
         <% activeRequests.forEach(req => { %>
-          <div class="flex justify-between items-center p-4 rounded-xl bg-zilo-card border border-white/8">
-            <div class="flex items-center gap-3">
-              <strong class="text-sm"><%= req.serviceName %></strong>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-yellow-500/15 text-yellow-400"><%= req.status %></span>
+          <a href="/cliente/servicio/<%= req.serviceId %>?tracking=<%= req.id %>" class="flex justify-between items-center p-4 rounded-xl zilo-card-premium hover:border-zilo-accent/20 transition">
+            <div>
+              <strong class="text-sm block"><%= req.serviceName %></strong>
+              <% if (req.isGift) { %><span class="text-[10px] text-zilo-accent">Regalo · <%= req.beneficiaryName %></span><% } %>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase bg-zilo-accent/10 text-zilo-accent inline-block mt-1"><%= req.status %></span>
             </div>
-            <span class="text-xs text-white/40"><%= new Date(req.createdAt).toLocaleDateString('es-CL') %></span>
-          </div>
+            <svg class="w-5 h-5 text-zilo-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
         <% }); %>
       </div>
     </section>
     <% } %>
   </main>
 
-  <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-zilo-bg/95 backdrop-blur-xl border-t border-white/8 flex safe-bottom z-50">
-    <a href="/cliente" class="flex-1 flex flex-col items-center gap-1 py-3 text-blue-400 text-[10px] font-medium">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-      Inicio
-    </a>
-    <a href="#" class="flex-1 flex flex-col items-center gap-1 py-3 text-white/30 text-[10px]">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-      Historial
-    </a>
-    <a href="#" class="flex-1 flex flex-col items-center gap-1 py-3 text-white/30 text-[10px]">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Perfil
-    </a>
-  </nav>
+  <%- include('../partials/nav-client', { navActive: 'inicio' }) %>
+
+  <% if (typeof company !== 'undefined') { %>
+  <a href="<%= company.whatsappLink('Hola Zilo, necesito ayuda con un servicio.') %>" target="_blank" rel="noopener"
+    class="fixed bottom-24 right-5 z-40 w-13 h-13 w-12 h-12 rounded-full zilo-card-premium border border-zilo-border flex items-center justify-center hover:border-zilo-accent/30 transition"
+    data-tour="concierge"
+    title="Concierge WhatsApp">
+    <svg class="w-5 h-5 text-zilo-accent" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  </a>
+  <% } %>
 </div>
+
+<%- include('../partials/guide-modal', {
+  role: 'client',
+  title: 'Cómo usar Zilo',
+  steps: [
+    { title: 'Solicitar un servicio', body: 'En el inicio elige el servicio que necesitas (gásfiter, eléctrico, cerrajero, etc.). Ingresa la dirección, confirma en el mapa y describe el problema.', tip: 'Puedes activar "Regalar servicio" si otra persona recibirá la visita en su domicilio.' },
+    { title: 'Pagar en el checkout', body: 'Revisa el total, aplica tu crédito Zilo, canjea puntos o usa el código BIENVENIDO en tu primer servicio. Luego confirma el pago con Mercado Pago.', tip: 'Si el total queda en $0, el servicio se confirma automáticamente.' },
+    { title: 'Seguimiento en vivo', body: 'Tras pagar verás el estado en tiempo real: búsqueda de técnico, asignación, en camino y llegada. Puedes llamar al proveedor desde la app.', tip: 'Comparte el enlace Modo Guardián con tu familia para que sigan el servicio sin crear cuenta.' },
+    { title: 'Pasaporte Hogar', body: 'Cada servicio completado suma a tu historial técnico del inmueble y mejora tu puntaje de salud del hogar.', tip: 'Revisa la pestaña Hogar en la barra inferior.' },
+    { title: 'Perfil y beneficios', body: 'Actualiza tu dirección en Perfil para agilizar futuras solicitudes. En Invitar ganas $5.000 por amigo y en Historial ves todos tus servicios.' }
+  ],
+  extras: [
+    { title: 'Soporte', body: 'Usa el botón de concierge WhatsApp si necesitas ayuda durante un servicio.' },
+    { title: 'Regalo + WhatsApp', body: 'Al pagar un regalo puedes avisar al beneficiario por WhatsApp con un mensaje y enlace de seguimiento listos.' }
+  ]
+}) %>
+
+<%- include('../partials/onboarding-tour') %>
 
 <script>
   const socket = io();
+  <% if (typeof referralBonus !== 'undefined' && referralBonus) { %>
+  document.addEventListener('DOMContentLoaded', () => {
+    ZiloNotify.show('¡$<%= referralBonus.toLocaleString('es-CL') %> de crédito por invitación!', 'success');
+  });
+  <% } %>
   socket.on('services_updated', ({ services }) => {
     const grid = document.getElementById('servicesGrid');
     const active = services.filter(s => s.enabled);
     if (active.length === 0) {
-      grid.innerHTML = '<div class="col-span-2 text-center py-16 text-white/40"><p class="text-4xl mb-3">🔒</p><p class="text-sm">No hay servicios disponibles.</p></div>';
-      ZiloNotify.show('Algunos servicios fueron desactivados', 'warning');
+      grid.innerHTML = '<div class="col-span-2 text-center py-16 text-zilo-muted"><p class="text-sm">No hay servicios disponibles.</p></div>';
       return;
     }
     const fmt = n => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
     grid.innerHTML = active.map(s => `
-      <a href="/cliente/servicio/${s.id}" class="group flex flex-col items-center gap-2 p-5 rounded-2xl bg-zilo-card border border-white/8 hover:border-blue-500/50 hover:-translate-y-0.5 transition-all duration-300 animate-fade-in">
-        <span class="text-3xl group-hover:scale-110 transition-transform">${s.icon}</span>
-        <span class="font-semibold text-sm text-center">${s.name}</span>
-        <span class="text-xs text-white/40">desde ${fmt(s.visitPrice)}</span>
+      <a href="/cliente/servicio/${s.id}" class="group flex flex-col items-center gap-3 p-5 rounded-2xl zilo-card-premium hover:border-zilo-accent/25 transition-all">
+        ${ZiloIcons.wrap(s.icon, s.color, 'w-14 h-14', 32)}
+        <span class="font-medium text-sm text-center">${s.name}</span>
+        <span class="text-xs text-zilo-muted">desde ${fmt(s.visitPrice)}</span>
       </a>
     `).join('');
-    ZiloNotify.show('Servicios actualizados', 'info');
   });
 </script>
 
-<%- include('../partials/footer') %>
+<%- include('../partials/footer', { pageScript: '/js/guide.js' }) %>

@@ -1,0 +1,45 @@
+<%- include('../partials/head') %>
+
+<article class="max-w-2xl mx-auto px-5 py-8 pb-16 legal-page">
+  <a href="/" class="text-sm text-blue-400 hover:underline mb-6 inline-block">← Volver a Zilo</a>
+  <h1 class="text-3xl font-extrabold mb-2">Política de Privacidad</h1>
+  <p class="text-white/40 text-sm mb-8">Última actualización: <%= lastUpdated %></p>
+
+  <div class="prose-legal space-y-6 text-sm text-white/70 leading-relaxed">
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">1. Responsable del tratamiento</h2>
+      <p><%= company.name %>, RUT <%= company.rut %>, con domicilio en <%= company.address %>. Contacto: <a href="mailto:<%= company.dpoEmail %>" class="text-blue-400"><%= company.dpoEmail %></a></p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">2. Datos que recopilamos</h2>
+      <ul class="list-disc list-inside space-y-1">
+        <li>Datos de identificación: nombre, correo, teléfono, dirección de servicio</li>
+        <li>Datos de geolocalización: coordenadas para asignar proveedores cercanos</li>
+        <li>Datos de pago: procesados por Mercado Pago (no almacenamos datos de tarjetas)</li>
+        <li>Datos de uso: logs de sesión, IP, eventos de seguridad</li>
+      </ul>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">3. Finalidad del tratamiento</h2>
+      <p>Conectar clientes con proveedores de servicios del hogar, procesar pagos, brindar soporte vía WhatsApp, cumplir obligaciones legales y mejorar la plataforma.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">4. Base legal (Ley 19.628 Chile)</h2>
+      <p>El tratamiento se basa en el consentimiento del titular, la ejecución del contrato de servicios y el interés legítimo en seguridad de la plataforma.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">5. Derechos del titular</h2>
+      <p>Puedes acceder, rectificar, cancelar u oponerte al tratamiento de tus datos escribiendo a <a href="mailto:<%= company.dpoEmail %>" class="text-blue-400"><%= company.dpoEmail %></a></p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">6. Seguridad</h2>
+      <p>Implementamos cifrado HTTPS, cookies seguras, headers de protección HTTP, rate limiting y auditoría de accesos.</p>
+    </section>
+    <section>
+      <h2 class="text-lg font-semibold text-white mb-2">7. Conservación</h2>
+      <p>Los datos se conservan mientras dure la relación comercial y el plazo legal aplicable (mínimo 5 años para registros contables).</p>
+    </section>
+  </div>
+</article>
+
+<%- include('../partials/footer') %>

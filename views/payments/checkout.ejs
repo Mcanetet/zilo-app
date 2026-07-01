@@ -1,0 +1,186 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col pb-8 zilo-page-enter" id="checkoutPage"
+  data-request-id="<%= request.id %>"
+  data-can-welcome="<%= summary.canUseWelcome %>">
+
+  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
+    <div class="flex items-center gap-3">
+      <a href="/cliente/servicio/<%= request.serviceId %>" class="w-10 h-10 rounded-full zilo-card-premium flex items-center justify-center">
+        <svg class="w-5 h-5 text-zilo-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+      <div>
+        <p class="zilo-label">Checkout</p>
+        <h1 class="font-semibold"><%= service.name %></h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 px-5 py-5 space-y-4">
+    <div class="zilo-card-premium rounded-2xl p-5">
+      <p class="text-xs text-zilo-muted mb-1"><%= request.address %></p>
+      <% if (request.isGift) { %>
+        <p class="text-xs text-zilo-accent mt-2">Regalo para <strong><%= request.beneficiaryName %></strong></p>
+      <% } %>
+    </div>
+
+    <!-- Descuentos -->
+    <section class="zilo-card-premium rounded-2xl p-5 space-y-4">
+      <h2 class="zilo-label">Beneficios Zilo</h2>
+
+      <% if (summary.canUseWelcome) { %>
+      <label class="flex items-center justify-between gap-3 cursor-pointer">
+        <div>
+          <strong class="text-sm block">Código BIENVENIDO</strong>
+          <span class="text-xs text-zilo-muted">20% en tu primer servicio</span>
+        </div>
+        <input type="checkbox" id="usePromo" class="w-5 h-5 rounded accent-[#C9A962]">
+      </label>
+      <% } %>
+
+      <% if (referral.creditsCLP > 0) { %>
+      <label class="flex items-center justify-between gap-3 cursor-pointer pt-3 border-t border-white/5">
+        <div>
+          <strong class="text-sm block">Usar crédito</strong>
+          <span class="text-xs text-zilo-success"><%= formatCLP(referral.creditsCLP) %> disponible</span>
+        </div>
+        <input type="checkbox" id="useCredits" class="w-5 h-5 rounded accent-[#C9A962]" checked>
+      </label>
+      <% } %>
+
+      <% if (referral.points > 0) { %>
+      <label class="flex items-center justify-between gap-3 cursor-pointer pt-3 border-t border-white/5">
+        <div>
+          <strong class="text-sm block">Canjear Puntos Zilo</strong>
+          <span class="text-xs text-zilo-muted"><%= referral.points %> pts = <%= formatCLP(referral.points * pointsValue) %></span>
+        </div>
+        <input type="checkbox" id="usePoints" class="w-5 h-5 rounded accent-[#C9A962]">
+      </label>
+      <% } %>
+
+      <div class="pt-3 border-t border-white/5">
+        <label class="zilo-label block mb-2">Código promocional</label>
+        <div class="flex gap-2">
+          <input type="text" id="promoCode" placeholder="BIENVENIDO" maxlength="12"
+            class="zilo-input flex-1 uppercase font-mono text-sm">
+          <button type="button" id="btnApplyPromo" class="zilo-btn-ghost shrink-0">Aplicar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Resumen -->
+    <section class="zilo-card-premium rounded-2xl p-5" id="summaryBox">
+      <h2 class="zilo-label mb-4">Resumen</h2>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between checkout-line pb-2">
+          <span class="text-zilo-muted">Visita técnica</span>
+          <span id="lineBase"><%= formatCLP(summary.basePrice) %></span>
+        </div>
+        <div class="flex justify-between checkout-line pb-2 hidden" id="linePromoRow">
+          <span class="text-zilo-muted">Promoción</span>
+          <span id="linePromo" class="checkout-discount">—</span>
+        </div>
+        <div class="flex justify-between checkout-line pb-2 hidden" id="lineCreditsRow">
+          <span class="text-zilo-muted">Crédito Zilo</span>
+          <span id="lineCredits" class="checkout-discount">—</span>
+        </div>
+        <div class="flex justify-between checkout-line pb-2 hidden" id="linePointsRow">
+          <span class="text-zilo-muted">Puntos canjeados</span>
+          <span id="linePoints" class="checkout-discount">—</span>
+        </div>
+        <div class="flex justify-between pt-2">
+          <strong>Total a pagar</strong>
+          <strong class="text-zilo-accent text-lg" id="lineTotal"><%= formatCLP(summary.amountDue) %></strong>
+        </div>
+      </div>
+    </section>
+
+    <% if (!mpConfigured) { %>
+    <p class="text-xs text-zilo-warning/90 p-3 rounded-xl border border-zilo-warning/20 bg-zilo-warning/5 text-center">
+      Modo demo — Mercado Pago no configurado
+    </p>
+    <% } %>
+
+    <button type="button" id="btnPay" class="zilo-btn-primary">
+      <span id="btnPayLabel">Pagar <%= formatCLP(summary.amountDue) %></span>
+    </button>
+    <a href="/cliente" class="block text-center text-sm text-zilo-muted hover:text-white/70 py-2">Cancelar</a>
+  </main>
+</div>
+
+<script>
+(function () {
+  const page = document.getElementById('checkoutPage');
+  const requestId = page.dataset.requestId;
+  const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
+
+  const usePromo = document.getElementById('usePromo');
+  const useCredits = document.getElementById('useCredits');
+  const usePoints = document.getElementById('usePoints');
+  const promoCode = document.getElementById('promoCode');
+  const btnPay = document.getElementById('btnPay');
+
+  async function recalc() {
+    const code = promoCode.value.trim() || (usePromo?.checked ? 'BIENVENIDO' : '');
+    const res = await fetch('/pagos/calcular', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId,
+        useCredits: useCredits?.checked,
+        usePoints: usePoints?.checked,
+        promoCode: code
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      ZiloNotify.show(data.error || 'Error al calcular', 'warning');
+      return;
+    }
+    const s = data.summary;
+    document.getElementById('lineBase').textContent = fmt(s.basePrice);
+    document.getElementById('lineTotal').textContent = fmt(s.amountDue);
+    document.getElementById('btnPayLabel').textContent = s.amountDue === 0 ? 'Confirmar servicio gratis' : `Pagar ${fmt(s.amountDue)}`;
+
+    const show = (id, val) => {
+      const row = document.getElementById(id + 'Row');
+      const el = document.getElementById(id);
+      if (val > 0) { row.classList.remove('hidden'); el.textContent = '−' + fmt(val); }
+      else row.classList.add('hidden');
+    };
+    show('linePromo', s.discountPromo);
+    show('lineCredits', s.discountCredits);
+    show('linePoints', s.discountPoints);
+  }
+
+  [usePromo, useCredits, usePoints].forEach(el => el?.addEventListener('change', recalc));
+  document.getElementById('btnApplyPromo')?.addEventListener('click', recalc);
+
+  btnPay.addEventListener('click', async () => {
+    btnPay.disabled = true;
+    const code = promoCode.value.trim() || (usePromo?.checked ? 'BIENVENIDO' : '');
+    const res = await fetch('/pagos/crear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId,
+        useCredits: useCredits?.checked,
+        usePoints: usePoints?.checked,
+        promoCode: code
+      })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      btnPay.disabled = false;
+      ZiloNotify.show(data.error || 'Error', 'error');
+      return;
+    }
+    if (data.free) window.location.href = data.redirect;
+    else window.location.href = data.checkoutUrl;
+  });
+
+  recalc();
+})();
+</script>
+
+<%- include('../partials/footer') %>

@@ -7,11 +7,17 @@ const { Server } = require('socket.io');
 const path = require('path');
 
 const store = require('./models/store');
+const company = require('./config/company');
+const { dispatchPendingToProvider } = require('./lib/dispatch');
+const { securityHeaders, rateLimitSimple } = require('./middleware/security');
+const backup = require('./lib/backup');
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/client');
 const providerRoutes = require('./routes/provider');
 const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/payments');
+const legalRoutes = require('./routes/legal');
+const trackingRoutes = require('./routes/tracking');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,20 +25,29 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('io', io);
 
+app.use(securityHeaders);
+app.use(rateLimitSimple(150));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(express.json({ limit: '8mb' }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'zilo-dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
+  name: 'zilo.sid',
   cookie: {
     secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -40,15 +55,23 @@ app.use(session({
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.currentPath = req.path;
+  res.locals.company = company;
   next();
 });
 
 app.get('/', (req, res) => {
+  if (req.query.ref) {
+    req.session.pendingReferral = String(req.query.ref).trim().toUpperCase();
+  }
   if (req.session.user) {
     const dashboards = { client: '/cliente', provider: '/proveedor', admin: '/admin' };
     return res.redirect(dashboards[req.session.user.role] || '/login');
   }
-  res.render('landing', { title: 'Zilo — Servicios premium a domicilio' });
+  res.render('landing', {
+    title: 'Zilo — Servicios premium a domicilio',
+    services: store.getActiveServices(),
+    referralBanner: req.session.pendingReferral || null
+  });
 });
 
 app.use('/', authRoutes);
@@ -56,15 +79,29 @@ app.use('/cliente', clientRoutes);
 app.use('/proveedor', providerRoutes);
 app.use('/admin', adminRoutes);
 app.use('/pagos', paymentRoutes);
+app.use('/legal', legalRoutes);
+app.use('/seguimiento', trackingRoutes);
 
 io.on('connection', (socket) => {
   socket.on('register_provider', (providerId) => {
     store.providerSockets.set(providerId, socket.id);
     socket.providerId = providerId;
+    dispatchPendingToProvider(io, providerId);
   });
 
   socket.on('register_client', (requestId) => {
     socket.join(`request_${requestId}`);
+    socket.requestId = requestId;
+  });
+
+  socket.on('provider_location_broadcast', ({ requestId, lat, lng }) => {
+    if (!socket.providerId || !requestId) return;
+    store.updateProviderLocation(socket.providerId, lat, lng);
+    io.to(`request_${requestId}`).emit(`provider_location_${requestId}`, {
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      updatedAt: new Date().toISOString()
+    });
   });
 
   socket.on('disconnect', () => {
@@ -84,4 +121,11 @@ app.use((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚀 Zilo corriendo en puerto ${PORT}`);
+  backup.startBackupScheduler(store, (event, detail) => {
+    store.logSecurityEvent(event, detail, null);
+  });
+  const cfg = backup.loadConfig();
+  if (cfg.enabled && cfg.autoBackup) {
+    console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')} · retención ${cfg.dailyRetentionDays}d / ${cfg.weeklyRetentionWeeks}sem / ${cfg.monthlyRetentionMonths}mes`);
+  }
 });

@@ -1,25 +1,58 @@
 <%- include('../partials/head', { useMap: true }) %>
 
-<div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6 text-center">
-  <div class="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-6 animate-bounce-in">
-    <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+<div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6 text-center" id="successPage">
+  <div class="w-20 h-20 rounded-full bg-zilo-success/15 flex items-center justify-center mb-6 animate-bounce-in border border-zilo-success/30">
+    <svg class="w-10 h-10 text-zilo-success" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
   </div>
-  <h1 class="text-2xl font-bold mb-2">¡Pago confirmado!</h1>
-  <p class="text-white/50 mb-2">Tu visita técnica está siendo procesada</p>
+  <h1 class="zilo-display text-3xl mb-2">Pago confirmado</h1>
+  <p class="text-zilo-muted text-sm mb-1">Tu visita técnica está en proceso</p>
   <% if (request) { %>
-    <p class="text-emerald-400 font-bold text-lg mb-6"><%= formatCLP(request.estimatedVisit) %></p>
+    <p class="text-zilo-accent font-semibold text-lg mb-6"><%= formatCLP(request.amountDue ?? request.estimatedVisit) %></p>
+
+    <% if (request.discountCredits || request.discountPoints || request.discountPromo) { %>
+    <div class="w-full zilo-card-premium rounded-2xl p-4 mb-4 text-left text-xs space-y-1">
+      <% if (request.discountPromo) { %><p class="text-zilo-success">Promoción: −<%= formatCLP(request.discountPromo) %></p><% } %>
+      <% if (request.discountCredits) { %><p class="text-zilo-success">Crédito aplicado: −<%= formatCLP(request.discountCredits) %></p><% } %>
+      <% if (request.discountPoints) { %><p class="text-zilo-success">Puntos canjeados: −<%= formatCLP(request.discountPoints) %></p><% } %>
+      <p class="text-zilo-muted pt-1">+50 Puntos Zilo por este servicio</p>
+    </div>
+    <% } %>
+
+    <!-- Modo Guardián — feature única -->
+    <div class="w-full zilo-card-premium rounded-2xl p-5 mb-4 text-left">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zilo-accent/15 flex items-center justify-center shrink-0 guardian-pulse">
+          <svg class="w-5 h-5 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="zilo-label mb-1">Modo Guardián</p>
+          <p class="text-sm text-zilo-muted mb-3">Comparte este enlace con tu familia para que sigan el servicio en vivo, sin necesidad de cuenta.</p>
+          <div class="flex gap-2">
+            <input type="text" readonly value="<%= guardianUrl %>" id="guardianUrl" class="zilo-input text-xs flex-1 truncate">
+            <button type="button" id="btnCopyGuardian" class="zilo-btn-ghost shrink-0 text-xs">Copiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if (request.isGift && beneficiaryWhatsapp) { %>
+    <a href="<%= beneficiaryWhatsapp %>" target="_blank" rel="noopener"
+      class="w-full zilo-btn-primary mb-3 !bg-[#25D366] !text-white !shadow-none border border-[#25D366]/50">
+      Avisar a <%= request.beneficiaryName %> por WhatsApp
+    </a>
+    <% } %>
 
     <% if (request.coords) { %>
-    <div id="paymentMap" class="w-full h-48 rounded-2xl overflow-hidden border border-white/10 mb-6"
+    <div id="paymentMap" class="w-full h-44 rounded-2xl overflow-hidden border border-zilo-border mb-4"
       data-lat="<%= request.coords.lat %>" data-lng="<%= request.coords.lng %>" data-label="<%= request.address %>"></div>
     <% } %>
 
-    <a href="/cliente/servicio/<%= request.serviceId %>?tracking=<%= request.id %>"
-      class="w-full py-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 font-semibold shadow-xl shadow-blue-600/30">
+    <a href="/cliente/servicio/<%= request.serviceId %>?tracking=<%= request.id %>" class="zilo-btn-primary mb-3">
       Ver estado del servicio
     </a>
+    <a href="/cliente/hogar" class="text-sm text-zilo-accent hover:underline">Ver Pasaporte Hogar</a>
   <% } else { %>
-    <a href="/cliente" class="w-full py-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 font-semibold">Volver al inicio</a>
+    <a href="/cliente" class="zilo-btn-primary">Volver al inicio</a>
   <% } %>
 </div>
 
@@ -27,7 +60,13 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('paymentMap');
-    if (el) ZiloMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
+    if (el && typeof ZiloMap !== 'undefined') {
+      ZiloMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
+    }
+    document.getElementById('btnCopyGuardian')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('guardianUrl').value)
+        .then(() => ZiloNotify.show('Enlace Modo Guardián copiado', 'success'));
+    });
   });
 </script>
 

@@ -12,6 +12,9 @@
   const latInput = document.getElementById('lat');
   const lngInput = document.getElementById('lng');
   const mapStatus = document.getElementById('mapStatus');
+  const giftToggle = document.getElementById('giftToggle');
+  const giftFields = document.getElementById('giftFields');
+  const addressLabel = document.getElementById('addressLabel');
 
   let currentRequestId = trackingId || null;
   let geocodeTimer = null;
@@ -26,6 +29,12 @@
       });
     }
 
+    if (new URLSearchParams(window.location.search).get('gift') === '1' && giftToggle) {
+      giftToggle.checked = true;
+      giftFields.classList.remove('hidden');
+      if (addressLabel) addressLabel.textContent = 'Dirección del beneficiario';
+    }
+
     if (trackingId) {
       requestForm.classList.add('hidden');
       loaderOverlay.classList.remove('hidden');
@@ -37,6 +46,18 @@
     clearTimeout(geocodeTimer);
     geocodeTimer = setTimeout(geocodeAddress, 800);
   });
+
+  if (giftToggle) {
+    giftToggle.addEventListener('change', () => {
+      const isGift = giftToggle.checked;
+      giftFields.classList.toggle('hidden', !isGift);
+      if (addressLabel) {
+        addressLabel.textContent = isGift
+          ? 'Dirección del beneficiario'
+          : 'Dirección del servicio';
+      }
+    });
+  }
 
   async function geocodeAddress() {
     const address = addressInput.value.trim();
@@ -69,10 +90,10 @@
 
   function setStepActive(stepId) {
     document.querySelectorAll('.step-item').forEach(el => {
-      el.className = 'step-item px-4 py-2.5 rounded-xl bg-zilo-card border border-white/8 text-sm text-white/40';
+      el.className = 'step-item px-4 py-2.5 rounded-xl zilo-card-premium text-sm text-zilo-muted flex items-center gap-2';
     });
     const el = document.getElementById(stepId);
-    if (el) el.className = 'step-item px-4 py-2.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-sm text-blue-300';
+    if (el) el.className = 'step-item is-active px-4 py-2.5 rounded-xl text-sm flex items-center gap-2';
   }
 
   function animateLoader() {
@@ -87,7 +108,38 @@
     }, 1800);
   }
 
+  function advanceTripStep(step) {
+    document.querySelectorAll('.trip-step').forEach(el => {
+      el.classList.remove('active');
+      if (['paid','assigned'].includes(el.dataset.step) || el.dataset.step === step) el.classList.add('done');
+    });
+    const current = document.querySelector(`.trip-step[data-step="${step}"]`);
+    if (current) { current.classList.add('active'); current.classList.remove('done'); }
+    if (step === 'enroute') document.getElementById('tripEta').textContent = 'ETA ~12 min';
+    if (step === 'arrived') document.getElementById('tripEta').textContent = '¡Ha llegado!';
+  }
+
+  function renderVerificationBadges(provider) {
+    const container = document.getElementById('providerVerification');
+    if (!container) return;
+    const v = provider.verification;
+    if (!v?.badges?.length) {
+      container.innerHTML = '<span class="zilo-badge !text-[10px]">Verificación en proceso</span>';
+      return;
+    }
+    container.innerHTML = v.badges.map(b =>
+      `<span class="zilo-badge zilo-badge-success !text-[10px]">${b.label}</span>`
+    ).join('');
+    const statusEl = document.getElementById('providerVerifiedStatus');
+    if (statusEl && v.faceVerified) {
+      statusEl.textContent = v.faceScore ? `Identidad verificada · ${v.faceScore}%` : 'Identidad verificada por Zilo';
+      statusEl.classList.remove('hidden');
+    }
+  }
+
   function showProvider(provider, request) {
+    if (request?.id) currentRequestId = request.id;
+
     document.getElementById('providerAvatar').textContent = provider.avatar;
     document.getElementById('providerName').textContent = provider.name;
     document.getElementById('providerRating').textContent = provider.rating;
@@ -95,6 +147,21 @@
     document.getElementById('providerStars').textContent = '★'.repeat(Math.round(provider.rating));
     document.getElementById('providerBio').textContent = provider.bio;
     document.getElementById('providerPhone').href = `tel:${provider.phone}`;
+    document.getElementById('providerPhone').textContent = `Llamar · ${provider.phone}`;
+    const emailEl = document.getElementById('providerEmail');
+    if (emailEl && provider.email) {
+      emailEl.href = `mailto:${provider.email}`;
+      emailEl.textContent = `Correo · ${provider.email}`;
+      emailEl.classList.remove('hidden');
+    }
+    renderVerificationBadges(provider);
+    document.getElementById('tripProviderLabel').textContent = `${provider.name} · ${provider.rating}★`;
+    const waNum = page.dataset.whatsapp || '56912345678';
+    const waMsg = encodeURIComponent(`Hola Zilo, tengo un servicio en curso con ${provider.name}. Necesito ayuda.`);
+    document.getElementById('whatsappSupport').href = `https://wa.me/${waNum.replace(/\D/g, '')}?text=${waMsg}`;
+
+    setTimeout(() => advanceTripStep('enroute'), 8000);
+    setTimeout(() => advanceTripStep('arrived'), 20000);
 
     document.getElementById('reviewsList').innerHTML = provider.reviews.map(r => `
       <div class="p-3 rounded-xl bg-zilo-bg">
@@ -109,7 +176,21 @@
     if (request?.coords) {
       const tMap = document.getElementById('trackingMap');
       tMap.classList.remove('hidden');
-      ZiloMap.init(tMap, { lat: request.coords.lat, lng: request.coords.lng, label: request.address, zoom: 15 });
+      page.dataset.destLat = request.coords.lat;
+      page.dataset.destLng = request.coords.lng;
+      const prov = provider.location;
+      ZiloMap.initTracking(tMap, {
+        destLat: request.coords.lat,
+        destLng: request.coords.lng,
+        destLabel: request.address,
+        providerLat: prov?.lat,
+        providerLng: prov?.lng
+      });
+      const locStatus = document.getElementById('providerLocationStatus');
+      if (locStatus) {
+        locStatus.classList.toggle('hidden', !prov);
+        if (prov) locStatus.textContent = 'Ubicación del técnico en tiempo real';
+      }
     }
 
     loaderOverlay.classList.add('hidden');
@@ -144,6 +225,19 @@
         showProvider(payload.provider, payload.request);
       }
     });
+    socket.on(`provider_location_${requestId}`, (payload) => {
+      const destLat = parseFloat(page.dataset.destLat);
+      const destLng = parseFloat(page.dataset.destLng);
+      if (!isNaN(destLat) && typeof ZiloMap !== 'undefined') {
+        ZiloMap.updateProviderLocation('trackingMap', payload.lat, payload.lng, destLat, destLng);
+      }
+      const locStatus = document.getElementById('providerLocationStatus');
+      if (locStatus) {
+        locStatus.textContent = 'Ubicación del técnico en tiempo real';
+        locStatus.classList.remove('hidden');
+      }
+      advanceTripStep('enroute');
+    });
     pollForProvider(requestId);
   }
 
@@ -153,6 +247,22 @@
       addressInput.focus();
       ZiloNotify.show('Ingresa una dirección', 'warning');
       return;
+    }
+
+    const isGift = giftToggle?.checked;
+    let gift = null;
+    if (isGift) {
+      const name = document.getElementById('giftName')?.value.trim();
+      const phone = document.getElementById('giftPhone')?.value.trim();
+      if (!name) {
+        ZiloNotify.show('Ingresa el nombre del beneficiario', 'warning');
+        return;
+      }
+      gift = {
+        name,
+        phone: phone || '',
+        message: document.getElementById('giftMessage')?.value.trim() || ''
+      };
     }
 
     btnRequest.disabled = true;
@@ -169,25 +279,18 @@
           address,
           notes: document.getElementById('notes').value,
           lat: latInput.value,
-          lng: lngInput.value
+          lng: lngInput.value,
+          gift
         })
       });
 
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Error');
 
-      const payRes = await fetch('/pagos/crear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: data.request.id })
-      });
-      const payData = await payRes.json();
-      if (!payData.success) throw new Error(payData.error || 'Error de pago');
-
-      window.location.href = payData.checkoutUrl;
+      window.location.href = `/pagos/checkout?ref=${data.request.id}`;
     } catch (err) {
       btnRequest.disabled = false;
-      btnRequest.innerHTML = '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Pagar y Solicitar';
+      btnRequest.textContent = 'Continuar al pago';
       ZiloNotify.show(err.message || 'Error al procesar', 'error');
     }
   });

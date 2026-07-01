@@ -1,7 +1,9 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/notify.js"></script>
+  <script src="/js/icons.js"></script>
   <% if (typeof pageScript !== 'undefined') { %>
     <script src="<%= pageScript %>"></script>
   <% } %>
+  <%- include('legal-footer') %>
 </body>
 </html>

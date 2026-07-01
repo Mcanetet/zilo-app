@@ -1,10 +1,11 @@
 <%- include('partials/head') %>
 
-<div class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-  <div class="text-7xl font-extrabold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent mb-4"><%= code %></div>
-  <h1 class="text-2xl font-bold mb-2"><%= title %></h1>
-  <p class="text-white/50 mb-8"><%= message %></p>
-  <a href="/" class="px-8 py-3 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 font-semibold">Volver al inicio</a>
+<div class="min-h-screen flex flex-col items-center justify-center p-6 text-center zilo-page-enter">
+  <%- include('partials/logo', { className: 'w-16 h-16 mx-auto mb-6' }) %>
+  <p class="zilo-display text-6xl text-zilo-accent/40 mb-2"><%= code %></p>
+  <h1 class="zilo-display text-2xl mb-3"><%= title %></h1>
+  <p class="text-zilo-muted max-w-sm mb-8 leading-relaxed"><%= message %></p>
+  <a href="/" class="zilo-btn-primary !w-auto !px-10">Volver al inicio</a>
 </div>
 
 <%- include('partials/footer') %>

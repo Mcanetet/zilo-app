@@ -1,0 +1,180 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col pb-8 zilo-page-enter" id="providerProfilePage"
+  data-provider-id="<%= provider.id %>">
+
+  <%- include('../partials/back-header', { backUrl: '/proveedor', label: 'Perfil profesional', title: 'Mi perfil' }) %>
+
+  <main class="flex-1 px-5 py-5 space-y-5">
+    <div class="text-center py-4">
+      <div class="w-20 h-20 mx-auto rounded-2xl zilo-card-premium flex items-center justify-center text-xl font-semibold text-zilo-accent border border-zilo-accent/25 mb-3" id="avatarDisplay"><%= provider.avatar %></div>
+      <h2 class="zilo-display text-2xl" id="nameDisplay"><%= provider.name %></h2>
+      <span id="verificationStatusBadge" class="zilo-badge mt-2 <%= provider.verification?.status === 'verified' ? 'zilo-badge-success' : '' %>">
+        <%= provider.verification?.status === 'verified' ? 'Verificado' : provider.verification?.status === 'pending' ? 'En revisión' : 'Incompleto' %>
+      </span>
+    </div>
+
+    <!-- Datos de contacto -->
+    <form id="providerProfileForm" class="space-y-4 p-5 rounded-2xl zilo-card-premium">
+      <p class="zilo-label">Datos de contacto</p>
+      <div>
+        <label class="zilo-label block mb-1.5">Nombre profesional</label>
+        <input type="text" name="name" value="<%= provider.name %>" required class="zilo-input">
+      </div>
+      <div>
+        <label class="zilo-label block mb-1.5">Correo electrónico</label>
+        <input type="email" name="email" value="<%= provider.email %>" required class="zilo-input">
+      </div>
+      <div>
+        <label class="zilo-label block mb-1.5">Teléfono</label>
+        <input type="tel" name="phone" value="<%= provider.phone %>" required class="zilo-input">
+      </div>
+      <div>
+        <label class="zilo-label block mb-1.5">Biografía</label>
+        <textarea name="bio" rows="2" class="zilo-input resize-none"><%= provider.bio %></textarea>
+      </div>
+      <button type="submit" class="zilo-btn-primary !py-3">Guardar datos</button>
+    </form>
+
+    <!-- Verificación -->
+    <section id="verificacion" class="p-5 rounded-2xl zilo-card-premium space-y-4">
+      <div>
+        <p class="zilo-label mb-1">Verificación Zilo</p>
+        <p class="text-xs text-zilo-muted">Obligatorio para recibir solicitudes. Los clientes verán tus sellos de confianza.</p>
+      </div>
+
+      <ul class="text-xs space-y-1.5 text-zilo-muted">
+        <li class="<%= provider.phone ? 'text-zilo-success' : '' %>">✓ Teléfono de contacto</li>
+        <li class="<%= provider.email ? 'text-zilo-success' : '' %>">✓ Correo electrónico</li>
+        <li id="check-idFront" class="<%= provider.verification?.idCardFront ? 'text-zilo-success' : '' %>">✓ Carnet de identidad (frente)</li>
+        <li id="check-idBack" class="<%= provider.verification?.idCardBack ? 'text-zilo-success' : '' %>">✓ Carnet de identidad (reverso)</li>
+        <li id="check-face" class="<%= provider.verification?.faceVerified ? 'text-zilo-success' : '' %>">✓ Verificación facial</li>
+        <li id="check-location" class="<%= provider.locationShare?.consent ? 'text-zilo-success' : '' %>">✓ Permiso de ubicación en tiempo real</li>
+      </ul>
+
+      <div class="zilo-divider"></div>
+
+      <div>
+        <p class="text-sm font-medium mb-2">Cédula de identidad</p>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="zilo-btn-ghost !text-xs !py-3 cursor-pointer text-center">
+            Frente
+            <input type="file" id="input-idFront" accept="image/*,.pdf" class="hidden">
+          </label>
+          <label class="zilo-btn-ghost !text-xs !py-3 cursor-pointer text-center">
+            Reverso
+            <input type="file" id="input-idBack" accept="image/*,.pdf" class="hidden">
+          </label>
+        </div>
+        <div id="preview-idFront" class="mt-1"></div>
+        <div id="preview-idBack" class="mt-1"></div>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium mb-2">Certificados de estudios (opcional)</p>
+        <input type="text" id="certLabel" placeholder="Ej: SEC, técnico profesional..." class="zilo-input mb-2 text-sm">
+        <label class="zilo-btn-ghost !text-xs !py-3 cursor-pointer block text-center">
+          Subir certificado
+          <input type="file" id="input-certificate" accept="image/*,.pdf" class="hidden">
+        </label>
+        <% if (provider.verification?.certificates?.length) { %>
+          <ul class="mt-2 text-xs text-zilo-muted space-y-1">
+            <% provider.verification.certificates.forEach(c => { %>
+              <li><a href="<%= c.url %>" target="_blank" class="text-zilo-accent underline"><%= c.label %></a></li>
+            <% }); %>
+          </ul>
+        <% } %>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium mb-2">Identificación facial</p>
+        <p class="text-xs text-zilo-muted mb-2">Confirma que eres tú con la cámara del dispositivo.</p>
+        <button type="button" id="btnOpenFace" class="zilo-btn-primary !py-3 !text-sm w-full">
+          <%= provider.verification?.faceVerified ? 'Repetir verificación facial' : 'Iniciar verificación facial' %>
+        </button>
+        <label class="zilo-btn-ghost !text-xs !py-3 cursor-pointer block text-center mt-2">
+          O subir foto de rostro
+          <input type="file" id="input-selfieFile" accept="image/*" capture="user" class="hidden">
+        </label>
+        <div id="preview-selfie" class="mt-2">
+          <% if (provider.verification?.selfie && provider.verification.selfie !== 'demo') { %>
+            <img src="<%= provider.verification.selfie %>" alt="" class="rounded-xl max-h-32 border border-zilo-border">
+          <% } %>
+        </div>
+        <p id="faceScore" class="text-xs text-zilo-accent mt-1"><%= provider.verification?.faceScore ? `Puntaje: ${provider.verification.faceScore}%` : '' %></p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium mb-2">Ubicación en tiempo real</p>
+        <p id="locationStatus" class="text-xs text-zilo-muted mb-3">
+          <%= provider.locationShare?.consent ? 'Ubicación activa — los clientes verán tu recorrido' : 'Requerido para que los clientes sepan dónde vas' %>
+        </p>
+        <div class="flex gap-2">
+          <button type="button" id="btnLocationConsent" class="zilo-btn-primary flex-1 !py-3 !text-sm">Activar ubicación</button>
+          <% if (provider.locationShare?.consent) { %>
+            <button type="button" id="btnRevokeLocation" class="zilo-btn-ghost flex-1 !text-xs">Desactivar</button>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (typeof verificationCheck !== 'undefined' && verificationCheck && !verificationCheck.ok) { %>
+        <div class="p-3 rounded-xl bg-zilo-warning/10 border border-zilo-warning/25 text-xs text-zilo-muted">
+          <strong class="text-zilo-warning block mb-1">Falta completar:</strong>
+          <%= verificationCheck.missing.join(' · ') %>
+        </div>
+      <% } %>
+    </section>
+
+    <div class="p-3 rounded-xl zilo-card-premium">
+      <span class="zilo-label block mb-2">Especialidades</span>
+      <div class="flex flex-wrap gap-2">
+        <% provider.specialties.forEach(s => {
+          const svc = services.find(x => x.id === s);
+        %>
+          <span class="zilo-tag"><%= svc ? svc.name : s %></span>
+        <% }); %>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal cámara facial -->
+<div id="faceModal" class="hidden fixed inset-0 z-[500]" role="dialog">
+  <div id="faceModalBackdrop" class="absolute inset-0 bg-black/90"></div>
+  <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto zilo-card-premium rounded-2xl p-5">
+    <p class="zilo-label mb-2">Verificación facial</p>
+    <p class="text-xs text-zilo-muted mb-4">Centra tu rostro, buena iluminación, sin lentes de sol.</p>
+    <p id="faceCameraStatus" class="text-xs text-zilo-accent mb-2 min-h-[1rem]"></p>
+    <div class="rounded-xl overflow-hidden bg-black mb-4 aspect-[4/3] relative">
+      <video id="faceVideo" class="w-full h-full object-cover mirror" autoplay playsinline muted></video>
+      <canvas id="faceCanvas" class="hidden"></canvas>
+      <div class="absolute inset-8 border-2 border-zilo-accent/50 rounded-full pointer-events-none"></div>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" id="faceModalClose" class="zilo-btn-ghost flex-1">Cancelar</button>
+      <button type="button" id="btnCaptureFace" class="zilo-btn-primary flex-1 !py-3">Capturar y verificar</button>
+    </div>
+  </div>
+</div>
+
+<style>.mirror { transform: scaleX(-1); }</style>
+
+<script>
+  document.getElementById('providerProfileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const res = await fetch('/proveedor/perfil', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(fd))
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('nameDisplay').textContent = data.user.name;
+      document.getElementById('avatarDisplay').textContent = data.user.avatar;
+      ZiloNotify.show('Datos actualizados', 'success');
+    } else ZiloNotify.show('Error al guardar', 'error');
+  });
+</script>
+
+<%- include('../partials/footer', { pageScript: '/js/provider-verify.js' }) %>

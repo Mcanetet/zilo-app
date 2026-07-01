@@ -1,27 +1,32 @@
 <%- include('../partials/head') %>
 
 <div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6">
-  <div class="w-full bg-zilo-card border border-white/8 rounded-3xl p-8 text-center">
-    <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#009EE3]/20 flex items-center justify-center">
-      <svg class="w-10 h-10" viewBox="0 0 24 24" fill="#009EE3"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-    </div>
-    <h1 class="text-xl font-bold mb-1">Pagar visita técnica</h1>
-    <p class="text-white/50 text-sm mb-6"><%= service.name %> · <%= request.address %></p>
+  <div class="w-full zilo-card-premium rounded-3xl p-8 text-center">
+    <p class="zilo-label mb-4">Confirmar pago</p>
+    <h1 class="zilo-display text-2xl mb-1"><%= service.name %></h1>
+    <p class="text-zilo-muted text-sm mb-6"><%= request.address %></p>
 
-    <div class="p-4 rounded-2xl bg-zilo-bg border border-white/8 mb-6">
-      <span class="text-xs text-white/40 uppercase">Total a pagar</span>
-      <p class="text-3xl font-extrabold text-emerald-400 mt-1"><%= formatCLP(request.estimatedVisit) %></p>
+    <div class="p-4 rounded-2xl bg-zilo-bg border border-zilo-border mb-4 text-left text-sm space-y-2">
+      <% if (request.basePrice && request.basePrice !== request.amountDue) { %>
+        <div class="flex justify-between text-zilo-muted"><span>Subtotal</span><span><%= formatCLP(request.basePrice) %></span></div>
+        <% if (request.discountPromo) { %><div class="flex justify-between text-zilo-success"><span>Promoción</span><span>−<%= formatCLP(request.discountPromo) %></span></div><% } %>
+        <% if (request.discountCredits) { %><div class="flex justify-between text-zilo-success"><span>Crédito</span><span>−<%= formatCLP(request.discountCredits) %></span></div><% } %>
+        <% if (request.discountPoints) { %><div class="flex justify-between text-zilo-success"><span>Puntos</span><span>−<%= formatCLP(request.discountPoints) %></span></div><% } %>
+      <% } %>
+      <div class="flex justify-between pt-2 border-t border-white/5">
+        <strong>Total</strong>
+        <strong class="text-zilo-accent text-xl"><%= formatCLP(request.amountDue ?? request.estimatedVisit) %></strong>
+      </div>
     </div>
 
-    <p class="text-xs text-yellow-400/80 mb-6 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-      Modo demo: Mercado Pago no configurado. Simula el pago para continuar.
+    <p class="text-xs text-zilo-warning/90 mb-6 p-3 rounded-xl border border-zilo-warning/20 bg-zilo-warning/5">
+      Modo demo — simula el pago para continuar
     </p>
 
-    <button id="btnPayDemo" data-request-id="<%= request.id %>"
-      class="w-full py-4 rounded-full bg-[#009EE3] font-bold text-lg shadow-xl shadow-[#009EE3]/30 hover:-translate-y-0.5 transition-all mb-3">
-      Pagar con Mercado Pago (Demo)
+    <button id="btnPayDemo" data-request-id="<%= request.id %>" class="zilo-btn-primary mb-3">
+      Confirmar pago
     </button>
-    <a href="/cliente" class="text-sm text-white/40 hover:text-white/60">Cancelar</a>
+    <a href="/pagos/checkout?ref=<%= request.id %>" class="text-sm text-zilo-muted hover:text-white/70">Volver al checkout</a>
   </div>
 </div>
 
@@ -37,7 +42,7 @@
     });
     const data = await res.json();
     if (data.success) window.location.href = data.redirect;
-    else { btn.disabled = false; btn.textContent = 'Pagar con Mercado Pago (Demo)'; }
+    else { btn.disabled = false; btn.textContent = 'Confirmar pago'; }
   });
 </script>
 

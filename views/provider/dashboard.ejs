@@ -1,26 +1,48 @@
 <%- include('../partials/head', { useMap: true }) %>
 
-<div class="max-w-lg mx-auto min-h-screen flex flex-col" id="providerDashboard" data-provider-id="<%= provider.id %>">
-  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-white/8 px-5 py-4">
-    <div class="flex items-center justify-between">
-      <div>
-        <span class="text-xs text-white/40">Panel técnico</span>
-        <h1 class="text-xl font-bold"><%= provider.name %></h1>
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="providerDashboard" data-provider-id="<%= provider.id %>">
+  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
+    <div class="flex items-center justify-between" data-tour="welcome">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl zilo-card-premium flex items-center justify-center text-sm font-semibold text-zilo-accent border border-zilo-accent/25">
+          <%= provider.avatar %>
+        </div>
+        <div>
+          <p class="zilo-label !text-[9px]">Técnico certificado</p>
+          <h1 class="text-base font-semibold"><%= provider.name %></h1>
+        </div>
       </div>
-      <a href="/logout" class="w-10 h-10 rounded-full bg-zilo-card border border-white/8 flex items-center justify-center text-white/50 hover:text-white transition">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-      </a>
+      <div class="flex items-center gap-2">
+        <a href="/proveedor/perfil" class="zilo-icon-btn" title="Mi perfil" data-tour="profile">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </a>
+        <a href="/logout" class="zilo-icon-btn" title="Cerrar sesión">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </a>
+      </div>
     </div>
   </header>
 
   <main class="flex-1 px-5 py-5 pb-8">
-    <!-- Toggle En línea -->
-    <section class="flex items-center justify-between p-5 rounded-2xl bg-zilo-card border border-white/8 mb-4">
+    <% if (typeof verificationCheck !== 'undefined' && verificationCheck && !verificationCheck.ok) { %>
+    <a href="/proveedor/perfil#verificacion" data-tour="verification" class="block mb-4 p-4 rounded-2xl border border-zilo-warning/30 bg-zilo-warning/10 zilo-page-enter">
+      <p class="text-sm font-semibold text-zilo-warning mb-1">Verificación pendiente</p>
+      <p class="text-xs text-zilo-muted">Completa carnet, verificación facial y ubicación para recibir solicitudes.</p>
+      <p class="text-[10px] text-zilo-muted mt-2">Falta: <%= verificationCheck.missing.join(' · ') %></p>
+    </a>
+    <% } %>
+
+    <%- include('../partials/guide-card', {
+      summary: 'Activa el modo en línea para recibir solicitudes. Tienes 15 segundos para aceptar cada trabajo y debes actualizar el estado hasta completarlo.',
+      linkText: 'Abrir guía del técnico'
+    }) %>
+
+    <section data-tour="online" class="flex items-center justify-between p-5 rounded-2xl zilo-card-premium mb-4 zilo-page-enter-delay-1">
       <div class="flex items-center gap-3">
-        <div id="statusDot" class="w-3 h-3 rounded-full <%= provider.online ? 'bg-emerald-400 shadow-lg shadow-emerald-400/50 animate-pulse' : 'bg-white/30' %>"></div>
+        <div id="statusDot" class="w-3 h-3 rounded-full <%= provider.online ? 'bg-zilo-success shadow-lg shadow-zilo-success/40 animate-pulse' : 'bg-zilo-muted/40' %>"></div>
         <div>
-          <h2 id="statusText" class="font-semibold"><%= provider.online ? 'Estás en línea' : 'Estás fuera de línea' %></h2>
-          <p id="statusSub" class="text-xs text-white/40"><%= provider.online ? 'Recibirás solicitudes de clientes' : 'Actívate para recibir trabajos' %></p>
+          <h2 id="statusText" class="font-semibold text-sm"><%= provider.online ? 'En línea' : 'Fuera de línea' %></h2>
+          <p id="statusSub" class="text-xs text-zilo-muted"><%= provider.online ? 'Recibiendo solicitudes' : 'Actívate para trabajar' %></p>
         </div>
       </div>
       <label class="toggle-ios">
@@ -29,62 +51,55 @@
       </label>
     </section>
 
-    <div class="grid grid-cols-3 gap-2 mb-5">
-      <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center">
-        <strong class="block text-lg font-bold"><%= provider.rating %>★</strong>
-        <span class="text-[10px] text-white/40">Rating</span>
-      </div>
-      <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center">
-        <strong class="block text-lg font-bold"><%= provider.reviewsCount %></strong>
-        <span class="text-[10px] text-white/40">Reseñas</span>
-      </div>
-      <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center">
-        <strong class="block text-lg font-bold"><%= provider.specialties.length %></strong>
-        <span class="text-[10px] text-white/40">Especialidades</span>
-      </div>
+    <div data-tour="stats" class="grid grid-cols-3 gap-2 mb-5 zilo-page-enter-delay-2">
+      <div class="zilo-stat"><strong class="text-zilo-accent"><%= provider.rating %>★</strong><span>Rating</span></div>
+      <div class="zilo-stat"><strong><%= provider.reviewsCount %></strong><span>Reseñas</span></div>
+      <div class="zilo-stat"><strong><%= provider.specialties.length %></strong><span>Especialid.</span></div>
     </div>
 
-    <section class="mb-6">
-      <h3 class="text-xs text-white/40 uppercase tracking-wider mb-2">Tus especialidades</h3>
+    <section data-tour="specialties" class="mb-6 zilo-page-enter-delay-2">
+      <p class="zilo-label mb-2">Especialidades</p>
       <div class="flex flex-wrap gap-2">
         <% provider.specialties.forEach(s => {
           const svc = services.find(x => x.id === s);
         %>
-          <span class="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-300 text-xs font-medium"><%= svc ? svc.name : s %></span>
+          <span class="zilo-tag"><%= svc ? svc.name : s %></span>
         <% }); %>
       </div>
     </section>
 
-    <!-- Trabajo activo -->
     <section id="activeJob" class="hidden mb-6">
-      <h3 class="text-xs text-white/40 uppercase tracking-wider mb-2">Servicio en curso</h3>
-      <div class="p-4 rounded-2xl bg-zilo-card border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+      <p class="zilo-label mb-2">En curso</p>
+      <div class="p-4 rounded-2xl zilo-card-premium border border-zilo-success/25">
         <div class="flex justify-between items-center mb-2">
-          <strong id="jobService" class="font-semibold">—</strong>
-          <span id="jobStatus" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-400">En camino</span>
+          <strong id="jobService" class="font-medium text-sm">—</strong>
+          <span id="jobStatus" class="zilo-badge zilo-badge-success">En camino</span>
         </div>
-        <p id="jobClient" class="text-sm text-white/70">—</p>
-        <p id="jobAddress" class="text-xs text-white/40 mt-1 mb-3">—</p>
+        <p id="jobClient" class="text-sm text-zilo-muted">—</p>
+        <p id="jobAddress" class="text-xs text-zilo-muted/80 mt-1 mb-3">—</p>
         <div class="flex gap-2">
-          <button type="button" class="flex-1 py-2 rounded-xl bg-zilo-elevated border border-white/10 text-xs font-medium" data-status="in_progress">En camino</button>
-          <button type="button" class="flex-1 py-2 rounded-xl bg-emerald-600 text-xs font-medium" data-status="completed">Completar</button>
+          <button type="button" class="flex-1 py-2.5 rounded-xl zilo-btn-ghost !text-xs" data-status="in_progress">En camino</button>
+          <button type="button" class="flex-1 py-2.5 rounded-xl zilo-modal-accept !py-2.5 !text-xs" data-status="completed">Completar</button>
         </div>
       </div>
     </section>
 
-    <section>
-      <h3 class="text-lg font-semibold mb-3">Historial reciente</h3>
+    <section data-tour="history" class="zilo-page-enter-delay-3">
+      <p class="zilo-label mb-3">Historial reciente</p>
       <% if (myRequests.length === 0) { %>
-        <p class="text-center py-10 text-white/30 text-sm">Aún no tienes servicios completados.</p>
+        <div class="zilo-empty zilo-card-premium rounded-2xl">
+          <p class="zilo-display">Sin trabajos aún</p>
+          <p class="text-sm">Activa el modo en línea para recibir solicitudes</p>
+        </div>
       <% } else { %>
         <div class="space-y-2">
           <% myRequests.forEach(req => { %>
-            <div class="flex justify-between items-center p-4 rounded-xl bg-zilo-card border border-white/8">
+            <div class="flex justify-between items-center p-4 rounded-xl zilo-card-premium">
               <div>
                 <strong class="text-sm block"><%= req.serviceName %></strong>
-                <span class="text-xs text-white/40"><%= req.clientName %></span>
+                <span class="text-xs text-zilo-muted"><%= req.clientName %></span>
               </div>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-white/5 text-white/50"><%= req.status %></span>
+              <span class="zilo-badge zilo-badge-muted"><%= req.status %></span>
             </div>
           <% }); %>
         </div>
@@ -92,73 +107,95 @@
     </section>
   </main>
 
-  <!-- Modal solicitud entrante -->
   <div id="requestModal" class="hidden fixed inset-0 z-[300]">
-    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+    <div class="absolute inset-0 bg-black/85 backdrop-blur-md"></div>
     <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg animate-slide-up">
-      <div class="bg-zilo-card border border-white/10 rounded-t-3xl p-6 pb-8 safe-bottom relative overflow-hidden">
-        <!-- Alerta visual -->
-        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 animate-pulse"></div>
+      <div class="zilo-modal-sheet rounded-t-3xl p-6 pb-8 safe-bottom relative overflow-hidden">
+        <div class="zilo-modal-accent-bar absolute top-0 left-0 right-0"></div>
 
-        <div class="flex items-center justify-center gap-3 mb-4">
-          <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center animate-bounce">
-            <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <div class="flex items-center gap-3 mb-5 pt-1">
+          <div class="w-11 h-11 rounded-full bg-zilo-accent/15 border border-zilo-accent/30 flex items-center justify-center">
+            <svg class="w-5 h-5 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           </div>
-          <div>
-            <h2 class="text-xl font-bold">¡Nueva solicitud!</h2>
-            <p class="text-xs text-white/40">Responde antes de que expire</p>
+          <div class="flex-1">
+            <h2 class="zilo-display text-xl">Nueva solicitud</h2>
+            <p class="text-xs text-zilo-muted">Responde antes de que expire</p>
           </div>
-          <!-- Timer circular -->
-          <div class="relative w-14 h-14 ml-auto">
+          <div class="relative w-14 h-14 shrink-0">
             <svg class="countdown-ring w-14 h-14" viewBox="0 0 56 56">
-              <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
-              <circle id="countdownCircle" cx="28" cy="28" r="24" fill="none" stroke="#3B82F6" stroke-width="4" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="0"/>
+              <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+              <circle id="countdownCircle" cx="28" cy="28" r="24" fill="none" stroke="#C9A962" stroke-width="4" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="0"/>
             </svg>
-            <span id="countdownNumber" class="absolute inset-0 flex items-center justify-center font-bold text-lg">15</span>
+            <span id="countdownNumber" class="absolute inset-0 flex items-center justify-center font-semibold text-lg">15</span>
           </div>
         </div>
 
-        <div id="modalService" class="text-2xl font-extrabold text-center text-blue-400 mb-4">—</div>
+        <div id="modalService" class="flex items-center justify-center gap-3 mb-4">
+          <span id="modalServiceIcon"></span>
+          <span id="modalServiceName" class="zilo-display text-2xl">—</span>
+        </div>
 
-        <!-- Mapa real OpenStreetMap -->
-        <div id="modalMap" class="relative h-40 rounded-2xl overflow-hidden border border-white/10 mb-4 bg-zilo-bg"></div>
+        <div id="modalMap" class="relative h-40 rounded-2xl overflow-hidden border border-zilo-border mb-4 bg-zilo-bg"></div>
         <div class="flex items-center gap-2 mb-4 px-1">
-          <svg class="w-4 h-4 text-white/40 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <div>
-            <p id="modalAddress" class="text-xs font-medium truncate max-w-[260px]">—</p>
-            <p id="modalCoords" class="text-[10px] text-white/40 font-mono">—</p>
+          <svg class="w-4 h-4 text-zilo-muted shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <div class="min-w-0 flex-1">
+            <p id="modalAddress" class="text-xs font-medium truncate">—</p>
+            <p id="modalCoords" class="text-[10px] text-zilo-muted font-mono">—</p>
           </div>
-          <span class="ml-auto px-2 py-1 rounded-lg bg-emerald-500/15 text-[10px] text-emerald-400 font-medium shrink-0">GPS</span>
+          <span class="zilo-badge zilo-badge-success shrink-0">GPS</span>
         </div>
 
         <div class="space-y-2 mb-3">
-          <div class="flex items-center gap-2 text-sm text-white/70">
-            <svg class="w-4 h-4 text-white/40" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <div id="modalGiftBadge" class="hidden p-3 rounded-xl zilo-gift-card">
+            <div class="flex items-center gap-2 mb-1">
+              <svg class="w-4 h-4 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
+              <span class="text-xs font-semibold text-zilo-accent uppercase tracking-wider">Regalo</span>
+            </div>
+            <p class="text-sm">Beneficiario: <strong id="modalBeneficiary">—</strong></p>
+            <p id="modalGiftPhone" class="text-xs text-zilo-muted"></p>
+            <p id="modalGiftMessage" class="text-xs text-zilo-muted italic mt-1"></p>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-zilo-muted">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span id="modalClient">—</span>
           </div>
           <div class="flex items-center gap-2 text-sm">
-            <svg class="w-4 h-4 text-white/40" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-            <span id="modalPrice" class="font-bold text-emerald-400">—</span>
+            <span id="modalPrice" class="font-semibold text-zilo-accent">—</span>
           </div>
         </div>
-        <p id="modalNotes" class="text-xs text-white/40 italic p-3 rounded-xl bg-zilo-bg mb-5"></p>
+        <p id="modalNotes" class="text-xs text-zilo-muted italic p-3 rounded-xl bg-zilo-bg/80 border border-zilo-border mb-5"></p>
 
-        <!-- Botones flotantes -->
         <div class="flex gap-3">
-          <button type="button" id="btnDecline" class="flex-1 py-4 rounded-2xl bg-zilo-elevated border border-white/10 font-semibold text-white/60 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition">
-            Rechazar
-          </button>
-          <button type="button" id="btnAccept" class="flex-[2] py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 font-bold text-lg shadow-xl shadow-emerald-500/30 hover:-translate-y-0.5 transition-all animate-pulse-slow">
-            ✓ Aceptar Servicio
-          </button>
+          <button type="button" id="btnDecline" class="zilo-modal-decline">Rechazar</button>
+          <button type="button" id="btnAccept" class="zilo-modal-accept">Aceptar</button>
         </div>
-        <div class="mt-3 h-1 rounded-full bg-white/10 overflow-hidden">
-          <div id="countdownFill" class="h-full bg-blue-500 rounded-full transition-all duration-1000" style="width:100%"></div>
+        <div class="mt-3 h-0.5 rounded-full bg-white/5 overflow-hidden">
+          <div id="countdownFill" class="h-full bg-zilo-accent rounded-full transition-all duration-1000" style="width:100%"></div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<%- include('../partials/guide-modal', {
+  role: 'provider',
+  title: 'Guía del técnico',
+  steps: [
+    { title: 'Activar modo en línea', body: 'Usa el interruptor superior para ponerte en línea. Solo así recibirás solicitudes de clientes en tu zona y especialidad.', tip: 'Si cierras la app, vuelve a activarte al regresar.' },
+    { title: 'Recibir solicitudes', body: 'Al llegar un trabajo verás un modal con mapa, dirección, precio de la visita y datos del cliente. Tienes 15 segundos para aceptar o rechazar.', tip: 'Activa las notificaciones del navegador para no perder trabajos.' },
+    { title: 'Servicios de regalo', body: 'Si el cliente regaló la visita, verás el badge "Regalo" con el nombre del beneficiario, teléfono y mensaje. La dirección es donde se realizará el trabajo.', tip: 'El cliente pagó la visita; atiende al beneficiario indicado.' },
+    { title: 'Ejecutar el servicio', body: 'Tras aceptar, el trabajo aparece en "En curso". Actualiza el estado: En camino → y al terminar pulsa Completar.', tip: 'Completar el servicio actualiza el Pasaporte Hogar del cliente.' },
+    { title: 'Verificación Zilo', body: 'Antes de ponerte en línea debes subir tu carnet (frente y reverso), pasar la verificación facial con la cámara y activar el permiso de ubicación. Opcionalmente puedes subir certificados de estudios.', tip: 'Los clientes ven tus sellos de confianza y tu ubicación en tiempo real durante el servicio.' },
+    { title: 'Tu perfil', body: 'En Perfil editas correo, teléfono y biografía que ven los clientes. Las especialidades las asigna Zilo.', tip: 'Mantén correo y teléfono actualizados para que el cliente pueda contactarte.' }
+  ],
+  extras: [
+    { title: 'Historial', body: 'Revisa tus trabajos recientes en el panel. El rating y reseñas mejoran tu visibilidad en nuevas asignaciones.' },
+    { title: 'Fuera de línea', body: 'Si no puedes atender, desactiva el modo en línea. No recibirás nuevas solicitudes hasta que vuelvas a activarte.' }
+  ]
+}) %>
+
+<%- include('../partials/onboarding-tour') %>
+
 <%- include('../partials/footer', { pageScript: '/js/provider.js' }) %>
+<script src="/js/guide.js"></script>
 <script src="/js/map.js"></script>

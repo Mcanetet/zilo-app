@@ -1,0 +1,99 @@
+<%- include('../partials/head', { useMap: true }) %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="guardianPage" data-token="<%= request.guardianToken %>">
+  <header class="px-5 py-6 border-b border-zilo-border">
+    <div class="flex items-center gap-3 mb-3">
+      <%- include('../partials/logo', { className: 'w-9 h-9' }) %>
+      <div>
+        <p class="zilo-label !text-[9px]">Modo Guardián</p>
+        <h1 class="text-sm font-semibold">Seguimiento en vivo</h1>
+      </div>
+    </div>
+    <p class="text-xs text-zilo-muted">Enlace privado · sin cuenta requerida</p>
+  </header>
+
+  <main class="flex-1 px-5 py-5 space-y-4">
+    <div class="zilo-card-premium rounded-2xl p-5">
+      <p class="zilo-label mb-2">Servicio</p>
+      <h2 class="zilo-display text-2xl mb-1" id="gService"><%= request.serviceName %></h2>
+      <% if (request.isGift) { %>
+        <p class="text-sm text-zilo-accent mb-2">Regalo para <strong><%= request.beneficiaryName %></strong></p>
+        <% if (request.giftMessage) { %><p class="text-xs text-zilo-muted italic">"<%= request.giftMessage %>"</p><% } %>
+      <% } %>
+      <p class="text-xs text-zilo-muted mt-3" id="gAddress"><%= request.address %></p>
+    </div>
+
+    <div class="zilo-card-premium rounded-2xl p-5 flex items-center gap-4">
+      <div id="gStatusDot" class="w-3 h-3 rounded-full bg-zilo-accent animate-pulse shrink-0"></div>
+      <div>
+        <p class="zilo-label">Estado</p>
+        <p class="font-semibold capitalize" id="gStatus"><%= request.status %></p>
+      </div>
+    </div>
+
+    <div id="gProvider" class="zilo-card-premium rounded-2xl p-5 <%= provider ? '' : 'hidden' %>">
+      <p class="zilo-label mb-2">Técnico asignado</p>
+      <p class="font-semibold" id="gProviderName"><%= provider ? provider.name : '' %></p>
+      <p class="text-xs text-zilo-muted" id="gProviderRating"><%= provider ? provider.rating + '★' : '' %></p>
+    </div>
+
+    <% if (request.coords) { %>
+    <div id="guardianMap" class="w-full h-52 rounded-2xl overflow-hidden border border-zilo-border"
+      data-lat="<%= request.coords.lat %>" data-lng="<%= request.coords.lng %>" data-label="<%= request.address %>"></div>
+    <% } %>
+
+    <p class="text-center text-[10px] text-zilo-muted pt-4">
+      Zilo — Pasaporte Hogar & Modo Guardián · Santiago, Chile
+    </p>
+  </main>
+</div>
+
+<script src="/js/map.js"></script>
+<script>
+(function () {
+  const token = document.getElementById('guardianPage').dataset.token;
+  const socket = io();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('guardianMap');
+    if (el && typeof ZiloMap !== 'undefined') {
+      ZiloMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
+    }
+  });
+
+  const statusLabels = {
+    pending_payment: 'Pendiente de pago',
+    searching: 'Buscando técnico',
+    assigned: 'Técnico asignado',
+    enroute: 'En camino',
+    arrived: 'En el domicilio',
+    in_progress: 'Trabajando',
+    completed: 'Completado'
+  };
+
+  function updateUI(data) {
+    const r = data.request;
+    document.getElementById('gStatus').textContent = statusLabels[r.status] || r.status;
+    if (data.provider) {
+      document.getElementById('gProvider').classList.remove('hidden');
+      document.getElementById('gProviderName').textContent = data.provider.name;
+      document.getElementById('gProviderRating').textContent = data.provider.rating + '★';
+    }
+    if (r.status === 'completed') {
+      document.getElementById('gStatusDot').className = 'w-3 h-3 rounded-full bg-zilo-success shrink-0';
+    }
+  }
+
+  setInterval(async () => {
+    try {
+      const res = await fetch(`/seguimiento/${token}/estado`);
+      const data = await res.json();
+      updateUI(data);
+    } catch (_) {}
+  }, 4000);
+
+  socket.on(`request_update_${'<%= request.id %>'}`, (payload) => updateUI(payload));
+})();
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,34 @@
+<div id="cookieBanner" class="hidden fixed bottom-0 left-0 right-0 z-[500] p-4 safe-bottom">
+  <div class="max-w-lg mx-auto p-4 rounded-2xl zilo-card-premium shadow-zilo-glow backdrop-blur-xl border border-zilo-accent/15">
+    <p class="text-sm text-zilo-muted mb-3 leading-relaxed">
+      Usamos cookies esenciales para operar Zilo de forma segura.
+      <a href="/legal/cookies" class="text-zilo-accent underline">Cookies</a> ·
+      <a href="/legal/privacidad" class="text-zilo-accent underline">Privacidad</a>
+    </p>
+    <div class="flex gap-2">
+      <button type="button" id="cookieReject" class="zilo-btn-ghost flex-1 !text-sm">Solo esenciales</button>
+      <button type="button" id="cookieAccept" class="zilo-btn-primary flex-1 !py-2.5 !text-sm">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  if (localStorage.getItem('zilo_consent')) return;
+  const banner = document.getElementById('cookieBanner');
+  banner.classList.remove('hidden');
+
+  function save(granted) {
+    localStorage.setItem('zilo_consent', JSON.stringify({ granted, v: '1.0', at: Date.now() }));
+    banner.classList.add('hidden');
+    fetch('/legal/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'cookies', granted, version: '1.0' })
+    }).catch(() => {});
+  }
+
+  document.getElementById('cookieAccept').addEventListener('click', () => save(true));
+  document.getElementById('cookieReject').addEventListener('click', () => save(false));
+})();
+</script>

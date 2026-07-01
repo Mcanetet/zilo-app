@@ -7,6 +7,7 @@ npm-debug.log*
 # Backups locales (se generan en el servidor)
 data/backups/
 data/backup-config.json
+zilo-hostinger.zip
 
 # Documentos subidos por proveedores (KYC) — no van a GitHub
 public/uploads/providers/*

@@ -18,7 +18,7 @@ Ese error aparece en el asistente **quick-install-node-addon** (Codex). Zilo es 
 5. Sube `zilo-hostinger.zip`
 6. Configuración manual:
    - **Framework:** Express.js (o **Other**)
-   - **Entry file:** `index.js`
+   - **Entry file:** `app.js`
    - **Build command:** `npm run build`
    - **Start command:** `npm start`
    - **Node.js:** 20.x

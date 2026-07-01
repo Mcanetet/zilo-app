@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
-const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
@@ -20,8 +19,6 @@ const legalRoutes = require('./routes/legal');
 const trackingRoutes = require('./routes/tracking');
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
@@ -31,7 +28,6 @@ if (process.env.NODE_ENV === 'production') {
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.set('io', io);
 
 app.use(securityHeaders);
 app.use(rateLimitSimple(150));
@@ -86,6 +82,28 @@ app.get('/health', (req, res) => {
   res.status(200).json({ ok: true, app: 'zilo', uptime: process.uptime() });
 });
 
+app.use((req, res) => {
+  res.status(404).render('error', {
+    title: 'No encontrado',
+    message: 'La página que buscas no existe.',
+    code: 404
+  });
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor listo en ${PORT}`);
+  backup.startBackupScheduler(store, (event, detail) => {
+    store.logSecurityEvent(event, detail, null);
+  });
+  const cfg = backup.loadConfig();
+  if (cfg.enabled && cfg.autoBackup) {
+    console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')} · retención ${cfg.dailyRetentionDays}d / ${cfg.weeklyRetentionWeeks}sem / ${cfg.monthlyRetentionMonths}mes`);
+  }
+});
+
+const io = new Server(server);
+app.set('io', io);
+
 io.on('connection', (socket) => {
   socket.on('register_provider', (providerId) => {
     store.providerSockets.set(providerId, socket.id);
@@ -115,21 +133,4 @@ io.on('connection', (socket) => {
   });
 });
 
-app.use((req, res) => {
-  res.status(404).render('error', {
-    title: 'No encontrado',
-    message: 'La página que buscas no existe.',
-    code: 404
-  });
-});
-
-server.listen(PORT, () => {
-  console.log(`🚀 Zilo corriendo en puerto ${PORT}`);
-  backup.startBackupScheduler(store, (event, detail) => {
-    store.logSecurityEvent(event, detail, null);
-  });
-  const cfg = backup.loadConfig();
-  if (cfg.enabled && cfg.autoBackup) {
-    console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')} · retención ${cfg.dailyRetentionDays}d / ${cfg.weeklyRetentionWeeks}sem / ${cfg.monthlyRetentionMonths}mes`);
-  }
-});
+module.exports = app;

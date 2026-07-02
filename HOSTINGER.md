@@ -43,15 +43,56 @@ Ese error aparece en el asistente **quick-install-node-addon** (Codex). Zilo es 
 
 ---
 
+## Si sale error 503 en zilo.cl
+
+Significa que **la app Node.js no arrancó**. Casi siempre es por variables de entorno o MySQL.
+
+### Checklist rápido
+
+1. hPanel → tu sitio → **Node.js** → **Environment Variables**
+2. Añade estas variables (recomendado, una por una):
+
+```
+NODE_ENV=production
+SESSION_SECRET=clave-larga-aleatoria-min-32-caracteres
+APP_URL=https://zilo.cl
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=u482073296_zilo_bd
+DB_USER=u482073296_zilo_user
+DB_PASSWORD=tu-clave-mysql
+```
+
+3. Verifica configuración de la app:
+   - **Entry file:** `index.js`
+   - **Build:** `npm run build`
+   - **Start:** `npm start`
+   - **Node.js:** 20.x
+
+4. Clic en **Redeploy**
+
+5. Revisa **Runtime logs** (o archivo `stderr.log` en la carpeta de la app).  
+   Busca: `No se pudo iniciar Zilo` o `DATABASE_URL`.
+
+> **Importante:** `.env` de tu Mac **no se sube a GitHub**. Las variables deben estar en el panel de Hostinger.
+
+---
+
 ## Variables de entorno obligatorias
 
 ```
 NODE_ENV=production
 PORT=3000
 SESSION_SECRET=clave-larga-aleatoria-min-32-chars
-APP_URL=https://tudominio.cl
-DATABASE_URL=mysql://u482073296_zilo_user:TU_CLAVE@localhost:3306/u482073296_zilo_bd
+APP_URL=https://zilo.cl
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=u482073296_zilo_bd
+DB_USER=u482073296_zilo_user
+DB_PASSWORD=tu-clave-mysql
 ```
+
+(O usa `DATABASE_URL=mysql://usuario:clave@localhost:3306/u482073296_zilo_bd`)
 
 ---
 

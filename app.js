@@ -152,7 +152,17 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error('No se pudo iniciar Zilo:', err.message);
+  console.error('❌ No se pudo iniciar Zilo:', err.message);
+  if (err.stack) console.error(err.stack);
+  if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
+    console.error('→ Falta DATABASE_URL o DB_HOST/DB_USER/DB_PASSWORD/DB_NAME en Hostinger → Environment Variables');
+  }
+  if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+    console.error('→ No se pudo conectar a MySQL. En Hostinger el host suele ser: localhost');
+  }
+  if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+    console.error('→ Usuario o contraseña MySQL incorrectos');
+  }
   process.exit(1);
 });
 

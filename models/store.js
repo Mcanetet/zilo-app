@@ -1,219 +1,51 @@
 const { v4: uuidv4 } = require('uuid');
-const { geocodeAddress, randomSantiagoCoords } = require('../lib/geocode');
+const { geocodeAddress } = require('../lib/geocode');
+const db = require('../lib/db');
+const repository = require('./repository');
 
-const SERVICES = [
-  {
-    id: 'electrico',
-    name: 'Eléctrico',
-    icon: 'electrico',
-    color: '#F59E0B',
-    visitPrice: 25000,
-    basicMin: 40000,
-    basicMax: 60000,
-    description: 'Instalaciones, cortocircuitos, tableros y emergencias eléctricas.',
-    enabled: true
-  },
-  {
-    id: 'gasfiter',
-    name: 'Gásfiter',
-    icon: 'gasfiter',
-    color: '#3B82F6',
-    visitPrice: 25000,
-    basicMin: 45000,
-    basicMax: 70000,
-    description: 'Fugas, cañerías, grifería y destapes en baño y cocina.',
-    enabled: true
-  },
-  {
-    id: 'cerrajero',
-    name: 'Cerrajero',
-    icon: 'cerrajero',
-    color: '#8B5CF6',
-    visitPrice: 30000,
-    basicMin: 50000,
-    basicMax: 90000,
-    description: 'Apertura de puertas, cambio de cerraduras y copias de llaves.',
-    enabled: true
-  },
-  {
-    id: 'termos',
-    name: 'Reparación de Termos',
-    icon: 'termos',
-    color: '#EF4444',
-    visitPrice: 28000,
-    basicMin: 55000,
-    basicMax: 120000,
-    description: 'Mantención, cambio de resistencia y reparación de termos eléctricos.',
-    enabled: true
-  },
-  {
-    id: 'lavavajillas',
-    name: 'Lavavajillas',
-    icon: 'lavavajillas',
-    color: '#06B6D4',
-    visitPrice: 25000,
-    basicMin: 45000,
-    basicMax: 85000,
-    description: 'Reparación de bombas, fugas y programas de lavado.',
-    enabled: true
-  },
-  {
-    id: 'lavadora',
-    name: 'Lavadora',
-    icon: 'lavadora',
-    color: '#10B981',
-    visitPrice: 25000,
-    basicMin: 40000,
-    basicMax: 80000,
-    description: 'Centrifugado, drenaje, tambor y tarjetas electrónicas.',
-    enabled: true
-  }
-];
-
-const USERS = [
-  {
-    id: 'client-1',
-    email: 'cliente@zilo.cl',
-    password: 'cliente123',
-    name: 'María González',
-    role: 'client',
-    phone: '+56 9 8765 4321',
-    address: 'Av. Providencia 2650, Providencia, Santiago',
-    referralCode: 'MARIA2026',
-    ziloPoints: 350,
-    creditsCLP: 5000,
-    referralsCount: 2,
-    servicesCount: 4,
-    usedWelcomePromo: false,
-    memberSince: '2025-11-01'
-  },
-  {
-    id: 'provider-pedro',
-    email: 'pedro@zilo.cl',
-    password: 'proveedor123',
-    name: 'Pedro Gómez',
-    role: 'provider',
-    phone: '+56 9 2234 5678',
-    specialties: ['gasfiter'],
-    rating: 4.8,
-    reviewsCount: 94,
-    online: false,
-    avatar: 'PG',
-    bio: 'Gásfiter maestro con 10 años de experiencia en edificios y hogares de Santiago.',
-    reviews: [
-      { author: 'Camila T.', rating: 5, text: 'Excelente disposición, solucionó la filtración del lavaplatos muy rápido', date: '2025-05-18' },
-      { author: 'Diego M.', rating: 5, text: 'Muy puntual y dejó todo limpio después del trabajo.', date: '2025-04-30' },
-      { author: 'Sofía L.', rating: 4, text: 'Buen precio y trabajo bien hecho en la cañería.', date: '2025-04-12' }
-    ]
-  },
-  {
-    id: 'provider-marta',
-    email: 'marta@zilo.cl',
-    password: 'proveedor123',
-    name: 'Marta Quiroz',
-    role: 'provider',
-    phone: '+56 9 3345 6789',
-    specialties: ['electrico'],
-    rating: 4.9,
-    reviewsCount: 112,
-    online: false,
-    avatar: 'MQ',
-    bio: 'Electricista certificada SEC. Especialista en instalaciones residenciales y comerciales.',
-    reviews: [
-      { author: 'Andrés P.', rating: 5, text: 'Certificada SEC, instaló las luminarias del pasillo de forma impecable', date: '2025-05-22' },
-      { author: 'Valentina R.', rating: 5, text: 'Profesional y muy clara al explicar el trabajo realizado.', date: '2025-05-05' },
-      { author: 'Jorge H.', rating: 5, text: 'Solucionó un cortocircuito complejo en menos de una hora.', date: '2025-04-20' }
-    ]
-  },
-  {
-    id: 'provider-juan',
-    email: 'juancarlos@zilo.cl',
-    password: 'proveedor123',
-    name: 'Juan Carlos',
-    role: 'provider',
-    phone: '+56 9 4456 7890',
-    specialties: ['cerrajero'],
-    rating: 4.7,
-    reviewsCount: 78,
-    online: false,
-    avatar: 'JC',
-    bio: 'Cerrajero profesional 24/7. Apertura sin daños y cambio de cerraduras de seguridad.',
-    reviews: [
-      { author: 'Patricia N.', rating: 5, text: 'Llegó en 20 minutos y abrió la puerta del departamento sin daños', date: '2025-05-15' },
-      { author: 'Felipe A.', rating: 4, text: 'Rápido y eficiente, cambió la cerradura completa.', date: '2025-04-28' },
-      { author: 'Daniela C.', rating: 5, text: 'Muy confiable, lo llamaré de nuevo sin dudarlo.', date: '2025-04-10' }
-    ]
-  },
-  {
-    id: 'provider-ana',
-    email: 'ana@zilo.cl',
-    password: 'proveedor123',
-    name: 'Ana Rojas',
-    role: 'provider',
-    phone: '+56 9 5567 8901',
-    specialties: ['termos', 'lavavajillas', 'lavadora'],
-    rating: 4.9,
-    reviewsCount: 67,
-    online: false,
-    avatar: 'AR',
-    bio: 'Técnica certificada en electrodomésticos. Especialista en termos, lavadoras y lavavajillas.',
-    reviews: [
-      { author: 'Luis V.', rating: 5, text: 'Reparó el termo el mismo día, muy profesional.', date: '2025-05-20' },
-      { author: 'Carmen S.', rating: 5, text: 'Excelente con la lavadora, explicó todo con claridad.', date: '2025-05-08' }
-    ]
-  },
-  {
-    id: 'admin-1',
-    email: 'admin@zilo.cl',
-    password: 'admin123',
-    name: 'Admin Zilo',
-    role: 'admin',
-    phone: '+56 9 0000 0000'
-  }
-];
-
+let SERVICES = [];
+let USERS = [];
 let requests = [];
+let homeLogbook = [];
+let COMPLAINTS = [];
+let CHATS = [];
+let consentRecords = [];
+let securityLogs = [];
+let initialized = false;
+
 const providerSockets = new Map();
 
 const POINTS_VALUE_CLP = 100;
 const WELCOME_PROMO = 'BIENVENIDO';
 const WELCOME_DISCOUNT = 0.2;
 
-const homeLogbook = [
-  {
-    id: 'log-001',
-    clientId: 'client-1',
-    address: 'Av. Providencia 2650, Providencia, Santiago',
-    serviceName: 'Gásfiter',
-    category: 'gasfiter',
-    date: '2025-11-15',
-    note: 'Revisión de cañería bajo lavaplatos — sin fugas detectadas',
-    healthImpact: 8,
-    providerName: 'Pedro Gómez'
-  },
-  {
-    id: 'log-002',
-    clientId: 'client-1',
-    address: 'Av. Providencia 2650, Providencia, Santiago',
-    serviceName: 'Eléctrico',
-    category: 'electrico',
-    date: '2026-01-20',
-    note: 'Instalación de luminarias LED en pasillo y verificación de tablero',
-    healthImpact: 10,
-    providerName: 'Marta Quiroz'
-  },
-  {
-    id: 'log-003',
-    clientId: 'client-1',
-    address: 'Av. Providencia 2650, Providencia, Santiago',
-    serviceName: 'Reparación de Termos',
-    category: 'termos',
-    date: '2026-03-08',
-    note: 'Cambio de resistencia y limpieza de sedimentos',
-    healthImpact: 12,
-    providerName: 'Ana Rojas'
+async function init() {
+  if (initialized) return;
+  if (!db.isConfigured()) {
+    throw new Error('DATABASE_URL no está configurada. Ejecuta: npm run db:setup');
   }
-];
+
+  await repository.migrate();
+  await repository.ensureDemoData();
+  const data = await repository.loadAll();
+
+  SERVICES = data.services;
+  USERS = data.users;
+  requests = data.requests;
+  homeLogbook = data.homeLogbook;
+  COMPLAINTS = data.complaints;
+  CHATS = data.chats;
+  consentRecords = data.consentRecords;
+  securityLogs = data.securityLogs;
+  initialized = true;
+  console.log(`📦 Datos cargados desde MySQL (${USERS.length} usuarios, ${requests.length} solicitudes)`);
+}
+
+function ensureReady() {
+  if (!initialized) {
+    throw new Error('Store no inicializado. Llama a store.init() antes de arrancar el servidor.');
+  }
+}
 
 async function createRequest({ clientId, serviceId, address, notes, coords: inputCoords, gift }) {
   const service = getServiceById(serviceId);
@@ -263,6 +95,7 @@ async function createRequest({ clientId, serviceId, address, notes, coords: inpu
     coords
   };
   requests.unshift(request);
+  repository.persist(() => repository.saveRequest(request), `solicitud ${request.id}`);
   return request;
 }
 
@@ -280,6 +113,7 @@ function updateUserProfile(userId, data) {
   if (user.role === 'provider' && user.name) {
     user.avatar = user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   }
+  repository.persist(() => repository.saveUser(user), `usuario ${user.id}`);
   return user;
 }
 
@@ -308,6 +142,8 @@ function applyReferralCode(userId, code) {
   referrer.creditsCLP = (referrer.creditsCLP || 0) + 5000;
   referrer.referralsCount = (referrer.referralsCount || 0) + 1;
   referrer.ziloPoints = (referrer.ziloPoints || 0) + 200;
+  repository.persist(() => repository.saveUser(user), `usuario ${user.id}`);
+  repository.persist(() => repository.saveUser(referrer), `usuario ${referrer.id}`);
   return { success: true, bonus: 5000 };
 }
 
@@ -386,6 +222,7 @@ function applyCheckoutDiscounts(userId, requestId, { useCredits, usePoints, prom
   request.promoCode = appliedPromo;
   request.amountDue = Math.max(0, remaining);
   request.estimatedVisit = request.amountDue;
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
 
   return { success: true, summary: getCheckoutSummary(userId, requestId) };
 }
@@ -407,6 +244,7 @@ function commitCheckoutDiscounts(userId, requestId) {
   }
   user.servicesCount = (user.servicesCount || 0) + 1;
   user.ziloPoints = (user.ziloPoints || 0) + 50;
+  repository.persist(() => repository.saveUser(user), `usuario ${user.id}`);
 }
 
 function getRequestByGuardianToken(token) {
@@ -465,22 +303,27 @@ function addLogbookEntryFromRequest(request) {
   const exists = homeLogbook.some(e => e.id === request.id);
   if (exists) return;
 
-  homeLogbook.unshift({
+  const entry = {
     id: request.id,
     clientId: request.clientId,
     address: request.address,
     serviceName: request.serviceName,
     category: request.serviceId,
-    date: request.completedAt || new Date().toISOString(),
+    date: (request.completedAt || new Date().toISOString()).slice(0, 10),
     note: request.notes || `Mantenimiento ${request.serviceName}`,
     healthImpact: 10,
     providerName: request.providerId ? getUserById(request.providerId)?.name : 'Técnico Zilo'
-  });
+  };
+  homeLogbook.unshift(entry);
+  repository.persist(() => repository.saveLogbookEntry(entry), `logbook ${entry.id}`);
 }
 
 function setPaymentPreference(requestId, preferenceId) {
   const request = requests.find(r => r.id === requestId);
-  if (request) request.preferenceId = preferenceId;
+  if (request) {
+    request.preferenceId = preferenceId;
+    repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  }
   return request;
 }
 
@@ -492,6 +335,7 @@ function markPaymentApproved(requestId, paymentId) {
   request.paymentId = paymentId;
   request.paidAt = new Date().toISOString();
   commitCheckoutDiscounts(request.clientId, requestId);
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   return request;
 }
 
@@ -499,6 +343,7 @@ function activateRequest(requestId) {
   const request = requests.find(r => r.id === requestId);
   if (!request) return null;
   request.status = 'searching';
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   return request;
 }
 
@@ -522,6 +367,7 @@ function toggleService(serviceId, enabled) {
   const service = getServiceById(serviceId);
   if (!service) return null;
   service.enabled = enabled;
+  repository.persist(() => repository.saveService(service), `servicio ${serviceId}`);
   return service;
 }
 
@@ -531,29 +377,8 @@ function getUserById(id) {
   return user;
 }
 
-function defaultProviderVerification() {
-  return {
-    status: 'incomplete',
-    idCardFront: null,
-    idCardBack: null,
-    certificates: [],
-    selfie: null,
-    faceVerified: false,
-    faceScore: null,
-    faceVerifiedAt: null,
-    submittedAt: null
-  };
-}
-
-function defaultLocationShare() {
-  return {
-    consent: false,
-    consentAt: null,
-    lat: null,
-    lng: null,
-    updatedAt: null
-  };
-}
+const defaultProviderVerification = repository.defaultProviderVerification;
+const defaultLocationShare = repository.defaultLocationShare;
 
 function ensureProviderFields(provider) {
   if (!provider.verification) provider.verification = defaultProviderVerification();
@@ -635,6 +460,7 @@ function saveProviderDocument(providerId, type, url, label) {
   }
   provider.verification.submittedAt = new Date().toISOString();
   provider.verification.status = computeVerificationStatus(provider);
+  repository.persist(() => repository.saveUser(provider), `proveedor ${providerId}`);
   return provider.verification;
 }
 
@@ -647,6 +473,7 @@ function saveProviderSelfie(providerId, url, faceResult) {
   provider.verification.faceScore = faceResult.score || null;
   provider.verification.faceVerifiedAt = faceResult.success ? new Date().toISOString() : null;
   provider.verification.status = computeVerificationStatus(provider);
+  repository.persist(() => repository.saveUser(provider), `proveedor ${providerId}`);
   return provider.verification;
 }
 
@@ -662,6 +489,7 @@ function setLocationConsent(providerId, consent) {
     provider.locationShare.updatedAt = null;
   }
   provider.verification.status = computeVerificationStatus(provider);
+  repository.persist(() => repository.saveUser(provider), `proveedor ${providerId}`);
   return provider.locationShare;
 }
 
@@ -671,11 +499,14 @@ function updateProviderLocation(providerId, lat, lng) {
   provider.locationShare.lat = parseFloat(lat);
   provider.locationShare.lng = parseFloat(lng);
   provider.locationShare.updatedAt = new Date().toISOString();
+  repository.persist(() => repository.saveUser(provider), `proveedor ${providerId}`);
   return provider.locationShare;
 }
 
 function getUserByEmail(email) {
-  return USERS.find(u => u.email === email);
+  const user = USERS.find(u => u.email === email);
+  if (user?.role === 'provider') ensureProviderFields(user);
+  return user;
 }
 
 function getOnlineProviders(serviceId) {
@@ -690,6 +521,7 @@ function assignProvider(requestId, providerId) {
   request.providerId = providerId;
   request.status = 'assigned';
   request.assignedAt = new Date().toISOString();
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   return request;
 }
 
@@ -702,6 +534,7 @@ function updateRequestStatus(requestId, status) {
     request.payoutStatus = request.payoutStatus || 'pendiente';
     addLogbookEntryFromRequest(request);
   }
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   return request;
 }
 
@@ -709,6 +542,7 @@ function setProviderOnline(providerId, online) {
   const provider = getUserById(providerId);
   if (provider && provider.role === 'provider') {
     provider.online = online;
+    repository.persist(() => repository.saveUser(provider), `proveedor ${providerId}`);
     return provider;
   }
   return null;
@@ -734,91 +568,6 @@ function getPendingRequestsForProvider(providerId) {
   );
 }
 
-const COMPLAINTS = [
-  {
-    id: 'rec-001',
-    requestId: null,
-    clientName: 'Jorge Muñoz',
-    clientEmail: 'jorge@email.cl',
-    type: 'calidad',
-    subject: 'Trabajo incompleto en instalación eléctrica',
-    description: 'El técnico se fue sin terminar el empalme del tablero.',
-    status: 'abierto',
-    priority: 'alta',
-    createdAt: '2026-06-28T14:30:00.000Z'
-  },
-  {
-    id: 'rec-002',
-    requestId: null,
-    clientName: 'Carolina Díaz',
-    clientEmail: 'carolina@email.cl',
-    type: 'cobro',
-    subject: 'Cobro diferente al presupuesto',
-    description: 'Me cobraron $20.000 más de lo acordado en la visita.',
-    status: 'en_revision',
-    priority: 'media',
-    createdAt: '2026-06-27T09:15:00.000Z'
-  },
-  {
-    id: 'rec-003',
-    requestId: null,
-    clientName: 'Andrés Vega',
-    clientEmail: 'andres@email.cl',
-    type: 'demora',
-    subject: 'Proveedor no llegó en el tiempo estimado',
-    description: 'Esperé más de 2 horas y nadie llegó.',
-    status: 'resuelto',
-    priority: 'baja',
-    createdAt: '2026-06-25T18:00:00.000Z',
-    resolvedAt: '2026-06-26T10:00:00.000Z'
-  }
-];
-
-const CHATS = [
-  {
-    id: 'chat-001',
-    clientName: 'María González',
-    clientPhone: '+56 9 8765 4321',
-    lastMessage: '¿A qué hora llega el técnico?',
-    channel: 'whatsapp',
-    status: 'activo',
-    unread: 2,
-    updatedAt: '2026-06-30T18:00:00.000Z'
-  },
-  {
-    id: 'chat-002',
-    clientName: 'Roberto Soto',
-    clientPhone: '+56 9 5555 1234',
-    lastMessage: 'Necesito factura del servicio',
-    channel: 'whatsapp',
-    status: 'activo',
-    unread: 0,
-    updatedAt: '2026-06-30T15:30:00.000Z'
-  },
-  {
-    id: 'chat-003',
-    clientName: 'Valentina Ríos',
-    clientPhone: '+56 9 7777 8899',
-    lastMessage: 'Gracias, todo resuelto',
-    channel: 'whatsapp',
-    status: 'cerrado',
-    unread: 0,
-    updatedAt: '2026-06-29T11:00:00.000Z'
-  }
-];
-
-let consentRecords = [
-  { id: 'c-1', userId: 'client-1', type: 'privacidad', granted: true, version: '1.0', createdAt: '2026-06-01T10:00:00.000Z' },
-  { id: 'c-2', userId: 'client-1', type: 'cookies', granted: true, version: '1.0', createdAt: '2026-06-01T10:00:00.000Z' },
-  { id: 'c-3', userId: null, type: 'cookies', granted: true, version: '1.0', createdAt: '2026-06-15T08:00:00.000Z', ip: '192.168.1.1' }
-];
-
-let securityLogs = [
-  { id: 'sec-1', event: 'login_ok', user: 'admin@zilo.cl', ip: '10.0.0.1', createdAt: '2026-06-30T08:00:00.000Z' },
-  { id: 'sec-2', event: 'login_ok', user: 'cliente@zilo.cl', ip: '10.0.0.2', createdAt: '2026-06-30T09:30:00.000Z' },
-  { id: 'sec-3', event: 'pago_demo', detail: 'Pago simulado aprobado', ip: '10.0.0.2', createdAt: '2026-06-30T10:00:00.000Z' }
-];
-
 function recordConsent({ userId, ip, type, granted, version, userAgent }) {
   const record = {
     id: `c-${Date.now()}`,
@@ -831,6 +580,7 @@ function recordConsent({ userId, ip, type, granted, version, userAgent }) {
     createdAt: new Date().toISOString()
   };
   consentRecords.unshift(record);
+  repository.persist(() => repository.saveConsent(record), `consentimiento ${record.id}`);
   return record;
 }
 
@@ -841,15 +591,17 @@ function getConsentsSummary() {
 }
 
 function logSecurityEvent(event, detail, req) {
-  securityLogs.unshift({
+  const log = {
     id: `sec-${Date.now()}`,
     event,
     detail: detail || null,
     user: req?.session?.user?.email || null,
     ip: req?.ip || null,
     createdAt: new Date().toISOString()
-  });
+  };
+  securityLogs.unshift(log);
   if (securityLogs.length > 200) securityLogs.pop();
+  repository.persist(() => repository.saveSecurityLog(log), `log ${log.id}`);
 }
 
 function getPayments() {
@@ -901,6 +653,7 @@ function updateComplaintStatus(id, status) {
   if (!c) return null;
   c.status = status;
   if (status === 'resuelto') c.resolvedAt = new Date().toISOString();
+  repository.persist(() => repository.saveComplaint(c), `reclamo ${id}`);
   return c;
 }
 
@@ -909,6 +662,7 @@ function markPayoutPaid(requestId) {
   if (!req) return null;
   req.payoutStatus = 'pagado';
   req.payoutPaidAt = new Date().toISOString();
+  repository.persist(() => repository.saveRequest(req), `solicitud ${requestId}`);
   return req;
 }
 
@@ -939,6 +693,7 @@ function completeOnboarding(userId) {
   if (!user) return null;
   user.onboardingCompleted = true;
   user.onboardingCompletedAt = new Date().toISOString();
+  repository.persist(() => repository.saveUser(user), `usuario ${userId}`);
   return user;
 }
 
@@ -960,8 +715,9 @@ function exportDataSnapshot({ includeSecurityLogs = true } = {}) {
 }
 
 module.exports = {
-  SERVICES,
-  USERS,
+  init,
+  get SERVICES() { return SERVICES; },
+  get USERS() { return USERS; },
   formatCLP,
   getServiceById,
   getActiveServices,
@@ -981,8 +737,8 @@ module.exports = {
   getAllRequests,
   getPendingRequestsForProvider,
   providerSockets,
-  COMPLAINTS,
-  CHATS,
+  get COMPLAINTS() { return COMPLAINTS; },
+  get CHATS() { return CHATS; },
   getPayments,
   getProviderPayouts,
   getAdminStats,
@@ -1015,20 +771,3 @@ module.exports = {
   completeOnboarding,
   get requests() { return requests; }
 };
-
-(function initDemoVerifiedProvider() {
-  const pedro = USERS.find(u => u.id === 'provider-pedro');
-  if (!pedro) return;
-  ensureProviderFields(pedro);
-  pedro.verification.idCardFront = 'demo';
-  pedro.verification.idCardBack = 'demo';
-  pedro.verification.faceVerified = true;
-  pedro.verification.faceScore = 94;
-  pedro.verification.faceVerifiedAt = '2025-10-01T12:00:00.000Z';
-  pedro.locationShare.consent = true;
-  pedro.locationShare.consentAt = '2025-10-01T12:00:00.000Z';
-  pedro.locationShare.lat = -33.442;
-  pedro.locationShare.lng = -70.654;
-  pedro.locationShare.updatedAt = new Date().toISOString();
-  pedro.verification.status = computeVerificationStatus(pedro);
-})();

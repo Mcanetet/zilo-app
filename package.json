@@ -7,18 +7,25 @@
   "scripts": {
     "start": "node index.js",
     "build": "node scripts/hostinger-build.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "db:setup": "node scripts/db-setup.js",
+    "db:seed": "node scripts/db-setup.js"
   },
   "engines": {
     "node": "20.x"
   },
   "dependencies": {
-    "express": "^4.21.2",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
+    "express": "^4.21.2",
     "express-session": "^1.18.1",
     "mercadopago": "^2.0.15",
+    "mysql2": "^3.22.5",
     "socket.io": "^4.8.1",
     "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.2",
+    "to-ico": "^1.1.5"
   }
 }

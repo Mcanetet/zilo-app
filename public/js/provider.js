@@ -69,7 +69,7 @@
     if (Notification.permission === 'granted') {
       new Notification('Zilo — Nueva solicitud', {
         body: `${data.service.name} · ${data.request.address}`,
-        icon: '/favicon.ico'
+        icon: '/favicon-32.png'
       });
     } else if (Notification.permission !== 'denied') {
       Notification.requestPermission();

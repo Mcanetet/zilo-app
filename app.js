@@ -83,8 +83,20 @@ app.use('/pagos', paymentRoutes);
 app.use('/legal', legalRoutes);
 app.use('/seguimiento', trackingRoutes);
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ ok: true, app: 'zilo', uptime: process.uptime() });
+app.get('/health', async (req, res) => {
+  let dbOk = false;
+  try {
+    dbOk = await require('./lib/db').ping();
+  } catch (_) {
+    dbOk = false;
+  }
+  const status = dbOk ? 200 : 503;
+  res.status(status).json({
+    ok: dbOk,
+    app: 'zilo',
+    database: dbOk ? 'connected' : 'disconnected',
+    uptime: process.uptime()
+  });
 });
 
 io.on('connection', (socket) => {
@@ -124,15 +136,24 @@ app.use((req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor listo en ${PORT}`);
-  backup.startBackupScheduler(store, (event, detail) => {
-    store.logSecurityEvent(event, detail, null);
+async function start() {
+  await store.init();
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor listo en ${PORT}`);
+    backup.startBackupScheduler(store, (event, detail) => {
+      store.logSecurityEvent(event, detail, null);
+    });
+    const cfg = backup.loadConfig();
+    if (cfg.enabled && cfg.autoBackup) {
+      console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')} · retención ${cfg.dailyRetentionDays}d / ${cfg.weeklyRetentionWeeks}sem / ${cfg.monthlyRetentionMonths}mes`);
+    }
   });
-  const cfg = backup.loadConfig();
-  if (cfg.enabled && cfg.autoBackup) {
-    console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')} · retención ${cfg.dailyRetentionDays}d / ${cfg.weeklyRetentionWeeks}sem / ${cfg.monthlyRetentionMonths}mes`);
-  }
+  return { app, server, io };
+}
+
+start().catch((err) => {
+  console.error('No se pudo iniciar Zilo:', err.message);
+  process.exit(1);
 });
 
-module.exports = { app, server, io };
+module.exports = { app, server, io, start };

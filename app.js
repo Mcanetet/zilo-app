@@ -36,6 +36,8 @@ app.set('io', io);
 
 app.get('/health', async (req, res) => {
   const dbConfigured = require('./lib/db').isConfigured();
+  const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+  const missingVars = requiredVars.filter((k) => !process.env[k]);
   let dbOk = false;
   if (dbConfigured && store.isReady()) {
     try {
@@ -51,6 +53,7 @@ app.get('/health', async (req, res) => {
     database: dbOk ? 'connected' : (dbConfigured ? 'connecting' : 'not_configured'),
     dbHost: process.env.DB_HOST || null,
     dbName: process.env.DB_NAME || null,
+    missingVars,
     port: PORT,
     uptime: process.uptime(),
     initError: global.__ziloInitError || null

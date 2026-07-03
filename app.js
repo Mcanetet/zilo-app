@@ -34,6 +34,29 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('io', io);
 
+app.get('/health', async (req, res) => {
+  const dbConfigured = require('./lib/db').isConfigured();
+  let dbOk = false;
+  if (dbConfigured && store.isReady()) {
+    try {
+      dbOk = await require('./lib/db').ping();
+    } catch (_) {
+      dbOk = false;
+    }
+  }
+  res.status(200).json({
+    ok: store.isReady() && dbOk,
+    app: 'zilo',
+    ready: store.isReady(),
+    database: dbOk ? 'connected' : (dbConfigured ? 'connecting' : 'not_configured'),
+    dbHost: process.env.DB_HOST || null,
+    dbName: process.env.DB_NAME || null,
+    port: PORT,
+    uptime: process.uptime(),
+    initError: global.__ziloInitError || null
+  });
+});
+
 app.use(securityHeaders);
 app.use(rateLimitSimple(150));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -83,19 +106,12 @@ app.use('/pagos', paymentRoutes);
 app.use('/legal', legalRoutes);
 app.use('/seguimiento', trackingRoutes);
 
-app.get('/health', async (req, res) => {
-  let dbOk = false;
-  try {
-    dbOk = await require('./lib/db').ping();
-  } catch (_) {
-    dbOk = false;
-  }
-  const status = dbOk ? 200 : 503;
-  res.status(status).json({
-    ok: dbOk,
-    app: 'zilo',
-    database: dbOk ? 'connected' : 'disconnected',
-    uptime: process.uptime()
+app.use((req, res, next) => {
+  if (store.isReady() || req.path === '/health') return next();
+  return res.status(503).render('error', {
+    title: 'Conectando…',
+    message: 'Zilo está conectando con la base de datos. Espera unos segundos y recarga la página.',
+    code: 503
   });
 });
 
@@ -136,34 +152,44 @@ app.use((req, res) => {
   });
 });
 
-async function start() {
-  await store.init();
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor listo en ${PORT}`);
-    backup.startBackupScheduler(store, (event, detail) => {
-      store.logSecurityEvent(event, detail, null);
-    });
-    const cfg = backup.loadConfig();
-    if (cfg.enabled && cfg.autoBackup) {
-      console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')} · retención ${cfg.dailyRetentionDays}d / ${cfg.weeklyRetentionWeeks}sem / ${cfg.monthlyRetentionMonths}mes`);
+async function initDatabase() {
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    try {
+      await store.init();
+      global.__ziloInitError = null;
+      backup.startBackupScheduler(store, (event, detail) => {
+        store.logSecurityEvent(event, detail, null);
+      });
+      const cfg = backup.loadConfig();
+      if (cfg.enabled && cfg.autoBackup) {
+        console.log(`💾 Backups automáticos: ${String(cfg.scheduleHour).padStart(2, '0')}:${String(cfg.scheduleMinute).padStart(2, '0')}`);
+      }
+      console.log('✓ Base de datos conectada');
+      return;
+    } catch (err) {
+      global.__ziloInitError = err.message;
+      console.error(`Intento ${attempt}/8 — MySQL:`, err.message, err.code || '');
+      if (attempt < 8) {
+        await new Promise((r) => setTimeout(r, 5000));
+      }
     }
+  }
+}
+
+async function start() {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor escuchando en puerto ${PORT}`);
+    console.log('DB_HOST:', process.env.DB_HOST || '(no definido)');
+    console.log('DB_NAME:', process.env.DB_NAME || '(no definido)');
+    console.log('DB_USER:', process.env.DB_USER || '(no definido)');
   });
+  initDatabase();
   return { app, server, io };
 }
 
 start().catch((err) => {
-  console.error('❌ No se pudo iniciar Zilo:', err.message);
+  console.error('❌ Error fatal al arrancar:', err.message);
   if (err.stack) console.error(err.stack);
-  if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
-    console.error('→ Falta DATABASE_URL o DB_HOST/DB_USER/DB_PASSWORD/DB_NAME en Hostinger → Environment Variables');
-  }
-  if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
-    console.error('→ No se pudo conectar a MySQL. En Hostinger el host suele ser: localhost');
-  }
-  if (err.code === 'ER_ACCESS_DENIED_ERROR') {
-    console.error('→ Usuario o contraseña MySQL incorrectos');
-  }
-  process.exit(1);
 });
 
 module.exports = { app, server, io, start };

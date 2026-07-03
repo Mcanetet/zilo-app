@@ -22,7 +22,7 @@ const WELCOME_DISCOUNT = 0.2;
 async function init() {
   if (initialized) return;
   if (!db.isConfigured()) {
-    throw new Error('DATABASE_URL no está configurada. Ejecuta: npm run db:setup');
+    throw new Error('Faltan DB_HOST, DB_USER, DB_PASSWORD y DB_NAME en las variables de entorno');
   }
 
   await repository.migrate();
@@ -39,6 +39,10 @@ async function init() {
   securityLogs = data.securityLogs;
   initialized = true;
   console.log(`📦 Datos cargados desde MySQL (${USERS.length} usuarios, ${requests.length} solicitudes)`);
+}
+
+function isReady() {
+  return initialized;
 }
 
 function ensureReady() {
@@ -716,6 +720,7 @@ function exportDataSnapshot({ includeSecurityLogs = true } = {}) {
 
 module.exports = {
   init,
+  isReady,
   get SERVICES() { return SERVICES; },
   get USERS() { return USERS; },
   formatCLP,

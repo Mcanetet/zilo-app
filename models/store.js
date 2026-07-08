@@ -508,9 +508,86 @@ function updateProviderLocation(providerId, lat, lng) {
 }
 
 function getUserByEmail(email) {
-  const user = USERS.find(u => u.email === email);
+  const normalized = (email || '').trim().toLowerCase();
+  const user = USERS.find(u => (u.email || '').toLowerCase() === normalized);
   if (user?.role === 'provider') ensureProviderFields(user);
   return user;
+}
+
+function generateReferralCode(name) {
+  const base = (name || 'USER').replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase() || 'USER';
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `${base}${rand}`;
+}
+
+async function registerUser({ name, email, password, phone, role, address, specialties }) {
+  name = (name || '').trim();
+  email = (email || '').trim().toLowerCase();
+  password = password || '';
+  role = role === 'provider' ? 'provider' : 'client';
+
+  if (!name || !email || !password) return { error: 'Completa nombre, correo y contraseña.' };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Ingresa un correo válido.' };
+  if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres.' };
+  if (getUserByEmail(email)) return { error: 'Ya existe una cuenta con ese correo.' };
+
+  let cleanSpecialties = [];
+  if (role === 'provider') {
+    const raw = Array.isArray(specialties) ? specialties : (specialties ? [specialties] : []);
+    cleanSpecialties = raw.filter(id => SERVICES.some(s => s.id === id));
+    if (cleanSpecialties.length === 0) return { error: 'Selecciona al menos una especialidad.' };
+  }
+
+  const shortId = uuidv4().slice(0, 8);
+  const baseUser = {
+    id: role === 'provider' ? `provider-${shortId}` : `client-${shortId}`,
+    email,
+    password,
+    name,
+    role,
+    phone: (phone || '').trim() || null,
+    onboardingCompleted: false,
+    memberSince: new Date().toISOString().slice(0, 10)
+  };
+
+  let user;
+  if (role === 'provider') {
+    user = {
+      ...baseUser,
+      specialties: cleanSpecialties,
+      rating: null,
+      reviewsCount: 0,
+      online: false,
+      avatar: name.split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+      bio: '',
+      reviews: [],
+      verification: defaultProviderVerification(),
+      locationShare: defaultLocationShare()
+    };
+  } else {
+    user = {
+      ...baseUser,
+      address: (address || '').trim() || null,
+      referralCode: generateReferralCode(name),
+      ziloPoints: 0,
+      creditsCLP: 0,
+      referralsCount: 0,
+      servicesCount: 0,
+      usedWelcomePromo: false,
+      usedReferral: false
+    };
+  }
+
+  USERS.push(user);
+  try {
+    await repository.saveUser(user);
+  } catch (err) {
+    const idx = USERS.indexOf(user);
+    if (idx >= 0) USERS.splice(idx, 1);
+    console.error('Error registrando usuario:', err.message);
+    return { error: 'No se pudo crear la cuenta. Intenta nuevamente.' };
+  }
+  return { success: true, user };
 }
 
 function getOnlineProviders(serviceId) {
@@ -728,6 +805,7 @@ module.exports = {
   getActiveServices,
   toggleService,
   getUserByEmail,
+  registerUser,
   getUserById,
   getOnlineProviders,
   createRequest,

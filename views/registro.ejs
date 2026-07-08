@@ -1,0 +1,117 @@
+<%- include('partials/head') %>
+
+<div class="min-h-screen flex items-center justify-center p-5 relative">
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-zilo-accent/6 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 w-full max-w-md zilo-card-premium rounded-3xl p-8 zilo-page-enter">
+    <a href="/" class="flex flex-col items-center mb-6">
+      <%- include('partials/logo', { className: 'w-14 h-14 mb-3', logoId: 'registro' }) %>
+      <span class="zilo-display text-2xl tracking-wide">Fundez</span>
+    </a>
+
+    <h1 class="zilo-display text-3xl text-center mb-1">Crear cuenta</h1>
+    <p class="text-zilo-muted text-center text-sm mb-6">Únete a Fundez en menos de un minuto</p>
+
+    <% if (typeof referralCode !== 'undefined' && referralCode) { %>
+      <div class="mb-4 p-3 rounded-xl border border-zilo-accent/25 bg-zilo-accent-soft text-center">
+        <p class="text-sm text-zilo-accent-strong">Código: <strong class="font-mono"><%= referralCode %></strong></p>
+        <p class="text-xs text-zilo-muted mt-1">$5.000 de crédito al registrarte</p>
+      </div>
+    <% } %>
+
+    <% if (error) { %>
+      <div class="mb-4 p-3 rounded-xl bg-zilo-danger/10 border border-zilo-danger/30 text-zilo-danger text-sm text-center"><%= error %></div>
+    <% } %>
+
+    <form action="/registro" method="POST" class="space-y-4">
+      <div>
+        <span class="zilo-label block mb-1.5">Quiero registrarme como</span>
+        <div class="grid grid-cols-2 gap-2" id="roleSelector">
+          <label class="role-option cursor-pointer">
+            <input type="radio" name="role" value="client" class="peer sr-only" <%= form.role !== 'provider' ? 'checked' : '' %>>
+            <div class="p-3 rounded-xl border border-zilo-border text-center transition peer-checked:border-zilo-accent peer-checked:bg-zilo-accent-soft peer-checked:text-zilo-accent-strong">
+              <span class="block text-sm font-semibold">Cliente</span>
+              <span class="block text-[11px] text-zilo-muted mt-0.5">Solicito servicios</span>
+            </div>
+          </label>
+          <label class="role-option cursor-pointer">
+            <input type="radio" name="role" value="provider" class="peer sr-only" <%= form.role === 'provider' ? 'checked' : '' %>>
+            <div class="p-3 rounded-xl border border-zilo-border text-center transition peer-checked:border-zilo-accent peer-checked:bg-zilo-accent-soft peer-checked:text-zilo-accent-strong">
+              <span class="block text-sm font-semibold">Proveedor</span>
+              <span class="block text-[11px] text-zilo-muted mt-0.5">Ofrezco servicios</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label for="name" class="zilo-label block mb-1.5">Nombre completo</label>
+        <input type="text" id="name" name="name" required autocomplete="name" placeholder="Tu nombre" class="zilo-input" value="<%= form.name || '' %>">
+      </div>
+      <div>
+        <label for="email" class="zilo-label block mb-1.5">Correo</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="tu@email.com" class="zilo-input" value="<%= form.email || '' %>">
+      </div>
+      <div>
+        <label for="phone" class="zilo-label block mb-1.5">Teléfono <span class="text-zilo-muted normal-case">(WhatsApp)</span></label>
+        <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="+56 9 1234 5678" class="zilo-input" value="<%= form.phone || '' %>">
+      </div>
+      <div>
+        <label for="password" class="zilo-label block mb-1.5">Contraseña <span class="text-zilo-muted normal-case">(mín. 6 caracteres)</span></label>
+        <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password" placeholder="••••••••" class="zilo-input">
+      </div>
+
+      <div id="clientFields" class="space-y-4">
+        <div>
+          <label for="address" class="zilo-label block mb-1.5">Dirección <span class="text-zilo-muted normal-case">(opcional)</span></label>
+          <input type="text" id="address" name="address" autocomplete="street-address" placeholder="Calle, número, comuna" class="zilo-input" value="<%= form.address || '' %>">
+        </div>
+      </div>
+
+      <div id="providerFields" class="space-y-2 hidden">
+        <span class="zilo-label block mb-1.5">Especialidades</span>
+        <div class="grid grid-cols-2 gap-2">
+          <% services.forEach(function(s){ %>
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-zilo-border cursor-pointer hover:border-zilo-accent/40 transition text-sm">
+              <input type="checkbox" name="specialties" value="<%= s.id %>" class="rounded accent-[#2563EB]" <%= (form.specialties || []).includes(s.id) ? 'checked' : '' %>>
+              <span><%= s.name %></span>
+            </label>
+          <% }); %>
+        </div>
+        <p class="text-[11px] text-zilo-muted mt-1">Tras registrarte deberás verificar tu identidad para recibir solicitudes.</p>
+      </div>
+
+      <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+        <input type="checkbox" name="consent" required class="mt-0.5 rounded accent-[#2563EB]">
+        <span>Acepto la <a href="/legal/privacidad" target="_blank" class="text-zilo-accent underline">Privacidad</a> y <a href="/legal/terminos" target="_blank" class="text-zilo-accent underline">Términos</a></span>
+      </label>
+
+      <button type="submit" class="zilo-btn-primary">Crear cuenta</button>
+    </form>
+
+    <p class="text-center text-sm text-zilo-muted mt-6">
+      ¿Ya tienes cuenta?
+      <a href="/login" class="text-zilo-accent font-semibold hover:underline">Ingresar</a>
+    </p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const providerFields = document.getElementById('providerFields');
+    const clientFields = document.getElementById('clientFields');
+    const roleInputs = document.querySelectorAll('input[name="role"]');
+    function sync() {
+      const role = document.querySelector('input[name="role"]:checked').value;
+      const isProvider = role === 'provider';
+      providerFields.classList.toggle('hidden', !isProvider);
+      clientFields.classList.toggle('hidden', isProvider);
+    }
+    roleInputs.forEach(r => r.addEventListener('change', sync));
+    sync();
+  })();
+</script>
+
+<%- include('partials/footer') %>

@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const { geocodeAddress } = require('../lib/geocode');
 const db = require('../lib/db');
 const repository = require('./repository');
+const { verifyPassword, hashPassword } = require('../lib/password');
 const {
   DEFAULT_PRICING,
   normalizePricing,
@@ -695,6 +696,26 @@ function getUserByEmail(email) {
   return user;
 }
 
+async function authenticateUser(email, password, { allowedRoles } = {}) {
+  const user = getUserByEmail(email);
+  if (!user) return { error: 'invalid' };
+  if (user.active === false) return { error: 'blocked' };
+
+  if (allowedRoles?.length && !allowedRoles.includes(user.role)) {
+    return { error: 'wrong_portal', role: user.role };
+  }
+
+  const check = await verifyPassword(password, user.password);
+  if (!check.ok) return { error: 'invalid' };
+
+  if (check.needsUpgrade) {
+    user.password = await hashPassword(password);
+    repository.persist(() => repository.saveUser(user), `password upgrade ${user.id}`);
+  }
+
+  return { user };
+}
+
 function generateReferralCode(name) {
   const base = (name || 'USER').replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase() || 'USER';
   const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -720,10 +741,11 @@ async function registerUser({ name, email, password, phone, role, address, speci
   }
 
   const shortId = uuidv4().slice(0, 8);
+  const hashedPassword = await hashPassword(password);
   const baseUser = {
     id: role === 'provider' ? `provider-${shortId}` : `client-${shortId}`,
     email,
-    password,
+    password: hashedPassword,
     name,
     role,
     phone: (phone || '').trim() || null,
@@ -785,10 +807,11 @@ async function createTechnician(socioId, { name, email, password, phone } = {}) 
   if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres.' };
   if (getUserByEmail(email)) return { error: 'Ya existe una cuenta con ese correo.' };
 
+  const hashedPassword = await hashPassword(password);
   const tecnico = {
     id: `tecnico-${uuidv4().slice(0, 8)}`,
     email,
-    password,
+    password: hashedPassword,
     name,
     role: 'tecnico',
     parentId: socioId,
@@ -833,8 +856,9 @@ function setUserActive(userId, active) {
   return user;
 }
 
-const DEMO_ACCOUNT_IDS = ['client-1', 'provider-pedro', 'admin-1'];
-const DEMO_ACCOUNT_LABELS = { 'client-1': 'Cliente', 'provider-pedro': 'Socio', 'admin-1': 'Admin' };
+const DEMO_ACCOUNT_IDS = ['client-1', 'provider-pedro'];
+const DEMO_ACCOUNT_LABELS = { 'client-1': 'Cliente', 'provider-pedro': 'Socio' };
+const DEMO_ACCOUNT_PASSWORDS = { 'client-1': 'cliente123', 'provider-pedro': 'proveedor123' };
 
 function getDemoAccounts() {
   return DEMO_ACCOUNT_IDS
@@ -845,7 +869,7 @@ function getDemoAccounts() {
       label: DEMO_ACCOUNT_LABELS[u.id] || u.role,
       name: u.name,
       email: u.email,
-      password: u.password,
+      password: DEMO_ACCOUNT_PASSWORDS[u.id] || '',
       active: u.active !== false
     }));
 }
@@ -1309,6 +1333,7 @@ module.exports = {
   getUrgencyTiersForClient,
   previewVisitPrice,
   getUserByEmail,
+  authenticateUser,
   registerUser,
   createTechnician,
   getTechniciansByProvider,

@@ -8,6 +8,9 @@ function requireAuth(req, res, next) {
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.session.user) {
+      if (roles.includes('admin')) {
+        return res.redirect('/admin/login');
+      }
       return res.redirect('/login');
     }
     if (!roles.includes(req.session.user.role)) {

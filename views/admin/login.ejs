@@ -1,0 +1,38 @@
+<%- include('../partials/head', { bodyClass: 'admin-page' }) %>
+
+<div class="min-h-screen flex items-center justify-center p-5 relative">
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 w-full max-w-md zilo-card-premium rounded-3xl p-8 border border-gray-200">
+    <div class="flex flex-col items-center mb-8">
+      <%- include('../partials/logo', { className: 'w-12 h-12 mb-3' }) %>
+      <span class="zilo-label !text-[9px]">Operaciones</span>
+      <h1 class="text-xl font-semibold mt-1">Fundez Admin</h1>
+      <p class="text-xs text-gray-500 mt-1 text-center">Acceso restringido al equipo de administración</p>
+    </div>
+
+    <% if (error) { %>
+      <div class="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-700 text-sm text-center"><%= error %></div>
+    <% } %>
+
+    <form action="/admin/login" method="POST" class="space-y-4">
+      <div>
+        <label for="email" class="zilo-label block mb-1.5">Correo corporativo</label>
+        <input type="email" id="email" name="email" required autocomplete="username" placeholder="admin@fundez.cl" class="zilo-input">
+      </div>
+      <div>
+        <label for="password" class="zilo-label block mb-1.5">Contraseña</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" class="zilo-input">
+      </div>
+      <button type="submit" class="w-full py-3 rounded-xl zilo-btn-primary">Ingresar al panel</button>
+    </form>
+
+    <p class="text-center text-xs text-gray-500 mt-6">
+      <a href="/" class="hover:text-gray-700 underline">Volver al sitio público</a>
+    </p>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

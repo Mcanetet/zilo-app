@@ -6,6 +6,63 @@ const store = require('../models/store');
 const company = require('../config/company');
 const backup = require('../lib/backup');
 const { requireRole } = require('../middleware/auth');
+const { rateLimitLogin } = require('../middleware/security');
+
+const ADMIN_SESSION_MS = 4 * 60 * 60 * 1000;
+
+router.get('/login', (req, res) => {
+  if (req.session.user?.role === 'admin') {
+    return res.redirect('/admin');
+  }
+  res.render('admin/login', {
+    title: 'Admin — Fundez',
+    error: null
+  });
+});
+
+router.post('/login', rateLimitLogin(8), async (req, res) => {
+  const { email, password } = req.body;
+  const result = await store.authenticateUser(email, password, { allowedRoles: ['admin'] });
+
+  if (result.error === 'wrong_portal') {
+    store.logSecurityEvent('admin_login_wrong_role', email, req);
+    return res.render('admin/login', {
+      title: 'Admin — Fundez',
+      error: 'Credenciales no válidas para administración.'
+    });
+  }
+
+  if (result.error === 'blocked') {
+    store.logSecurityEvent('admin_login_blocked', email, req);
+    return res.render('admin/login', {
+      title: 'Admin — Fundez',
+      error: 'Esta cuenta está desactivada.'
+    });
+  }
+
+  if (result.error) {
+    store.logSecurityEvent('admin_login_fail', email, req);
+    return res.render('admin/login', {
+      title: 'Admin — Fundez',
+      error: 'Credenciales incorrectas.'
+    });
+  }
+
+  const user = result.user;
+  req.session.user = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role
+  };
+  req.session.isAdminSession = true;
+  if (req.session.cookie) {
+    req.session.cookie.maxAge = ADMIN_SESSION_MS;
+  }
+
+  store.logSecurityEvent('admin_login_ok', email, req);
+  res.redirect('/admin');
+});
 
 router.get('/', requireRole('admin'), (req, res) => {
   const allRequests = store.getAllRequests();

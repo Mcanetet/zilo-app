@@ -37,6 +37,14 @@
       <p class="text-xs text-zilo-muted" id="gProviderRating"><%= provider ? provider.rating + '★' : '' %></p>
     </div>
 
+    <div id="gEta" class="hidden zilo-card-premium rounded-2xl p-5 flex items-center gap-4">
+      <svg class="w-6 h-6 text-zilo-accent shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <div>
+        <p class="zilo-label">Llega en aprox.</p>
+        <p class="font-semibold"><span id="gEtaMin">—</span> min <span id="gEtaKm" class="text-xs text-zilo-muted font-normal"></span></p>
+      </div>
+    </div>
+
     <% if (request.coords) { %>
     <div id="guardianMap" class="w-full h-52 rounded-2xl overflow-hidden border border-zilo-border"
       data-lat="<%= request.coords.lat %>" data-lng="<%= request.coords.lng %>" data-label="<%= request.address %>"></div>
@@ -52,12 +60,27 @@
 <script>
 (function () {
   const token = document.getElementById('guardianPage').dataset.token;
+  const requestId = '<%= request.id %>';
   const socket = io();
+  let mapEl = null;
 
   document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('guardianMap');
-    if (el && typeof FundezMap !== 'undefined') {
-      FundezMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
+    mapEl = document.getElementById('guardianMap');
+    if (mapEl && typeof FundezMap !== 'undefined') {
+      FundezMap.init(mapEl, { lat: mapEl.dataset.lat, lng: mapEl.dataset.lng, label: mapEl.dataset.label, zoom: 15 });
+    }
+    socket.emit('register_client', requestId);
+  });
+
+  socket.on(`provider_location_${requestId}`, (loc) => {
+    if (mapEl && typeof FundezMap !== 'undefined') {
+      FundezMap.updateProviderLocation(mapEl.id, loc.lat, loc.lng, parseFloat(mapEl.dataset.lat), parseFloat(mapEl.dataset.lng));
+    }
+    if (loc.etaMinutes != null) {
+      const box = document.getElementById('gEta');
+      box.classList.remove('hidden');
+      document.getElementById('gEtaMin').textContent = loc.etaMinutes;
+      document.getElementById('gEtaKm').textContent = loc.distanceKm != null ? `· ${loc.distanceKm} km` : '';
     }
   });
 

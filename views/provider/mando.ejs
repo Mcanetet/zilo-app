@@ -1,0 +1,74 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="mandoPage">
+  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
+    <div class="flex items-center gap-3">
+      <a href="/proveedor" class="zilo-icon-btn" title="Volver">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+      <div>
+        <p class="zilo-label !text-[9px]">Socio Fundez</p>
+        <h1 class="text-base font-semibold">Cuadro de mando</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 px-5 py-5 pb-10">
+    <p class="text-xs text-zilo-muted mb-4">Asigna cada solicitud a un técnico de tu equipo y sigue su avance en terreno.</p>
+
+    <% if (technicians.length === 0) { %>
+      <a href="/proveedor/equipo" class="block mb-4 p-4 rounded-2xl border border-zilo-warning/30 bg-zilo-warning/10">
+        <p class="text-sm font-semibold text-zilo-warning mb-1">Aún no tienes técnicos</p>
+        <p class="text-xs text-zilo-muted">Crea tu equipo para poder asignar solicitudes.</p>
+      </a>
+    <% } %>
+
+    <% if (requests.length === 0) { %>
+      <div class="zilo-empty zilo-card-premium rounded-2xl">
+        <p class="zilo-display">Sin solicitudes activas</p>
+        <p class="text-sm">Cuando aceptes trabajos aparecerán aquí para asignarlos</p>
+      </div>
+    <% } else { %>
+      <div class="space-y-3" id="mandoList">
+        <% requests.forEach(r => { %>
+          <div class="p-4 rounded-2xl zilo-card-premium" data-request-id="<%= r.id %>">
+            <div class="flex justify-between items-start mb-2">
+              <div class="min-w-0">
+                <strong class="text-sm block truncate"><%= r.serviceName %></strong>
+                <span class="text-xs text-zilo-muted block truncate"><%= r.clientName %></span>
+              </div>
+              <span class="zilo-badge zilo-badge-muted shrink-0" data-role="status"><%= r.techStatus || r.status %></span>
+            </div>
+            <p class="text-xs text-zilo-muted/90 mb-3 flex items-start gap-1">
+              <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span><%= r.address || 'Sin dirección' %></span>
+            </p>
+
+            <div data-role="assign-area">
+              <% if (r.technicianId) { %>
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-xs">Técnico: <strong data-role="tech-name"><%= r.technicianName %></strong></p>
+                  <% if (r.guardianToken) { %>
+                    <a href="/seguimiento/<%= r.guardianToken %>" target="_blank" class="zilo-btn-ghost !py-1.5 !px-3 !text-xs">Ver mapa</a>
+                  <% } %>
+                </div>
+              <% } else if (technicians.length > 0) { %>
+                <div class="flex items-center gap-2">
+                  <select class="zilo-input !py-2 flex-1 text-sm" data-role="tech-select">
+                    <option value="">Elegir técnico…</option>
+                    <% technicians.forEach(t => { %>
+                      <option value="<%= t.id %>"><%= t.name %></option>
+                    <% }); %>
+                  </select>
+                  <button type="button" class="zilo-btn-primary !py-2 !px-4 !text-sm" data-role="assign-btn" data-id="<%= r.id %>">Asignar</button>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </main>
+</div>
+
+<%- include('../partials/footer', { pageScript: '/js/mando.js' }) %>

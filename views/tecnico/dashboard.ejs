@@ -1,6 +1,6 @@
-<%- include('../partials/head') %>
+<%- include('../partials/head', { useMap: true }) %>
 
-<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter">
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="tecnicoPage" data-tecnico-id="<%= tecnico.id %>">
   <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -19,27 +19,45 @@
   </header>
 
   <main class="flex-1 px-5 py-5 pb-10">
-    <% if (tecnico.specialties && tecnico.specialties.length) { %>
-    <section class="mb-6">
-      <p class="zilo-label mb-2">Especialidades</p>
-      <div class="flex flex-wrap gap-2">
-        <% tecnico.specialties.forEach(s => {
-          const svc = services.find(x => x.id === s);
-        %>
-          <span class="zilo-tag"><%= svc ? svc.name : s %></span>
-        <% }); %>
-      </div>
-    </section>
-    <% } %>
+    <p class="zilo-label mb-3">Trabajos asignados</p>
 
-    <section>
-      <p class="zilo-label mb-3">Trabajos asignados</p>
+    <% if (!jobs || jobs.length === 0) { %>
       <div class="zilo-empty zilo-card-premium rounded-2xl">
         <p class="zilo-display">Sin trabajos por ahora</p>
         <p class="text-sm">Tu socio te asignará solicitudes. Aparecerán aquí para que las aceptes y vayas a terreno.</p>
       </div>
-    </section>
+    <% } else { %>
+      <div class="space-y-3" id="jobList">
+        <% jobs.forEach(j => { %>
+          <div class="p-4 rounded-2xl zilo-card-premium"
+               data-job-id="<%= j.id %>"
+               data-tech-status="<%= j.techStatus %>"
+               <% if (j.coords) { %>data-lat="<%= j.coords.lat %>" data-lng="<%= j.coords.lng %>"<% } %>>
+            <div class="flex justify-between items-start mb-2">
+              <div class="min-w-0">
+                <strong class="text-sm block truncate"><%= j.serviceName %></strong>
+                <span class="text-xs text-zilo-muted block truncate">
+                  <% if (j.isGift && j.beneficiaryName) { %>Regalo · <%= j.beneficiaryName %><% } else { %><%= j.clientName %><% } %>
+                </span>
+              </div>
+              <span class="zilo-badge zilo-badge-muted shrink-0" data-role="status"><%= j.techStatus %></span>
+            </div>
+
+            <p class="text-xs text-zilo-muted/90 mb-2 flex items-start gap-1">
+              <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span><%= j.address || 'Sin dirección' %></span>
+            </p>
+            <% if (j.notes) { %>
+              <p class="text-xs text-zilo-muted italic p-2.5 rounded-lg bg-zilo-bg/80 border border-zilo-border mb-3"><%= j.notes %></p>
+            <% } %>
+
+            <div class="flex gap-2" data-role="actions"></div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
   </main>
 </div>
 
-<%- include('../partials/footer') %>
+<%- include('../partials/footer', { pageScript: '/js/tecnico.js' }) %>
+<script src="/js/map.js"></script>

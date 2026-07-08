@@ -253,6 +253,40 @@ router.post('/equipo/:id/toggle', requireRole('provider'), (req, res) => {
   res.json({ success: true, id: tecnico.id, active });
 });
 
+router.get('/mando', requireRole('provider'), (req, res) => {
+  const provider = store.getUserById(req.session.user.id);
+  const technicians = store.getTechniciansByProvider(provider.id).filter(t => t.active !== false);
+  const active = store.getRequestsByProvider(provider.id)
+    .filter(r => r.status !== 'completed' && r.status !== 'cancelled')
+    .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt));
+
+  res.render('provider/mando', {
+    title: 'Cuadro de mando — Fundez',
+    user: req.session.user,
+    provider,
+    technicians,
+    requests: active,
+    services: store.SERVICES,
+    formatCLP: store.formatCLP
+  });
+});
+
+router.post('/asignar/:requestId', requireRole('provider'), (req, res) => {
+  const { technicianId } = req.body;
+  const result = store.assignTechnician(req.params.requestId, req.session.user.id, technicianId);
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+
+  const io = req.app.get('io');
+  io.emit(`tecnico_assignment_${result.tecnico.id}`, { requestId: result.request.id });
+  io.emit(`request_update_${result.request.id}`, { request: result.request });
+  store.logSecurityEvent('tecnico_asignado', `${result.tecnico.email} -> ${result.request.id}`, req);
+
+  res.json({
+    success: true,
+    request: { id: result.request.id, technicianId: result.tecnico.id, technicianName: result.tecnico.name, techStatus: result.request.techStatus }
+  });
+});
+
 router.get('/verificacion/estado', requireRole('provider'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   res.json({

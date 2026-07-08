@@ -697,6 +697,71 @@ function updateRequestStatus(requestId, status) {
   return request;
 }
 
+function assignTechnician(requestId, socioId, technicianId) {
+  const request = requests.find(r => r.id === requestId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (request.providerId !== socioId) return { error: 'Esta solicitud no es de tu equipo.' };
+
+  const tecnico = getTechnicianForProvider(socioId, technicianId);
+  if (!tecnico) return { error: 'Técnico no válido.' };
+  if (tecnico.active === false) return { error: 'El técnico está desactivado.' };
+
+  request.technicianId = tecnico.id;
+  request.technicianName = tecnico.name;
+  request.technicianPhone = tecnico.phone || null;
+  request.technicianAssignedAt = new Date().toISOString();
+  request.techStatus = 'asignado';
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request, tecnico };
+}
+
+function updateTechStatus(requestId, technicianId, techStatus) {
+  const request = requests.find(r => r.id === requestId);
+  if (!request || request.technicianId !== technicianId) return null;
+  request.techStatus = techStatus;
+  const map = { aceptado: 'assigned', en_camino: 'in_progress', en_sitio: 'in_progress', completado: 'completed' };
+  const mappedStatus = map[techStatus];
+  if (mappedStatus) {
+    request.status = mappedStatus;
+    if (mappedStatus === 'completed') {
+      request.completedAt = new Date().toISOString();
+      request.payoutStatus = request.payoutStatus || 'pendiente';
+      addLogbookEntryFromRequest(request);
+    }
+  }
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return request;
+}
+
+function getRequestsByTechnician(technicianId) {
+  return requests.filter(r => r.technicianId === technicianId);
+}
+
+function updateTechnicianLocation(technicianId, lat, lng) {
+  const tecnico = getUserById(technicianId);
+  if (!tecnico || tecnico.role !== 'tecnico') return null;
+  if (!tecnico.locationShare) tecnico.locationShare = defaultLocationShare();
+  tecnico.locationShare.consent = true;
+  tecnico.locationShare.consentAt = tecnico.locationShare.consentAt || new Date().toISOString();
+  tecnico.locationShare.lat = parseFloat(lat);
+  tecnico.locationShare.lng = parseFloat(lng);
+  tecnico.locationShare.updatedAt = new Date().toISOString();
+  repository.persist(() => repository.saveUser(tecnico), `tecnico ${technicianId}`);
+  return tecnico.locationShare;
+}
+
+function computeEtaMinutes(fromLat, fromLng, toLat, toLng, avgKmh = 30) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(toLat - fromLat);
+  const dLng = toRad(toLng - fromLng);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(fromLat)) * Math.cos(toRad(toLat)) * Math.sin(dLng / 2) ** 2;
+  const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const minutes = Math.round((distanceKm / avgKmh) * 60);
+  return { distanceKm: Math.round(distanceKm * 10) / 10, etaMinutes: Math.max(1, minutes) };
+}
+
 function setProviderOnline(providerId, online) {
   const provider = getUserById(providerId);
   if (provider && provider.role === 'provider') {
@@ -897,6 +962,11 @@ module.exports = {
   activateRequest,
   assignProvider,
   updateRequestStatus,
+  assignTechnician,
+  updateTechStatus,
+  getRequestsByTechnician,
+  updateTechnicianLocation,
+  computeEtaMinutes,
   setProviderOnline,
   getRequestsByClient,
   getRequestsByProvider,

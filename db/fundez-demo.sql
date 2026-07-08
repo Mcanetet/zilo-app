@@ -15,6 +15,8 @@
 -- ============================================================
 
 SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';
 
 -- ---------- Esquema (crea las tablas si no existen) ----------
 
@@ -259,3 +261,5 @@ INSERT IGNORE INTO security_logs (id, event, detail, `user`, ip, created_at) VAL
 ('sec-1', 'login_ok', NULL, 'admin@zilo.cl', '10.0.0.1', '2026-06-30 08:00:00'),
 ('sec-2', 'login_ok', NULL, 'cliente@zilo.cl', '10.0.0.2', '2026-06-30 09:30:00'),
 ('sec-3', 'pago_demo', 'Pago simulado aprobado', NULL, '10.0.0.2', '2026-06-30 10:00:00');
+
+SET FOREIGN_KEY_CHECKS = 1;

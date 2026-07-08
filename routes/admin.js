@@ -7,16 +7,44 @@ const company = require('../config/company');
 const backup = require('../lib/backup');
 const { requireRole } = require('../middleware/auth');
 const { rateLimitLogin } = require('../middleware/security');
+const { qrDataUrl } = require('../lib/mfa');
 
 const ADMIN_SESSION_MS = 4 * 60 * 60 * 1000;
+const MFA_PENDING_MS = 5 * 60 * 1000;
+
+function completeAdminSession(req, user) {
+  req.session.user = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role
+  };
+  req.session.isAdminSession = true;
+  req.session.adminMfaVerified = true;
+  delete req.session.pendingAdminMfa;
+  if (req.session.cookie) {
+    req.session.cookie.maxAge = ADMIN_SESSION_MS;
+  }
+}
+
+function getPendingMfa(req) {
+  const pending = req.session.pendingAdminMfa;
+  if (!pending) return null;
+  if (Date.now() > pending.expiresAt) {
+    delete req.session.pendingAdminMfa;
+    return null;
+  }
+  return pending;
+}
 
 router.get('/login', (req, res) => {
-  if (req.session.user?.role === 'admin') {
+  if (req.session.user?.role === 'admin' && req.session.adminMfaVerified) {
     return res.redirect('/admin');
   }
+  const expired = req.query.expired === '1';
   res.render('admin/login', {
     title: 'Admin — Fundez',
-    error: null
+    error: expired ? 'La verificación MFA expiró. Ingresa nuevamente.' : null
   });
 });
 
@@ -49,19 +77,112 @@ router.post('/login', rateLimitLogin(8), async (req, res) => {
   }
 
   const user = result.user;
-  req.session.user = {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role
-  };
-  req.session.isAdminSession = true;
-  if (req.session.cookie) {
-    req.session.cookie.maxAge = ADMIN_SESSION_MS;
+
+  if (store.isMfaEnabled(user.id)) {
+    req.session.pendingAdminMfa = {
+      userId: user.id,
+      email: user.email,
+      expiresAt: Date.now() + MFA_PENDING_MS
+    };
+    delete req.session.user;
+    delete req.session.adminMfaVerified;
+    store.logSecurityEvent('admin_login_mfa_required', email, req);
+    return res.redirect('/admin/mfa');
   }
 
+  completeAdminSession(req, user);
   store.logSecurityEvent('admin_login_ok', email, req);
   res.redirect('/admin');
+});
+
+router.get('/mfa', (req, res) => {
+  const pending = getPendingMfa(req);
+  if (!pending) {
+    return res.redirect('/admin/login');
+  }
+  res.render('admin/mfa', {
+    title: 'Verificación MFA — Fundez',
+    email: pending.email,
+    error: null
+  });
+});
+
+router.post('/mfa', rateLimitLogin(6), async (req, res) => {
+  const pending = getPendingMfa(req);
+  if (!pending) {
+    return res.redirect('/admin/login?expired=1');
+  }
+
+  const code = req.body.code;
+  if (!(await store.verifyMfaCode(pending.userId, code))) {
+    store.logSecurityEvent('admin_mfa_fail', pending.email, req);
+    return res.render('admin/mfa', {
+      title: 'Verificación MFA — Fundez',
+      email: pending.email,
+      error: 'Código incorrecto o expirado.'
+    });
+  }
+
+  const user = store.getUserById(pending.userId);
+  if (!user) {
+    delete req.session.pendingAdminMfa;
+    return res.redirect('/admin/login');
+  }
+
+  completeAdminSession(req, user);
+  store.logSecurityEvent('admin_mfa_ok', user.email, req);
+  res.redirect('/admin');
+});
+
+router.get('/mfa/setup', requireRole('admin'), async (req, res) => {
+  const status = store.getAdminMfaStatus(req.session.user.id);
+  if (status.enabled) {
+    return res.redirect('/admin?tab=seguridad');
+  }
+
+  const setup = await store.beginMfaSetup(req.session.user.id);
+  if (setup.error) {
+    return res.redirect('/admin?tab=seguridad');
+  }
+
+  const qr = await qrDataUrl(setup.otpauthUrl);
+  res.render('admin/mfa-setup', {
+    title: 'Activar MFA — Fundez',
+    qrDataUrl: qr,
+    secret: setup.secret,
+    email: req.session.user.email,
+    error: null
+  });
+});
+
+router.post('/mfa/setup', requireRole('admin'), async (req, res) => {
+  const result = await store.confirmMfaSetup(req.session.user.id, req.body.code);
+  if (result.error) {
+    return res.status(400).render('admin/mfa-setup', {
+      title: 'Activar MFA — Fundez',
+      qrDataUrl: null,
+      secret: null,
+      email: req.session.user.email,
+      error: result.error,
+      needsRestart: true
+    });
+  }
+
+  req.session.adminMfaVerified = true;
+  store.logSecurityEvent('admin_mfa_enabled', req.session.user.email, req);
+  res.redirect('/admin?tab=seguridad&mfa=enabled');
+});
+
+router.post('/mfa/disable', requireRole('admin'), async (req, res) => {
+  const { password, code } = req.body;
+  const result = await store.disableMfa(req.session.user.id, password, code);
+  if (result.error) {
+    return res.redirect('/admin?tab=seguridad&mfa_error=' + encodeURIComponent(result.error));
+  }
+
+  delete req.session.adminMfaVerified;
+  store.logSecurityEvent('admin_mfa_disabled', req.session.user.email, req);
+  res.redirect('/admin?tab=seguridad&mfa=disabled');
 });
 
 router.get('/', requireRole('admin'), (req, res) => {
@@ -108,7 +229,11 @@ router.get('/', requireRole('admin'), (req, res) => {
     backupConfig: backup.loadConfig(),
     backups: backup.listBackups().slice(0, 20),
     backupRetention: backup.getRetentionSummary(),
-    formatBytes: backup.formatBytes
+    formatBytes: backup.formatBytes,
+    mfaStatus: store.getAdminMfaStatus(req.session.user.id),
+    mfaMessage: req.query.mfa || null,
+    mfaError: req.query.mfa_error || null,
+    initialTab: req.query.tab || null
   });
 });
 

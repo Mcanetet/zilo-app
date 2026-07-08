@@ -20,6 +20,20 @@ function requireRole(...roles) {
         code: 403
       });
     }
+    if (roles.includes('admin') && req.session.user.role === 'admin') {
+      try {
+        const store = require('../models/store');
+        if (store.isMfaEnabled(req.session.user.id) && !req.session.adminMfaVerified) {
+          req.session.pendingAdminMfa = {
+            userId: req.session.user.id,
+            email: req.session.user.email,
+            expiresAt: Date.now() + 5 * 60 * 1000
+          };
+          delete req.session.user;
+          return res.redirect('/admin/mfa');
+        }
+      } catch (_) { /* store no listo */ }
+    }
     next();
   };
 }

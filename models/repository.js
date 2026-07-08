@@ -3,6 +3,7 @@ const path = require('path');
 const db = require('../lib/db');
 const { DEFAULT_PRICING, normalizePricing } = require('../lib/pricing');
 const { normalizeBilling } = require('../lib/billing');
+const { normalizeMfa } = require('../lib/mfa');
 
 const SCHEMA_PATH = path.join(__dirname, '../db/schema.sql');
 
@@ -268,6 +269,10 @@ function rowToUser(row) {
     user.billing = row.billing ? normalizeBilling(parseJson(row.billing, null)) : null;
   }
 
+  if (row.role === 'admin') {
+    user.mfa = normalizeMfa(parseJson(row.mfa, null));
+  }
+
   if (row.role === 'provider' || row.role === 'tecnico') {
     user.specialties = parseJson(row.specialties, []);
     user.rating = row.rating != null ? Number(row.rating) : null;
@@ -313,6 +318,7 @@ function userToRow(user) {
     verification: user.verification ? JSON.stringify(user.verification) : null,
     location_share: user.locationShare ? JSON.stringify(user.locationShare) : null,
     billing: user.billing ? JSON.stringify(user.billing) : null,
+    mfa: user.mfa ? JSON.stringify(user.mfa) : null,
     active: user.active === false ? 0 : 1
   };
 }
@@ -582,8 +588,8 @@ async function saveUser(user) {
       zilo_points, credits_clp, referrals_count, services_count,
       used_welcome_promo, used_referral, member_since,
       onboarding_completed, onboarding_completed_at,
-      specialties, rating, reviews_count, online, avatar, bio, reviews, verification, location_share, billing, active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      specialties, rating, reviews_count, online, avatar, bio, reviews, verification, location_share, billing, mfa, active
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       email = VALUES(email),
       password = VALUES(password),
@@ -612,13 +618,14 @@ async function saveUser(user) {
       verification = VALUES(verification),
       location_share = VALUES(location_share),
       billing = VALUES(billing),
+      mfa = VALUES(mfa),
       active = VALUES(active)`,
     [
       row.id, row.email, row.password, row.name, row.role, row.parent_id, row.phone, row.address, row.referral_code,
       row.zilo_points, row.credits_clp, row.referrals_count, row.services_count,
       row.used_welcome_promo ? 1 : 0, row.used_referral ? 1 : 0, row.member_since,
       row.onboarding_completed ? 1 : 0, row.onboarding_completed_at,
-      row.specialties, row.rating, row.reviews_count, row.online ? 1 : 0, row.avatar, row.bio, row.reviews, row.verification, row.location_share, row.billing, row.active
+      row.specialties, row.rating, row.reviews_count, row.online ? 1 : 0, row.avatar, row.bio, row.reviews, row.verification, row.location_share, row.billing, row.mfa, row.active
     ]
   );
 }

@@ -4,6 +4,12 @@ const db = require('../lib/db');
 const repository = require('./repository');
 const { verifyPassword, hashPassword } = require('../lib/password');
 const {
+  generateSecret,
+  buildOtpauthUrl,
+  verifyToken,
+  normalizeMfa
+} = require('../lib/mfa');
+const {
   DEFAULT_PRICING,
   normalizePricing,
   getActiveUrgencyTiers,
@@ -856,6 +862,83 @@ function setUserActive(userId, active) {
   return user;
 }
 
+function isMfaEnabled(userId) {
+  const user = getUserById(userId);
+  return Boolean(user?.mfa?.enabled && user.mfa.secret);
+}
+
+async function beginMfaSetup(userId) {
+  const user = getUserById(userId);
+  if (!user || user.role !== 'admin') return { error: 'Usuario no válido.' };
+  if (user.mfa?.enabled) return { error: 'MFA ya está activo.' };
+
+  const secret = await generateSecret();
+  user.mfa = {
+    enabled: false,
+    secret: null,
+    pendingSecret: secret,
+    confirmedAt: null
+  };
+  repository.persist(() => repository.saveUser(user), `mfa setup ${userId}`);
+  return {
+    success: true,
+    secret,
+    otpauthUrl: await buildOtpauthUrl(user.email, secret)
+  };
+}
+
+async function confirmMfaSetup(userId, code) {
+  const user = getUserById(userId);
+  if (!user || user.role !== 'admin') return { error: 'Usuario no válido.' };
+  if (!user.mfa?.pendingSecret) return { error: 'No hay configuración MFA pendiente.' };
+  if (!(await verifyToken(user.mfa.pendingSecret, code))) {
+    return { error: 'Código incorrecto. Verifica la hora de tu dispositivo.' };
+  }
+
+  user.mfa = {
+    enabled: true,
+    secret: user.mfa.pendingSecret,
+    pendingSecret: null,
+    confirmedAt: new Date().toISOString()
+  };
+  repository.persist(() => repository.saveUser(user), `mfa confirm ${userId}`);
+  return { success: true };
+}
+
+async function disableMfa(userId, password, code) {
+  const user = getUserById(userId);
+  if (!user || user.role !== 'admin') return { error: 'Usuario no válido.' };
+  if (!user.mfa?.enabled) return { error: 'MFA no está activo.' };
+
+  const check = await verifyPassword(password, user.password);
+  if (!check.ok) return { error: 'Contraseña incorrecta.' };
+  if (check.needsUpgrade) {
+    user.password = await hashPassword(password);
+  }
+  if (!(await verifyToken(user.mfa.secret, code))) return { error: 'Código MFA incorrecto.' };
+
+  user.mfa = null;
+  repository.persist(() => repository.saveUser(user), `mfa disable ${userId}`);
+  return { success: true };
+}
+
+async function verifyMfaCode(userId, code) {
+  const user = getUserById(userId);
+  if (!user?.mfa?.enabled || !user.mfa.secret) return false;
+  return verifyToken(user.mfa.secret, code);
+}
+
+function getAdminMfaStatus(userId) {
+  const user = getUserById(userId);
+  if (!user || user.role !== 'admin') return { enabled: false, pending: false };
+  const mfa = normalizeMfa(user.mfa);
+  return {
+    enabled: Boolean(mfa?.enabled && mfa.secret),
+    pending: Boolean(mfa?.pendingSecret),
+    confirmedAt: mfa?.confirmedAt || null
+  };
+}
+
 const DEMO_ACCOUNT_IDS = ['client-1', 'provider-pedro'];
 const DEMO_ACCOUNT_LABELS = { 'client-1': 'Cliente', 'provider-pedro': 'Socio' };
 const DEMO_ACCOUNT_PASSWORDS = { 'client-1': 'cliente123', 'provider-pedro': 'proveedor123' };
@@ -1339,6 +1422,12 @@ module.exports = {
   getTechniciansByProvider,
   getTechnicianForProvider,
   setUserActive,
+  isMfaEnabled,
+  beginMfaSetup,
+  confirmMfaSetup,
+  disableMfa,
+  verifyMfaCode,
+  getAdminMfaStatus,
   getDemoAccounts,
   getUserById,
   getOnlineProviders,

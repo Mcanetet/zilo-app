@@ -129,7 +129,9 @@ router.post('/registro', async (req, res) => {
 });
 
 router.get('/logout', (req, res) => {
-  const wasAdmin = req.session.user?.role === 'admin' || req.session.isAdminSession;
+  const wasAdmin = req.session.user?.role === 'admin' || req.session.isAdminSession || req.session.pendingAdminMfa;
+  delete req.session.pendingAdminMfa;
+  delete req.session.adminMfaVerified;
   req.session.destroy(() => {
     res.redirect(wasAdmin ? '/admin/login' : '/');
   });

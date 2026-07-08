@@ -16,6 +16,14 @@
     });
   });
 
+  const initialTab = new URLSearchParams(window.location.search).get('tab')
+    || dashboard.dataset.initialTab
+    || null;
+  if (initialTab) {
+    const tab = document.querySelector(`.admin-tab[data-tab="${initialTab}"]`);
+    if (tab) tab.click();
+  }
+
   document.querySelectorAll('.service-toggle').forEach(toggle => {
     toggle.addEventListener('change', async () => {
       const serviceId = toggle.dataset.id;

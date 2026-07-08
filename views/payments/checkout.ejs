@@ -38,7 +38,7 @@
       </label>
       <% } %>
 
-      <% if (referral.creditsCLP > 0) { %>
+      <% if (mod('client_puntos') && referral.creditsCLP > 0) { %>
       <label class="flex items-center justify-between gap-3 cursor-pointer pt-3 border-t border-gray-200">
         <div>
           <strong class="text-sm block">Usar crédito</strong>
@@ -48,7 +48,7 @@
       </label>
       <% } %>
 
-      <% if (referral.points > 0) { %>
+      <% if (mod('client_puntos') && referral.points > 0) { %>
       <label class="flex items-center justify-between gap-3 cursor-pointer pt-3 border-t border-gray-200">
         <div>
           <strong class="text-sm block">Canjear Puntos Fundez</strong>

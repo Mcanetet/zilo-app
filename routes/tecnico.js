@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const store = require('../models/store');
 const { requireRole } = require('../middleware/auth');
+const { requireModule } = require('../middleware/modules');
 
 function serializeJob(request) {
   const service = store.getServiceById(request.serviceId);
@@ -52,7 +53,7 @@ router.post('/status/:requestId', requireRole('tecnico'), (req, res) => {
   res.json({ success: true, request: { id: request.id, status: request.status, techStatus: request.techStatus } });
 });
 
-router.post('/ubicacion', requireRole('tecnico'), (req, res) => {
+router.post('/ubicacion', requireRole('tecnico'), requireModule('provider_ubicacion'), (req, res) => {
   const { lat, lng, requestId } = req.body;
   if (lat == null || lng == null) return res.status(400).json({ success: false, error: 'Coordenadas requeridas' });
 

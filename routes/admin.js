@@ -31,6 +31,9 @@ router.get('/', requireRole('admin'), (req, res) => {
     user: req.session.user,
     stats,
     services: store.SERVICES,
+    modules: store.getModules(),
+    clientModules: store.getModulesByAudience('client'),
+    providerModules: store.getModulesByAudience('provider'),
     requests: allRequests.slice(0, 30),
     payments: store.getPayments(),
     payouts: store.getProviderPayouts(),
@@ -57,6 +60,16 @@ router.post('/toggle-service', requireRole('admin'), (req, res) => {
   store.logSecurityEvent('service_toggle', `${serviceId}=${enabled}`, req);
   req.app.get('io').emit('services_updated', { services: store.SERVICES });
   res.json({ success: true, service });
+});
+
+router.post('/toggle-module', requireRole('admin'), (req, res) => {
+  const { moduleId, enabled } = req.body;
+  const mod = store.toggleModule(moduleId, enabled === true || enabled === 'true');
+  if (!mod) return res.status(404).json({ error: 'Módulo no encontrado' });
+
+  store.logSecurityEvent('module_toggle', `${moduleId}=${enabled}`, req);
+  req.app.get('io').emit('modules_updated', { modules: store.MODULES });
+  res.json({ success: true, module: mod });
 });
 
 router.post('/toggle-user', requireRole('admin'), (req, res) => {

@@ -4,6 +4,7 @@ const db = require('../lib/db');
 const repository = require('./repository');
 
 let SERVICES = [];
+let MODULES = [];
 let USERS = [];
 let requests = [];
 let homeLogbook = [];
@@ -30,6 +31,7 @@ async function init() {
   const data = await repository.loadAll();
 
   SERVICES = data.services;
+  MODULES = data.modules;
   USERS = data.users;
   requests = data.requests;
   homeLogbook = data.homeLogbook;
@@ -373,6 +375,35 @@ function toggleService(serviceId, enabled) {
   service.enabled = enabled;
   repository.persist(() => repository.saveService(service), `servicio ${serviceId}`);
   return service;
+}
+
+function getModuleById(id) {
+  return MODULES.find(m => m.id === id);
+}
+
+function isModuleEnabled(id) {
+  const mod = getModuleById(id);
+  return mod ? mod.enabled !== false : true;
+}
+
+function getModules() {
+  return MODULES;
+}
+
+function getModulesByAudience(audience) {
+  return MODULES.filter(m => m.audience === audience).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+function getEnabledModules(audience) {
+  return getModulesByAudience(audience).filter(m => m.enabled);
+}
+
+function toggleModule(moduleId, enabled) {
+  const mod = getModuleById(moduleId);
+  if (!mod) return null;
+  mod.enabled = enabled;
+  repository.persist(() => repository.saveModule(mod), `módulo ${moduleId}`);
+  return mod;
 }
 
 function getUserById(id) {
@@ -943,10 +974,16 @@ module.exports = {
   isReady,
   get SERVICES() { return SERVICES; },
   get USERS() { return USERS; },
+  get MODULES() { return MODULES; },
   formatCLP,
   getServiceById,
   getActiveServices,
   toggleService,
+  getModules,
+  getModulesByAudience,
+  getEnabledModules,
+  isModuleEnabled,
+  toggleModule,
   getUserByEmail,
   registerUser,
   createTechnician,

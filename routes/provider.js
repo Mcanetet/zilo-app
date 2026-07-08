@@ -3,6 +3,7 @@ const router = express.Router();
 const store = require('../models/store');
 const { dispatchPendingToProvider } = require('../lib/dispatch');
 const { requireRole } = require('../middleware/auth');
+const { requireModule } = require('../middleware/modules');
 const { saveProviderFile } = require('../lib/uploads');
 const { verifySelfie } = require('../lib/faceVerify');
 const { getProviderOnboardingSteps } = require('../lib/onboarding');
@@ -52,7 +53,7 @@ router.get('/pendientes', requireRole('provider'), (req, res) => {
   });
 });
 
-router.post('/toggle-online', requireRole('provider'), (req, res) => {
+router.post('/toggle-online', requireRole('provider'), requireModule('provider_online'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const online = req.body.online === 'true' || req.body.online === true;
 
@@ -78,7 +79,7 @@ router.post('/toggle-online', requireRole('provider'), (req, res) => {
   res.json({ success: true, online, dispatched });
 });
 
-router.post('/accept/:requestId', requireRole('provider'), (req, res) => {
+router.post('/accept/:requestId', requireRole('provider'), requireModule('provider_aceptar'), (req, res) => {
   const request = store.requests.find(r => r.id === req.params.requestId);
 
   if (!request || request.status !== 'searching') {
@@ -115,7 +116,7 @@ router.post('/status/:requestId', requireRole('provider'), (req, res) => {
   res.json({ success: true, request });
 });
 
-router.get('/perfil', requireRole('provider'), (req, res) => {
+router.get('/perfil', requireRole('provider'), requireModule('provider_perfil'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const verificationCheck = store.canProviderGoOnline(provider);
   res.render('provider/profile', {
@@ -128,7 +129,7 @@ router.get('/perfil', requireRole('provider'), (req, res) => {
   });
 });
 
-router.post('/perfil', requireRole('provider'), (req, res) => {
+router.post('/perfil', requireRole('provider'), requireModule('provider_perfil'), (req, res) => {
   const user = store.updateUserProfile(req.session.user.id, req.body);
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
   req.session.user.name = user.name;
@@ -138,7 +139,7 @@ router.post('/perfil', requireRole('provider'), (req, res) => {
   });
 });
 
-router.post('/verificacion/documento', requireRole('provider'), (req, res) => {
+router.post('/verificacion/documento', requireRole('provider'), requireModule('provider_verificacion'), (req, res) => {
   const { type, data, label } = req.body;
   const valid = ['idFront', 'idBack', 'certificate'];
   if (!valid.includes(type) || !data) {
@@ -155,7 +156,7 @@ router.post('/verificacion/documento', requireRole('provider'), (req, res) => {
   }
 });
 
-router.post('/verificacion/selfie', requireRole('provider'), (req, res) => {
+router.post('/verificacion/selfie', requireRole('provider'), requireModule('provider_verificacion'), (req, res) => {
   const { data } = req.body;
   if (!data) return res.status(400).json({ error: 'Imagen requerida' });
 
@@ -173,13 +174,13 @@ router.post('/verificacion/selfie', requireRole('provider'), (req, res) => {
   }
 });
 
-router.post('/verificacion/ubicacion', requireRole('provider'), (req, res) => {
+router.post('/verificacion/ubicacion', requireRole('provider'), requireModule('provider_verificacion'), (req, res) => {
   const consent = req.body.consent === true || req.body.consent === 'true';
   const locationShare = store.setLocationConsent(req.session.user.id, consent);
   res.json({ success: true, locationShare, verification: store.getUserById(req.session.user.id).verification });
 });
 
-router.post('/ubicacion', requireRole('provider'), (req, res) => {
+router.post('/ubicacion', requireRole('provider'), requireModule('provider_ubicacion'), (req, res) => {
   const { lat, lng, requestId } = req.body;
   if (lat == null || lng == null) {
     return res.status(400).json({ error: 'Coordenadas requeridas' });
@@ -200,7 +201,7 @@ router.post('/ubicacion', requireRole('provider'), (req, res) => {
   res.json({ success: true, location: loc });
 });
 
-router.get('/equipo', requireRole('provider'), (req, res) => {
+router.get('/equipo', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const technicians = store.getTechniciansByProvider(provider.id);
   res.render('provider/equipo', {
@@ -214,7 +215,7 @@ router.get('/equipo', requireRole('provider'), (req, res) => {
   });
 });
 
-router.post('/equipo', requireRole('provider'), async (req, res) => {
+router.post('/equipo', requireRole('provider'), requireModule('provider_equipo'), async (req, res) => {
   const { name, email, password, phone } = req.body;
   const result = await store.createTechnician(req.session.user.id, { name, email, password, phone });
 
@@ -244,7 +245,7 @@ router.post('/equipo', requireRole('provider'), async (req, res) => {
   res.redirect('/proveedor/equipo');
 });
 
-router.post('/equipo/:id/toggle', requireRole('provider'), (req, res) => {
+router.post('/equipo/:id/toggle', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
   const tecnico = store.getTechnicianForProvider(req.session.user.id, req.params.id);
   if (!tecnico) return res.status(404).json({ success: false, error: 'Técnico no encontrado' });
 
@@ -253,7 +254,7 @@ router.post('/equipo/:id/toggle', requireRole('provider'), (req, res) => {
   res.json({ success: true, id: tecnico.id, active });
 });
 
-router.get('/mando', requireRole('provider'), (req, res) => {
+router.get('/mando', requireRole('provider'), requireModule('provider_mando'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const technicians = store.getTechniciansByProvider(provider.id).filter(t => t.active !== false);
   const active = store.getRequestsByProvider(provider.id)
@@ -271,7 +272,7 @@ router.get('/mando', requireRole('provider'), (req, res) => {
   });
 });
 
-router.post('/asignar/:requestId', requireRole('provider'), (req, res) => {
+router.post('/asignar/:requestId', requireRole('provider'), requireModule('provider_mando'), (req, res) => {
   const { technicianId } = req.body;
   const result = store.assignTechnician(req.params.requestId, req.session.user.id, technicianId);
   if (result.error) return res.status(400).json({ success: false, error: result.error });

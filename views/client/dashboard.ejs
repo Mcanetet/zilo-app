@@ -29,7 +29,7 @@
       linkText: 'Abrir guía del cliente'
     }) %>
 
-    <% if (typeof passport !== 'undefined' && passport) { %>
+    <% if (typeof passport !== 'undefined' && passport && mod('client_pasaporte')) { %>
     <a href="/cliente/hogar" data-tour="passport" class="block zilo-card-premium rounded-2xl p-4 mb-5 border border-zilo-accent/15 hover:border-zilo-accent/30 transition">
       <div class="flex items-center gap-4">
         <div class="zilo-health-ring !w-16 !h-16 shrink-0">
@@ -53,9 +53,10 @@
     </a>
     <% } %>
 
+    <% if (mod('client_promos')) { %>
     <div data-tour="promos" class="flex gap-3 overflow-x-auto scrollbar-hide mb-5 -mx-1 px-1 pb-1">
       <% promos.forEach(p => { %>
-        <a href="<%= p.id === 'refer' ? '/cliente/invitar' : p.id === 'gift' ? '/cliente/servicio/gasfiter?gift=1' : '/cliente' %>"
+        <a href="<%= p.id === 'refer' ? (mod('client_referidos') ? '/cliente/invitar' : '/cliente') : p.id === 'gift' ? (mod('client_regalo') ? '/cliente/servicio/gasfiter?gift=1' : '/cliente') : '/cliente' %>"
           class="flex-shrink-0 w-56 p-4 rounded-2xl zilo-card-premium relative overflow-hidden hover:border-zilo-accent/25 transition">
           <strong class="text-sm block mb-1"><%= p.title %></strong>
           <p class="text-xs text-zilo-muted"><%= p.desc %></p>
@@ -63,8 +64,9 @@
         </a>
       <% }); %>
     </div>
+    <% } %>
 
-    <% if (typeof referral !== 'undefined') { %>
+    <% if (typeof referral !== 'undefined' && mod('client_referidos') && mod('client_puntos')) { %>
     <div data-tour="points" class="flex items-center justify-between p-4 mb-5 rounded-2xl zilo-card-premium">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-lg bg-zilo-accent/10 flex items-center justify-center">
@@ -79,6 +81,7 @@
     </div>
     <% } %>
 
+    <% if (mod('client_solicitar')) { %>
     <h2 class="zilo-label mb-3">Servicios</h2>
 
     <div id="servicesGrid" data-tour="services" class="grid grid-cols-2 gap-3">
@@ -91,6 +94,12 @@
         </a>
       <% }); %>
     </div>
+    <% } else { %>
+      <div class="zilo-empty zilo-card-premium rounded-2xl">
+        <p class="zilo-display">Solicitudes pausadas</p>
+        <p class="text-sm">La solicitud de servicios no está disponible en este momento.</p>
+      </div>
+    <% } %>
 
     <% if (activeRequests.length > 0) { %>
     <section class="mt-8">
@@ -113,7 +122,7 @@
 
   <%- include('../partials/nav-client', { navActive: 'inicio' }) %>
 
-  <% if (typeof company !== 'undefined') { %>
+  <% if (typeof company !== 'undefined' && mod('client_whatsapp')) { %>
   <a href="<%= company.whatsappLink('Hola Fundez, necesito ayuda con un servicio.') %>" target="_blank" rel="noopener"
     class="fixed bottom-24 right-5 z-40 w-13 h-13 w-12 h-12 rounded-full zilo-card-premium border border-zilo-border flex items-center justify-center hover:border-zilo-accent/30 transition"
     data-tour="concierge"
@@ -148,6 +157,9 @@
     FundezNotify.show('¡$<%= referralBonus.toLocaleString('es-CL') %> de crédito por invitación!', 'success');
   });
   <% } %>
+  socket.on('modules_updated', ({ modules }) => {
+    setTimeout(() => location.reload(), 600);
+  });
   socket.on('services_updated', ({ services }) => {
     const grid = document.getElementById('servicesGrid');
     const active = services.filter(s => s.enabled);

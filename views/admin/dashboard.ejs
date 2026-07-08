@@ -15,7 +15,7 @@
       </a>
     </div>
     <nav class="admin-tabs flex gap-1 px-3 pb-3 overflow-x-auto scrollbar-hide" id="adminTabs">
-      <% [['resumen','Resumen'],['servicios','Servicios'],['demo','Cuentas demo'],['pagos','Pagos'],['proveedores','Proveedores'],['reclamos','Reclamos'],['whatsapp','WhatsApp'],['datos','Datos'],['backups','Backups'],['seguridad','Seguridad']].forEach(([id,label]) => { %>
+      <% [['resumen','Resumen'],['modulos','Módulos'],['servicios','Servicios'],['demo','Cuentas demo'],['pagos','Pagos'],['proveedores','Socios'],['reclamos','Reclamos'],['whatsapp','WhatsApp'],['datos','Datos'],['backups','Backups'],['seguridad','Seguridad']].forEach(([id,label]) => { %>
         <button type="button" data-tab="<%= id %>" class="admin-tab <%= id === 'resumen' ? 'admin-tab-active' : '' %>"><%= label %></button>
       <% }); %>
     </nav>
@@ -64,6 +64,53 @@
           <a href="/legal/terminos" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Términos</a>
           <a href="/legal/cookies" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Cookies</a>
         </div>
+      </div>
+    </section>
+
+    <!-- MÓDULOS -->
+    <section class="admin-panel hidden" data-panel="modulos">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-semibold">Módulos de la plataforma</h3>
+        <span class="text-xs text-gray-500"><%= modules.filter(m => m.enabled).length %>/<%= modules.length %> activos</span>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">Activa o desactiva funciones para clientes y socios. Los cambios se aplican al instante en toda la app.</p>
+
+      <h4 class="text-sm font-semibold mb-2 text-zilo-accent">Cliente</h4>
+      <div id="clientModulesList" class="space-y-2 mb-6">
+        <% clientModules.forEach(mod => { %>
+          <div class="module-toggle-item flex items-center justify-between p-4 rounded-2xl bg-zilo-card border border-gray-200 <%= mod.enabled ? '' : 'opacity-50' %>" data-module-id="<%= mod.id %>">
+            <div class="min-w-0 pr-3">
+              <strong class="text-sm block"><%= mod.name %></strong>
+              <span class="text-xs text-gray-500"><%= mod.description %></span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="module-status text-[10px] font-bold uppercase <%= mod.enabled ? 'text-emerald-600' : 'text-red-600' %>"><%= mod.enabled ? 'ON' : 'OFF' %></span>
+              <label class="toggle-ios">
+                <input type="checkbox" class="module-toggle" data-id="<%= mod.id %>" <%= mod.enabled ? 'checked' : '' %>>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+
+      <h4 class="text-sm font-semibold mb-2 text-zilo-accent">Socio (proveedor)</h4>
+      <div id="providerModulesList" class="space-y-2">
+        <% providerModules.forEach(mod => { %>
+          <div class="module-toggle-item flex items-center justify-between p-4 rounded-2xl bg-zilo-card border border-gray-200 <%= mod.enabled ? '' : 'opacity-50' %>" data-module-id="<%= mod.id %>">
+            <div class="min-w-0 pr-3">
+              <strong class="text-sm block"><%= mod.name %></strong>
+              <span class="text-xs text-gray-500"><%= mod.description %></span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="module-status text-[10px] font-bold uppercase <%= mod.enabled ? 'text-emerald-600' : 'text-red-600' %>"><%= mod.enabled ? 'ON' : 'OFF' %></span>
+              <label class="toggle-ios">
+                <input type="checkbox" class="module-toggle" data-id="<%= mod.id %>" <%= mod.enabled ? 'checked' : '' %>>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        <% }); %>
       </div>
     </section>
 

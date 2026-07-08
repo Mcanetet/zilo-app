@@ -41,10 +41,11 @@ router.get('/checkout', requireRole('client'), (req, res) => {
 });
 
 router.post('/calcular', requireRole('client'), (req, res) => {
-  const { requestId, useCredits, usePoints, promoCode } = req.body;
+  const { requestId, promoCode } = req.body;
+  const puntosOn = store.isModuleEnabled('client_puntos');
   const result = store.applyCheckoutDiscounts(req.session.user.id, requestId, {
-    useCredits: Boolean(useCredits),
-    usePoints: Boolean(usePoints),
+    useCredits: puntosOn && Boolean(req.body.useCredits),
+    usePoints: puntosOn && Boolean(req.body.usePoints),
     promoCode
   });
   if (result.error) return res.status(400).json(result);
@@ -52,7 +53,10 @@ router.post('/calcular', requireRole('client'), (req, res) => {
 });
 
 router.post('/crear', requireRole('client'), async (req, res) => {
-  const { requestId, useCredits, usePoints, promoCode } = req.body;
+  const { requestId, promoCode } = req.body;
+  const puntosOn = store.isModuleEnabled('client_puntos');
+  const useCredits = puntosOn && Boolean(req.body.useCredits);
+  const usePoints = puntosOn && Boolean(req.body.usePoints);
   const request = store.requests.find(r => r.id === requestId);
 
   if (!request || request.clientId !== req.session.user.id) {

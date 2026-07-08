@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS services (
   enabled TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS modules (
+  id VARCHAR(64) PRIMARY KEY,
+  audience ENUM('client', 'provider') NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  description TEXT,
+  sort_order INT NOT NULL DEFAULT 0,
+  enabled TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(64) PRIMARY KEY,
   email VARCHAR(190) NOT NULL UNIQUE,
@@ -160,6 +169,29 @@ ON DUPLICATE KEY UPDATE
   name = VALUES(name), icon = VALUES(icon), color = VALUES(color),
   visit_price = VALUES(visit_price), basic_min = VALUES(basic_min),
   basic_max = VALUES(basic_max), description = VALUES(description), enabled = VALUES(enabled);
+
+-- ---------- Módulos (cliente y socio) ----------
+
+INSERT INTO modules (id, audience, name, description, sort_order, enabled) VALUES
+('client_solicitar', 'client', 'Solicitar servicios', 'Grid de servicios y formulario de solicitud', 1, 1),
+('client_pasaporte', 'client', 'Pasaporte Hogar', 'Historial técnico del inmueble y puntaje de salud', 2, 1),
+('client_referidos', 'client', 'Referidos e invitaciones', 'Invitar amigos y ganar crédito', 3, 1),
+('client_regalo', 'client', 'Regalar servicio', 'Opción de regalar una visita a otra persona', 4, 1),
+('client_guardian', 'client', 'Modo Guardián', 'Enlace de seguimiento para familiares sin cuenta', 5, 1),
+('client_foto', 'client', 'Foto del requerimiento', 'Subir foto opcional al solicitar servicio', 6, 1),
+('client_puntos', 'client', 'Puntos y créditos', 'Canjear puntos y créditos en checkout', 7, 1),
+('client_promos', 'client', 'Promociones', 'Banners de promos en el inicio del cliente', 8, 1),
+('client_historial', 'client', 'Historial', 'Ver servicios anteriores del cliente', 9, 1),
+('client_whatsapp', 'client', 'Concierge WhatsApp', 'Botón flotante de soporte por WhatsApp', 10, 1),
+('provider_online', 'provider', 'Modo en línea', 'Activar disponibilidad para recibir trabajos', 1, 1),
+('provider_aceptar', 'provider', 'Aceptar solicitudes', 'Modal de nuevas solicitudes entrantes', 2, 1),
+('provider_equipo', 'provider', 'Gestión de técnicos', 'Crear y administrar subusuarios técnicos', 3, 1),
+('provider_mando', 'provider', 'Cuadro de mando', 'Asignar trabajos y hacer seguimiento', 4, 1),
+('provider_verificacion', 'provider', 'Verificación KYC', 'Carnet, selfie y consentimiento de ubicación', 5, 1),
+('provider_ubicacion', 'provider', 'Ubicación en tiempo real', 'Compartir GPS durante el servicio', 6, 1),
+('provider_perfil', 'provider', 'Perfil público', 'Editar datos visibles para clientes', 7, 1)
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name), description = VALUES(description), sort_order = VALUES(sort_order);
 
 -- ---------- Usuarios demo ----------
 

@@ -36,12 +36,13 @@
     </div>
 
     <section id="requestForm" class="space-y-4 zilo-page-enter-delay-2">
+      <% if (mod('client_regalo')) { %>
       <div class="p-4 rounded-2xl zilo-gift-card">
         <label class="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" id="giftToggle" class="w-5 h-5 rounded accent-[#2563EB]">
           <div>
             <strong class="text-sm block">Regalar este servicio</strong>
-            <span class="text-xs text-zilo-muted">Incluye Modo Guardián para tu familia</span>
+            <span class="text-xs text-zilo-muted"><%= mod('client_guardian') ? 'Incluye Modo Guardián para tu familia' : 'Otra persona recibirá la visita' %></span>
           </div>
         </label>
         <div id="giftFields" class="hidden mt-4 space-y-3 pt-3 border-t border-zilo-accent/15">
@@ -59,6 +60,7 @@
           </div>
         </div>
       </div>
+      <% } %>
 
       <div>
         <label for="address" class="zilo-label block mb-1.5" id="addressLabel">Dirección del servicio</label>

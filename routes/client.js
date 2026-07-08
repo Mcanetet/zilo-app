@@ -4,6 +4,7 @@ const store = require('../models/store');
 const company = require('../config/company');
 const { getClientOnboardingSteps } = require('../lib/onboarding');
 const { requireRole } = require('../middleware/auth');
+const { requireModule } = require('../middleware/modules');
 
 function syncSessionUser(req, user) {
   req.session.user.name = user.name;
@@ -58,7 +59,7 @@ router.post('/perfil', requireRole('client'), (req, res) => {
   res.json({ success: true, user: { name: user.name, phone: user.phone, address: user.address } });
 });
 
-router.get('/hogar', requireRole('client'), (req, res) => {
+router.get('/hogar', requireRole('client'), requireModule('client_pasaporte'), (req, res) => {
   const passport = store.getHomePassport(req.session.user.id);
   res.render('client/hogar', {
     title: 'Pasaporte Hogar — Fundez',
@@ -69,7 +70,7 @@ router.get('/hogar', requireRole('client'), (req, res) => {
   });
 });
 
-router.get('/historial', requireRole('client'), (req, res) => {
+router.get('/historial', requireRole('client'), requireModule('client_historial'), (req, res) => {
   const requests = store.getRequestsByClient(req.session.user.id);
   res.render('client/historial', {
     title: 'Historial — Fundez',
@@ -80,7 +81,7 @@ router.get('/historial', requireRole('client'), (req, res) => {
   });
 });
 
-router.get('/invitar', requireRole('client'), (req, res) => {
+router.get('/invitar', requireRole('client'), requireModule('client_referidos'), (req, res) => {
   const profile = store.getUserById(req.session.user.id);
   const referral = store.getReferralStats(req.session.user.id);
   const shareUrl = `${company.appUrl}/?ref=${referral.code}`;
@@ -95,13 +96,13 @@ router.get('/invitar', requireRole('client'), (req, res) => {
   });
 });
 
-router.post('/aplicar-codigo', requireRole('client'), (req, res) => {
+router.post('/aplicar-codigo', requireRole('client'), requireModule('client_referidos'), (req, res) => {
   const result = store.applyReferralCode(req.session.user.id, req.body.code?.trim().toUpperCase());
   if (result.error) return res.status(400).json(result);
   res.json({ success: true, bonus: result.bonus, message: `¡$${result.bonus.toLocaleString('es-CL')} de crédito agregado!` });
 });
 
-router.get('/servicio/:id', requireRole('client'), (req, res) => {
+router.get('/servicio/:id', requireRole('client'), requireModule('client_solicitar'), (req, res) => {
   const service = store.getServiceById(req.params.id);
   if (!service || !service.enabled) {
     return res.status(404).render('error', {
@@ -121,11 +122,14 @@ router.get('/servicio/:id', requireRole('client'), (req, res) => {
   });
 });
 
-router.post('/solicitar', requireRole('client'), async (req, res) => {
+router.post('/solicitar', requireRole('client'), requireModule('client_solicitar'), async (req, res) => {
   const { serviceId, address, notes, lat, lng, gift } = req.body;
   const service = store.getServiceById(serviceId);
   if (!service || !service.enabled) {
     return res.status(400).json({ error: 'Servicio no disponible' });
+  }
+  if (gift?.name && !store.isModuleEnabled('client_regalo')) {
+    return res.status(403).json({ error: 'El módulo de regalos no está habilitado' });
   }
   try {
     const request = await store.createRequest({

@@ -307,4 +307,8 @@
       }
     });
   });
+
+  socket.on('modules_updated', () => {
+    setTimeout(() => location.reload(), 600);
+  });
 })();

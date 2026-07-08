@@ -73,6 +73,36 @@
     });
   });
 
+  document.querySelectorAll('.module-toggle').forEach(toggle => {
+    toggle.addEventListener('change', async () => {
+      const moduleId = toggle.dataset.id;
+      const enabled = toggle.checked;
+      const item = toggle.closest('.module-toggle-item');
+      const statusLabel = item.querySelector('.module-status');
+
+      try {
+        const res = await fetch('/admin/toggle-module', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ moduleId, enabled })
+        });
+        const data = await res.json();
+        if (data.success) {
+          item.classList.toggle('opacity-50', !enabled);
+          statusLabel.textContent = enabled ? 'ON' : 'OFF';
+          statusLabel.className = `module-status text-[10px] font-bold uppercase ${enabled ? 'text-emerald-600' : 'text-red-600'}`;
+          FundezNotify.show(`${data.module.name} ${enabled ? 'activado' : 'desactivado'}`, enabled ? 'success' : 'warning');
+        } else {
+          toggle.checked = !enabled;
+          FundezNotify.show(data.error || 'No se pudo actualizar', 'error');
+        }
+      } catch (_) {
+        toggle.checked = !enabled;
+        FundezNotify.show('Error al actualizar módulo', 'error');
+      }
+    });
+  });
+
   document.querySelectorAll('.btn-complaint').forEach(btn => {
     btn.addEventListener('click', async () => {
       const res = await fetch(`/admin/complaint/${btn.dataset.id}/status`, {
@@ -110,6 +140,19 @@
       item.classList.toggle('opacity-50', !service.enabled);
       statusLabel.textContent = service.enabled ? 'ON' : 'OFF';
       statusLabel.className = `service-status text-[10px] font-bold uppercase ${service.enabled ? 'text-emerald-600' : 'text-red-600'}`;
+    });
+  });
+
+  socket.on('modules_updated', ({ modules }) => {
+    modules.forEach(mod => {
+      const toggle = document.querySelector(`.module-toggle[data-id="${mod.id}"]`);
+      if (!toggle) return;
+      toggle.checked = mod.enabled;
+      const item = toggle.closest('.module-toggle-item');
+      const statusLabel = item.querySelector('.module-status');
+      item.classList.toggle('opacity-50', !mod.enabled);
+      statusLabel.textContent = mod.enabled ? 'ON' : 'OFF';
+      statusLabel.className = `module-status text-[10px] font-bold uppercase ${mod.enabled ? 'text-emerald-600' : 'text-red-600'}`;
     });
   });
 

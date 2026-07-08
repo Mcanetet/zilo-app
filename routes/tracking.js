@@ -4,6 +4,13 @@ const store = require('../models/store');
 const company = require('../config/company');
 
 router.get('/:token', (req, res) => {
+  if (!store.isModuleEnabled('client_guardian')) {
+    return res.status(403).render('error', {
+      title: 'No disponible',
+      message: 'El Modo Guardián no está habilitado en este momento.',
+      code: 403
+    });
+  }
   const request = store.getRequestByGuardianToken(req.params.token);
   if (!request) {
     return res.status(404).render('error', {
@@ -26,6 +33,9 @@ router.get('/:token', (req, res) => {
 });
 
 router.get('/:token/estado', (req, res) => {
+  if (!store.isModuleEnabled('client_guardian')) {
+    return res.status(403).json({ error: 'Modo Guardián deshabilitado' });
+  }
   const request = store.getRequestByGuardianToken(req.params.token);
   if (!request) return res.status(404).json({ error: 'No encontrado' });
 

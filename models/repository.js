@@ -13,6 +13,26 @@ const SEED_SERVICES = [
   { id: 'lavadora', name: 'Lavadora', icon: 'lavadora', color: '#10B981', visitPrice: 25000, basicMin: 40000, basicMax: 80000, description: 'Centrifugado, drenaje, tambor y tarjetas electrónicas.', enabled: true }
 ];
 
+const SEED_MODULES = [
+  { id: 'client_solicitar', audience: 'client', name: 'Solicitar servicios', description: 'Grid de servicios y formulario de solicitud', sortOrder: 1, enabled: true },
+  { id: 'client_pasaporte', audience: 'client', name: 'Pasaporte Hogar', description: 'Historial técnico del inmueble y puntaje de salud', sortOrder: 2, enabled: true },
+  { id: 'client_referidos', audience: 'client', name: 'Referidos e invitaciones', description: 'Invitar amigos y ganar crédito', sortOrder: 3, enabled: true },
+  { id: 'client_regalo', audience: 'client', name: 'Regalar servicio', description: 'Opción de regalar una visita a otra persona', sortOrder: 4, enabled: true },
+  { id: 'client_guardian', audience: 'client', name: 'Modo Guardián', description: 'Enlace de seguimiento para familiares sin cuenta', sortOrder: 5, enabled: true },
+  { id: 'client_foto', audience: 'client', name: 'Foto del requerimiento', description: 'Subir foto opcional al solicitar servicio', sortOrder: 6, enabled: true },
+  { id: 'client_puntos', audience: 'client', name: 'Puntos y créditos', description: 'Canjear puntos y créditos en checkout', sortOrder: 7, enabled: true },
+  { id: 'client_promos', audience: 'client', name: 'Promociones', description: 'Banners de promos en el inicio del cliente', sortOrder: 8, enabled: true },
+  { id: 'client_historial', audience: 'client', name: 'Historial', description: 'Ver servicios anteriores del cliente', sortOrder: 9, enabled: true },
+  { id: 'client_whatsapp', audience: 'client', name: 'Concierge WhatsApp', description: 'Botón flotante de soporte por WhatsApp', sortOrder: 10, enabled: true },
+  { id: 'provider_online', audience: 'provider', name: 'Modo en línea', description: 'Activar disponibilidad para recibir trabajos', sortOrder: 1, enabled: true },
+  { id: 'provider_aceptar', audience: 'provider', name: 'Aceptar solicitudes', description: 'Modal de nuevas solicitudes entrantes', sortOrder: 2, enabled: true },
+  { id: 'provider_equipo', audience: 'provider', name: 'Gestión de técnicos', description: 'Crear y administrar subusuarios técnicos', sortOrder: 3, enabled: true },
+  { id: 'provider_mando', audience: 'provider', name: 'Cuadro de mando', description: 'Asignar trabajos y hacer seguimiento', sortOrder: 4, enabled: true },
+  { id: 'provider_verificacion', audience: 'provider', name: 'Verificación KYC', description: 'Carnet, selfie y consentimiento de ubicación', sortOrder: 5, enabled: true },
+  { id: 'provider_ubicacion', audience: 'provider', name: 'Ubicación en tiempo real', description: 'Compartir GPS durante el servicio', sortOrder: 6, enabled: true },
+  { id: 'provider_perfil', audience: 'provider', name: 'Perfil público', description: 'Editar datos visibles para clientes', sortOrder: 7, enabled: true }
+];
+
 function defaultProviderVerification() {
   return {
     status: 'incomplete',
@@ -296,6 +316,17 @@ function rowToService(row) {
   };
 }
 
+function rowToModule(row) {
+  return {
+    id: row.id,
+    audience: row.audience,
+    name: row.name,
+    description: row.description,
+    sortOrder: row.sort_order || 0,
+    enabled: Boolean(row.enabled)
+  };
+}
+
 function rowToRequest(row) {
   const payload = parseJson(row.payload, {});
   return {
@@ -370,6 +401,12 @@ async function ensureDemoServices() {
   }
 }
 
+async function ensureDemoModules() {
+  for (const mod of SEED_MODULES) {
+    await saveModule(mod, { preserveEnabled: true });
+  }
+}
+
 async function ensureDemoUsers() {
   for (const user of SEED_USERS) {
     await upsertSeedUser(user);
@@ -422,6 +459,7 @@ async function ensureDemoExtras() {
 async function ensureDemoData() {
   console.log('Verificando datos demo en MySQL...');
   await ensureDemoServices();
+  await ensureDemoModules();
   await ensureDemoUsers();
   await ensureDemoExtras();
   console.log(`✓ ${SEED_USERS.length} usuarios demo listos (${SEED_USERS.map((u) => u.email).join(', ')})`);
@@ -434,9 +472,10 @@ async function seedIfEmpty() {
 }
 
 async function loadAll() {
-  const [usersRes, servicesRes, requestsRes, logbookRes, complaintsRes, chatsRes, consentsRes, logsRes] = await Promise.all([
+  const [usersRes, servicesRes, modulesRes, requestsRes, logbookRes, complaintsRes, chatsRes, consentsRes, logsRes] = await Promise.all([
     db.query('SELECT * FROM users ORDER BY created_at ASC'),
     db.query('SELECT * FROM services ORDER BY name ASC'),
+    db.query('SELECT * FROM modules ORDER BY audience ASC, sort_order ASC'),
     db.query('SELECT * FROM service_requests ORDER BY created_at DESC'),
     db.query('SELECT * FROM home_logbook ORDER BY entry_date DESC'),
     db.query('SELECT * FROM complaints ORDER BY created_at DESC'),
@@ -448,6 +487,7 @@ async function loadAll() {
   return {
     users: usersRes.rows.map(rowToUser),
     services: servicesRes.rows.map(rowToService),
+    modules: modulesRes.rows.map(rowToModule),
     requests: requestsRes.rows.map(rowToRequest),
     homeLogbook: logbookRes.rows.map((row) => ({
       id: row.id,
@@ -569,6 +609,21 @@ async function saveService(service) {
   );
 }
 
+async function saveModule(mod, { preserveEnabled = false } = {}) {
+  const updateEnabled = preserveEnabled
+    ? ''
+    : ', enabled = VALUES(enabled)';
+  await db.query(
+    `INSERT INTO modules (id, audience, name, description, sort_order, enabled)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       name = VALUES(name),
+       description = VALUES(description),
+       sort_order = VALUES(sort_order)${updateEnabled}`,
+    [mod.id, mod.audience, mod.name, mod.description || null, mod.sortOrder || 0, mod.enabled ? 1 : 0]
+  );
+}
+
 async function saveRequest(request) {
   const row = requestToRow(request);
   await db.query(
@@ -640,6 +695,7 @@ module.exports = {
   loadAll,
   saveUser,
   saveService,
+  saveModule,
   saveRequest,
   saveLogbookEntry,
   saveComplaint,

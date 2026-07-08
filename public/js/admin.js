@@ -33,12 +33,12 @@
         if (data.success) {
           item.classList.toggle('opacity-50', !enabled);
           statusLabel.textContent = enabled ? 'ON' : 'OFF';
-          statusLabel.className = `service-status text-[10px] font-bold uppercase ${enabled ? 'text-emerald-400' : 'text-red-400'}`;
-          ZiloNotify.show(`${data.service.name} ${enabled ? 'activado' : 'desactivado'}`, enabled ? 'success' : 'warning');
+          statusLabel.className = `service-status text-[10px] font-bold uppercase ${enabled ? 'text-emerald-600' : 'text-red-600'}`;
+          FundezNotify.show(`${data.service.name} ${enabled ? 'activado' : 'desactivado'}`, enabled ? 'success' : 'warning');
         }
       } catch (_) {
         toggle.checked = !enabled;
-        ZiloNotify.show('Error al actualizar servicio', 'error');
+        FundezNotify.show('Error al actualizar servicio', 'error');
       }
     });
   });
@@ -52,7 +52,7 @@
       });
       const data = await res.json();
       if (data.success) {
-        ZiloNotify.show('Reclamo actualizado', 'success');
+        FundezNotify.show('Reclamo actualizado', 'success');
         setTimeout(() => location.reload(), 800);
       }
     });
@@ -63,7 +63,7 @@
       const res = await fetch(`/admin/payout/${btn.dataset.id}`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        ZiloNotify.show('Pago a proveedor registrado', 'success');
+        FundezNotify.show('Pago a proveedor registrado', 'success');
         setTimeout(() => location.reload(), 800);
       }
     });
@@ -79,7 +79,7 @@
       const statusLabel = item.querySelector('.service-status');
       item.classList.toggle('opacity-50', !service.enabled);
       statusLabel.textContent = service.enabled ? 'ON' : 'OFF';
-      statusLabel.className = `service-status text-[10px] font-bold uppercase ${service.enabled ? 'text-emerald-400' : 'text-red-400'}`;
+      statusLabel.className = `service-status text-[10px] font-bold uppercase ${service.enabled ? 'text-emerald-600' : 'text-red-600'}`;
     });
   });
 
@@ -106,9 +106,9 @@
       });
       const data = await res.json();
       if (data.success) {
-        ZiloNotify.show('Configuración de backups guardada', 'success');
+        FundezNotify.show('Configuración de backups guardada', 'success');
         setTimeout(() => location.reload(), 900);
-      } else ZiloNotify.show(data.error || 'Error al guardar', 'error');
+      } else FundezNotify.show(data.error || 'Error al guardar', 'error');
     });
   }
 
@@ -121,16 +121,16 @@
     btn.disabled = false;
     btn.textContent = 'Generar backup ahora';
     if (data.success) {
-      ZiloNotify.show(`Backup creado (${data.backup.stats?.totalBytes ? Math.round(data.backup.stats.totalBytes / 1024) + ' KB' : 'ok'})`, 'success');
+      FundezNotify.show(`Backup creado (${data.backup.stats?.totalBytes ? Math.round(data.backup.stats.totalBytes / 1024) + ' KB' : 'ok'})`, 'success');
       setTimeout(() => location.reload(), 900);
-    } else ZiloNotify.show(data.error || 'Error al generar backup', 'error');
+    } else FundezNotify.show(data.error || 'Error al generar backup', 'error');
   });
 
   document.getElementById('btnApplyRetention')?.addEventListener('click', async () => {
     const res = await fetch('/admin/backups/retention', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      ZiloNotify.show(data.removed ? `${data.removed} backup(s) antiguo(s) eliminado(s)` : 'No había backups por eliminar', 'info');
+      FundezNotify.show(data.removed ? `${data.removed} backup(s) antiguo(s) eliminado(s)` : 'No había backups por eliminar', 'info');
       setTimeout(() => location.reload(), 900);
     }
   });
@@ -142,7 +142,7 @@
       const data = await res.json();
       if (data.success) {
         btn.closest('.backup-item')?.remove();
-        ZiloNotify.show('Backup eliminado', 'success');
+        FundezNotify.show('Backup eliminado', 'success');
       }
     });
   });

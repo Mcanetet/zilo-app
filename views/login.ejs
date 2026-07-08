@@ -8,7 +8,7 @@
   <div class="relative z-10 w-full max-w-md zilo-card-premium rounded-3xl p-8">
     <a href="/" class="flex flex-col items-center mb-8">
       <%- include('partials/logo', { className: 'w-14 h-14 mb-3', logoId: 'login' }) %>
-      <span class="zilo-display text-2xl tracking-wide">Zilo</span>
+      <span class="zilo-display text-2xl tracking-wide">Fundez</span>
     </a>
 
     <h1 class="zilo-display text-3xl text-center mb-1">Bienvenido</h1>
@@ -35,7 +35,7 @@
         <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" class="zilo-input">
       </div>
       <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
-        <input type="checkbox" name="consent" required class="mt-0.5 rounded accent-[#C9A962]">
+        <input type="checkbox" name="consent" required class="mt-0.5 rounded accent-[#2563EB]">
         <span>Acepto la <a href="/legal/privacidad" target="_blank" class="text-zilo-accent underline">Privacidad</a> y <a href="/legal/terminos" target="_blank" class="text-zilo-accent underline">Términos</a></span>
       </label>
       <button type="submit" class="zilo-btn-primary">Ingresar</button>
@@ -64,12 +64,8 @@
 <script>
   document.querySelectorAll('.demo-card').forEach(card => {
     card.addEventListener('click', () => {
-      const form = document.querySelector('form[action="/login"]');
       document.getElementById('email').value = card.dataset.email;
       document.getElementById('password').value = card.dataset.password;
-      const consent = document.querySelector('input[name="consent"]');
-      if (consent) consent.checked = true;
-      if (form) form.requestSubmit();
     });
   });
 </script>

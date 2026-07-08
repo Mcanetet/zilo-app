@@ -1,11 +1,11 @@
-window.ZiloMap = {
+window.FundezMap = {
   maps: {},
   markers: {},
 
   _destIcon() {
     return L.divIcon({
       className: '',
-      html: '<div style="width:22px;height:22px;background:#C9A962;border:3px solid white;border-radius:50%;box-shadow:0 2px 12px rgba(201,169,98,0.5)"></div>',
+      html: '<div style="width:22px;height:22px;background:#2563EB;border:3px solid white;border-radius:50%;box-shadow:0 2px 12px rgba(37,99,235,0.5)"></div>',
       iconSize: [22, 22],
       iconAnchor: [11, 11]
     });

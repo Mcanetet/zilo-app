@@ -39,7 +39,7 @@
     <!-- Verificación -->
     <section id="verificacion" class="p-5 rounded-2xl zilo-card-premium space-y-4">
       <div>
-        <p class="zilo-label mb-1">Verificación Zilo</p>
+        <p class="zilo-label mb-1">Verificación Fundez</p>
         <p class="text-xs text-zilo-muted">Obligatorio para recibir solicitudes. Los clientes verán tus sellos de confianza.</p>
       </div>
 
@@ -172,8 +172,8 @@
     if (data.success) {
       document.getElementById('nameDisplay').textContent = data.user.name;
       document.getElementById('avatarDisplay').textContent = data.user.avatar;
-      ZiloNotify.show('Datos actualizados', 'success');
-    } else ZiloNotify.show('Error al guardar', 'error');
+      FundezNotify.show('Datos actualizados', 'success');
+    } else FundezNotify.show('Error al guardar', 'error');
   });
 </script>
 

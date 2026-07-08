@@ -31,7 +31,7 @@ async function main() {
     if (seeded) {
       console.log('\n✓ Usuarios demo insertados/actualizados');
     }
-    console.log('\n✅ Base de datos Zilo configurada correctamente');
+    console.log('\n✅ Base de datos Fundez configurada correctamente');
   } catch (err) {
     console.error('❌ Error:', err.message);
     process.exit(1);

@@ -14,7 +14,7 @@
       <% if (request.discountPromo) { %><p class="text-zilo-success">Promoción: −<%= formatCLP(request.discountPromo) %></p><% } %>
       <% if (request.discountCredits) { %><p class="text-zilo-success">Crédito aplicado: −<%= formatCLP(request.discountCredits) %></p><% } %>
       <% if (request.discountPoints) { %><p class="text-zilo-success">Puntos canjeados: −<%= formatCLP(request.discountPoints) %></p><% } %>
-      <p class="text-zilo-muted pt-1">+50 Puntos Zilo por este servicio</p>
+      <p class="text-zilo-muted pt-1">+50 Puntos Fundez por este servicio</p>
     </div>
     <% } %>
 
@@ -60,12 +60,12 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('paymentMap');
-    if (el && typeof ZiloMap !== 'undefined') {
-      ZiloMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
+    if (el && typeof FundezMap !== 'undefined') {
+      FundezMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
     }
     document.getElementById('btnCopyGuardian')?.addEventListener('click', () => {
       navigator.clipboard.writeText(document.getElementById('guardianUrl').value)
-        .then(() => ZiloNotify.show('Enlace Modo Guardián copiado', 'success'));
+        .then(() => FundezNotify.show('Enlace Modo Guardián copiado', 'success'));
     });
   });
 </script>

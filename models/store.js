@@ -273,7 +273,7 @@ function getHomePassport(clientId) {
         date: r.completedAt || r.createdAt,
         note: r.notes || `Servicio ${r.serviceName} completado`,
         healthImpact: 8,
-        providerName: r.providerId ? getUserById(r.providerId)?.name : 'Técnico Zilo'
+        providerName: r.providerId ? getUserById(r.providerId)?.name : 'Técnico Fundez'
       }))
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -316,7 +316,7 @@ function addLogbookEntryFromRequest(request) {
     date: (request.completedAt || new Date().toISOString()).slice(0, 10),
     note: request.notes || `Mantenimiento ${request.serviceName}`,
     healthImpact: 10,
-    providerName: request.providerId ? getUserById(request.providerId)?.name : 'Técnico Zilo'
+    providerName: request.providerId ? getUserById(request.providerId)?.name : 'Técnico Fundez'
   };
   homeLogbook.unshift(entry);
   repository.persist(() => repository.saveLogbookEntry(entry), `logbook ${entry.id}`);
@@ -508,8 +508,7 @@ function updateProviderLocation(providerId, lat, lng) {
 }
 
 function getUserByEmail(email) {
-  const normalized = String(email || '').trim().toLowerCase();
-  const user = USERS.find(u => u.email.toLowerCase() === normalized);
+  const user = USERS.find(u => u.email === email);
   if (user?.role === 'provider') ensureProviderFields(user);
   return user;
 }

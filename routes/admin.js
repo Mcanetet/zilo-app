@@ -27,7 +27,7 @@ router.get('/', requireRole('admin'), (req, res) => {
   };
 
   res.render('admin/dashboard', {
-    title: 'Zilo — Admin',
+    title: 'Fundez — Admin',
     user: req.session.user,
     stats,
     services: store.SERVICES,

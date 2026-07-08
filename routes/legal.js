@@ -5,7 +5,7 @@ const store = require('../models/store');
 
 router.get('/privacidad', (req, res) => {
   res.render('legal/privacidad', {
-    title: 'Política de Privacidad — Zilo',
+    title: 'Política de Privacidad — Fundez',
     company,
     lastUpdated: '30 de junio de 2026'
   });
@@ -13,7 +13,7 @@ router.get('/privacidad', (req, res) => {
 
 router.get('/terminos', (req, res) => {
   res.render('legal/terminos', {
-    title: 'Términos y Condiciones — Zilo',
+    title: 'Términos y Condiciones — Fundez',
     company,
     lastUpdated: '30 de junio de 2026'
   });
@@ -21,7 +21,7 @@ router.get('/terminos', (req, res) => {
 
 router.get('/cookies', (req, res) => {
   res.render('legal/cookies', {
-    title: 'Política de Cookies — Zilo',
+    title: 'Política de Cookies — Fundez',
     company,
     lastUpdated: '30 de junio de 2026'
   });

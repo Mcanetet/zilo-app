@@ -14,7 +14,7 @@ router.get('/', requireRole('provider'), (req, res) => {
   const verificationCheck = store.canProviderGoOnline(provider);
 
   res.render('provider/dashboard', {
-    title: 'Zilo — Panel Proveedor',
+    title: 'Fundez — Panel Proveedor',
     user: req.session.user,
     provider,
     verificationCheck,
@@ -119,7 +119,7 @@ router.get('/perfil', requireRole('provider'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const verificationCheck = store.canProviderGoOnline(provider);
   res.render('provider/profile', {
-    title: 'Mi perfil — Zilo',
+    title: 'Mi perfil — Fundez',
     user: req.session.user,
     provider,
     verificationCheck,

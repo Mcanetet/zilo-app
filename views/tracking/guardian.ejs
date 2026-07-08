@@ -43,7 +43,7 @@
     <% } %>
 
     <p class="text-center text-[10px] text-zilo-muted pt-4">
-      Zilo — Pasaporte Hogar & Modo Guardián · Santiago, Chile
+      Fundez — Pasaporte Hogar & Modo Guardián · Santiago, Chile
     </p>
   </main>
 </div>
@@ -56,8 +56,8 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById('guardianMap');
-    if (el && typeof ZiloMap !== 'undefined') {
-      ZiloMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
+    if (el && typeof FundezMap !== 'undefined') {
+      FundezMap.init(el, { lat: el.dataset.lat, lng: el.dataset.lng, label: el.dataset.label, zoom: 15 });
     }
   });
 

@@ -48,13 +48,12 @@ app.get('/health', async (req, res) => {
   }
   res.status(200).json({
     ok: store.isReady() && dbOk,
-    app: 'zilo',
+    app: 'fundez',
     ready: store.isReady(),
     database: dbOk ? 'connected' : (dbConfigured ? 'connecting' : 'not_configured'),
     dbHost: process.env.DB_HOST || null,
     dbName: process.env.DB_NAME || null,
     missingVars,
-    usersLoaded: store.isReady() ? store.USERS.length : 0,
     port: PORT,
     uptime: process.uptime(),
     initError: global.__ziloInitError || null
@@ -87,18 +86,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-  if (req.path === '/health') return next();
-  if (!store.isReady()) {
-    return res.status(503).render('error', {
-      title: 'Conectando…',
-      message: 'Zilo está cargando usuarios desde la base de datos. Espera unos segundos y recarga la página.',
-      code: 503
-    });
-  }
-  next();
-});
-
 app.get('/', (req, res) => {
   if (req.query.ref) {
     req.session.pendingReferral = String(req.query.ref).trim().toUpperCase();
@@ -108,7 +95,7 @@ app.get('/', (req, res) => {
     return res.redirect(dashboards[req.session.user.role] || '/login');
   }
   res.render('landing', {
-    title: 'Zilo — Servicios premium a domicilio',
+    title: 'Fundez — Servicios premium a domicilio',
     services: store.getActiveServices(),
     referralBanner: req.session.pendingReferral || null
   });
@@ -121,6 +108,15 @@ app.use('/admin', adminRoutes);
 app.use('/pagos', paymentRoutes);
 app.use('/legal', legalRoutes);
 app.use('/seguimiento', trackingRoutes);
+
+app.use((req, res, next) => {
+  if (store.isReady() || req.path === '/health') return next();
+  return res.status(503).render('error', {
+    title: 'Conectando…',
+    message: 'Fundez está conectando con la base de datos. Espera unos segundos y recarga la página.',
+    code: 503
+  });
+});
 
 io.on('connection', (socket) => {
   socket.on('register_provider', (providerId) => {

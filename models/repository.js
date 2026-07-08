@@ -165,7 +165,7 @@ const SEED_USERS = [
     id: 'admin-1',
     email: 'admin@zilo.cl',
     password: 'admin123',
-    name: 'Admin Zilo',
+    name: 'Admin Fundez',
     role: 'admin',
     phone: '+56 9 0000 0000'
   }
@@ -336,7 +336,12 @@ async function migrate() {
     .filter((s) => s.length > 0 && !s.startsWith('--'));
 
   for (const statement of statements) {
-    await db.query(statement);
+    try {
+      await db.query(statement);
+    } catch (err) {
+      const ignorable = ['ER_TABLE_EXISTS_ERROR', 'ER_DUP_KEYNAME', 'ER_DUP_FIELDNAME'];
+      if (!ignorable.includes(err.code)) throw err;
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 module.exports = {
-  name: 'Zilo SpA',
+  name: 'Fundez SpA',
   rut: '77.777.777-7',
   email: 'contacto@zilo.cl',
   address: 'Santiago, Región Metropolitana, Chile',
@@ -11,7 +11,7 @@ module.exports = {
 
   whatsappLink(message) {
     const num = this.whatsapp.replace(/\D/g, '');
-    const text = encodeURIComponent(message || 'Hola Zilo, necesito ayuda con un servicio.');
+    const text = encodeURIComponent(message || 'Hola Fundez, necesito ayuda con un servicio.');
     return `https://wa.me/${num}?text=${text}`;
   },
 
@@ -22,8 +22,8 @@ module.exports = {
     const trackUrl = `${this.appUrl}/seguimiento/${request.guardianToken}`;
     const from = request.clientName;
     const msg = request.isGift
-      ? `¡Hola ${request.beneficiaryName}! ${from} te regaló una visita técnica de ${request.serviceName} en Zilo.${request.giftMessage ? ` Mensaje: "${request.giftMessage}"` : ''} Dirección: ${request.address}. Sigue el servicio en vivo: ${trackUrl}`
-      : `Hola ${request.beneficiaryName}, tu servicio Zilo de ${request.serviceName} está confirmado. Sigue el estado: ${trackUrl}`;
+      ? `¡Hola ${request.beneficiaryName}! ${from} te regaló una visita técnica de ${request.serviceName} en Fundez.${request.giftMessage ? ` Mensaje: "${request.giftMessage}"` : ''} Dirección: ${request.address}. Sigue el servicio en vivo: ${trackUrl}`
+      : `Hola ${request.beneficiaryName}, tu servicio Fundez de ${request.serviceName} está confirmado. Sigue el estado: ${trackUrl}`;
     return `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
   },
 

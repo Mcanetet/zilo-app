@@ -1,4 +1,4 @@
-window.ZiloNotify = {
+window.FundezNotify = {
   container: null,
 
   init() {

@@ -1,27 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="Zilo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="Fundez">
   <defs>
-    <linearGradient id="ziloGold" x1="10" y1="8" x2="38" y2="40" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F4EBD4"/>
-      <stop offset="0.5" stop-color="#D4B87A"/>
-      <stop offset="1" stop-color="#A88447"/>
+    <linearGradient id="fundezBg" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
     </linearGradient>
-    <linearGradient id="ziloTool" x1="30" y1="14" x2="38" y2="26" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E8D5A8"/>
-      <stop offset="1" stop-color="#C9A962"/>
-    </linearGradient>
-    <linearGradient id="ziloSheen" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF" stop-opacity="0.12"/>
+    <linearGradient id="fundezSheen" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.22"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <rect x="1" y="1" width="46" height="46" rx="14" fill="#0A0A0B" stroke="url(#ziloGold)" stroke-width="0.65"/>
-  <rect x="1" y="1" width="46" height="46" rx="14" fill="url(#ziloSheen)"/>
-  <path d="M24 11.5L35.5 21v13.5c0 1.1-.9 2-2 2H14.5c-1.1 0-2-.9-2-2V21L24 11.5z" stroke="url(#ziloGold)" stroke-width="2" stroke-linejoin="round" fill="none"/>
-  <path d="M21 36.5V27.5c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v9" stroke="url(#ziloGold)" stroke-width="1.75" stroke-linecap="round"/>
-  <rect x="27.5" y="24" width="4.5" height="4.5" rx="0.75" stroke="url(#ziloGold)" stroke-width="1.35" fill="none"/>
+  <rect x="1" y="1" width="46" height="46" rx="14" fill="url(#fundezBg)"/>
+  <rect x="1" y="1" width="46" height="46" rx="14" fill="url(#fundezSheen)"/>
+  <path d="M24 11.5L35.5 21v13.5c0 1.1-.9 2-2 2H14.5c-1.1 0-2-.9-2-2V21L24 11.5z" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" fill="none"/>
+  <path d="M21 36.5V27.5c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v9" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/>
+  <rect x="27.5" y="24" width="4.5" height="4.5" rx="0.75" stroke="#FFFFFF" stroke-width="1.35" fill="none"/>
   <g transform="translate(11, 13) rotate(-35 6 6)">
-    <path d="M3.5 8.5c0-1.93 1.57-3.5 3.5-3.5s3.5 1.57 3.5 3.5c0 .86-.31 1.64-.83 2.25L11 14.5l-1.2 1.2-2.75-2.75A3.47 3.47 0 017 8.5z" stroke="url(#ziloTool)" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <circle cx="7" cy="8.5" r="1.1" fill="url(#ziloTool)"/>
+    <path d="M3.5 8.5c0-1.93 1.57-3.5 3.5-3.5s3.5 1.57 3.5 3.5c0 .86-.31 1.64-.83 2.25L11 14.5l-1.2 1.2-2.75-2.75A3.47 3.47 0 017 8.5z" stroke="#FFFFFF" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.95"/>
+    <circle cx="7" cy="8.5" r="1.1" fill="#FFFFFF"/>
   </g>
-  <circle cx="33.5" cy="14" r="1.15" fill="#C9A962" opacity="0.75"/>
+  <circle cx="33.5" cy="14" r="1.15" fill="#FFFFFF" opacity="0.85"/>
 </svg>

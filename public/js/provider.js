@@ -26,7 +26,7 @@
     currentRequest = data.request;
     const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
 
-    document.getElementById('modalServiceIcon').innerHTML = ZiloIcons.wrap(data.service.icon, data.service.color, 'w-12 h-12', 28);
+    document.getElementById('modalServiceIcon').innerHTML = FundezIcons.wrap(data.service.icon, data.service.color, 'w-12 h-12', 28);
     document.getElementById('modalServiceName').textContent = data.service.name;
     document.getElementById('modalClient').textContent = data.client.name;
     document.getElementById('modalAddress').textContent = data.request.address;
@@ -34,9 +34,9 @@
       data.request.coords ? `${data.request.coords.lat}, ${data.request.coords.lng}` : '-33.4489, -70.6693';
 
     const mapEl = document.getElementById('modalMap');
-    if (data.request.coords && typeof ZiloMap !== 'undefined') {
+    if (data.request.coords && typeof FundezMap !== 'undefined') {
       setTimeout(() => {
-        ZiloMap.init(mapEl, {
+        FundezMap.init(mapEl, {
           lat: data.request.coords.lat,
           lng: data.request.coords.lng,
           label: data.request.address,
@@ -67,7 +67,7 @@
     startRepeatingAlert();
 
     if (Notification.permission === 'granted') {
-      new Notification('Zilo — Nueva solicitud', {
+      new Notification('Fundez — Nueva solicitud', {
         body: `${data.service.name} · ${data.request.address}`,
         icon: '/favicon-32.png'
       });
@@ -145,7 +145,7 @@
       const msg = data.missing?.length
         ? `Completa tu verificación: ${data.missing.join(', ')}`
         : (data.error || 'No se pudo activar el modo en línea');
-      ZiloNotify.show(msg, 'warning');
+      FundezNotify.show(msg, 'warning');
       if (data.redirect) setTimeout(() => { window.location.href = data.redirect; }, 1800);
       return;
     }
@@ -154,7 +154,7 @@
       statusDot.className = 'w-3 h-3 rounded-full bg-zilo-success shadow-lg shadow-zilo-success/40 animate-pulse';
       statusText.textContent = 'En línea';
       statusSub.textContent = 'Recibiendo solicitudes';
-      ZiloNotify.show(data.dispatched > 0 ? `¡${data.dispatched} solicitud(es) recibida(s)!` : 'Modo en línea activado', 'success');
+      FundezNotify.show(data.dispatched > 0 ? `¡${data.dispatched} solicitud(es) recibida(s)!` : 'Modo en línea activado', 'success');
       startLocationWatch();
       checkPendingRequests();
     } else {
@@ -162,7 +162,7 @@
       statusText.textContent = 'Fuera de línea';
       statusSub.textContent = 'Actívate para trabajar';
       stopLocationWatch();
-      ZiloNotify.show('Modo fuera de línea', 'info');
+      FundezNotify.show('Modo fuera de línea', 'info');
     }
   });
 
@@ -231,7 +231,7 @@
       circle.style.strokeDashoffset = String(CIRCUMFERENCE * (1 - remaining / seconds));
 
       if (remaining <= 5) {
-        number.classList.add('text-red-400');
+        number.classList.add('text-red-600');
         circle.setAttribute('stroke', '#EF4444');
       }
 
@@ -240,8 +240,8 @@
         stopRepeatingAlert();
         requestModal.classList.add('hidden');
         currentRequest = null;
-        ZiloNotify.show('Solicitud expirada', 'warning');
-        number.classList.remove('text-red-400');
+        FundezNotify.show('Solicitud expirada', 'warning');
+        number.classList.remove('text-red-600');
         circle.setAttribute('stroke', '#3B82F6');
       }
     }, 1000);
@@ -251,7 +251,7 @@
     if (countdownTimer) clearInterval(countdownTimer);
     stopRepeatingAlert();
     requestModal.classList.add('hidden');
-    document.getElementById('countdownNumber').classList.remove('text-red-400');
+    document.getElementById('countdownNumber').classList.remove('text-red-600');
     document.getElementById('countdownCircle').setAttribute('stroke', '#3B82F6');
   }
 
@@ -264,14 +264,14 @@
     if (data.success) {
       closeModal();
       showActiveJob(data.request);
-      ZiloNotify.show('¡Servicio aceptado!', 'success');
+      FundezNotify.show('¡Servicio aceptado!', 'success');
     }
   });
 
   document.getElementById('btnDecline').addEventListener('click', () => {
     closeModal();
     currentRequest = null;
-    ZiloNotify.show('Solicitud rechazada', 'info');
+    FundezNotify.show('Solicitud rechazada', 'info');
   });
 
   function showActiveJob(request) {
@@ -298,11 +298,11 @@
       const statusEl = document.getElementById('jobStatus');
       statusEl.textContent = status === 'completed' ? 'Completado' : 'En camino';
       statusEl.className = status === 'completed'
-        ? 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-400'
-        : 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-500/15 text-blue-400';
+        ? 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-600'
+        : 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-500/15 text-blue-600';
 
       if (status === 'completed') {
-        ZiloNotify.show('Servicio completado', 'success');
+        FundezNotify.show('Servicio completado', 'success');
         setTimeout(() => activeJob.classList.add('hidden'), 2000);
       }
     });

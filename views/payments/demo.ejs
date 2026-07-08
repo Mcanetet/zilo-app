@@ -13,7 +13,7 @@
         <% if (request.discountCredits) { %><div class="flex justify-between text-zilo-success"><span>Crédito</span><span>−<%= formatCLP(request.discountCredits) %></span></div><% } %>
         <% if (request.discountPoints) { %><div class="flex justify-between text-zilo-success"><span>Puntos</span><span>−<%= formatCLP(request.discountPoints) %></span></div><% } %>
       <% } %>
-      <div class="flex justify-between pt-2 border-t border-white/5">
+      <div class="flex justify-between pt-2 border-t border-gray-200">
         <strong>Total</strong>
         <strong class="text-zilo-accent text-xl"><%= formatCLP(request.amountDue ?? request.estimatedVisit) %></strong>
       </div>
@@ -26,7 +26,7 @@
     <button id="btnPayDemo" data-request-id="<%= request.id %>" class="zilo-btn-primary mb-3">
       Confirmar pago
     </button>
-    <a href="/pagos/checkout?ref=<%= request.id %>" class="text-sm text-zilo-muted hover:text-white/70">Volver al checkout</a>
+    <a href="/pagos/checkout?ref=<%= request.id %>" class="text-sm text-zilo-muted hover:text-gray-700">Volver al checkout</a>
   </div>
 </div>
 

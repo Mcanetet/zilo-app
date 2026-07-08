@@ -23,8 +23,8 @@
   const SANTIAGO = { lat: -33.4489, lng: -70.6693 };
 
   document.addEventListener('DOMContentLoaded', () => {
-    if (typeof ZiloMap !== 'undefined') {
-      ZiloMap.init(document.getElementById('addressMap'), {
+    if (typeof FundezMap !== 'undefined') {
+      FundezMap.init(document.getElementById('addressMap'), {
         lat: SANTIAGO.lat, lng: SANTIAGO.lng, label: 'Santiago, Chile', zoom: 12
       });
     }
@@ -74,7 +74,7 @@
       if (data.success) {
         latInput.value = data.coords.lat;
         lngInput.value = data.coords.lng;
-        ZiloMap.update('addressMap', data.coords.lat, data.coords.lng, data.displayName || address);
+        FundezMap.update('addressMap', data.coords.lat, data.coords.lng, data.displayName || address);
         mapStatus.textContent = data.displayName || 'Ubicación encontrada';
       }
     } catch (_) {
@@ -132,7 +132,7 @@
     ).join('');
     const statusEl = document.getElementById('providerVerifiedStatus');
     if (statusEl && v.faceVerified) {
-      statusEl.textContent = v.faceScore ? `Identidad verificada · ${v.faceScore}%` : 'Identidad verificada por Zilo';
+      statusEl.textContent = v.faceScore ? `Identidad verificada · ${v.faceScore}%` : 'Identidad verificada por Fundez';
       statusEl.classList.remove('hidden');
     }
   }
@@ -157,7 +157,7 @@
     renderVerificationBadges(provider);
     document.getElementById('tripProviderLabel').textContent = `${provider.name} · ${provider.rating}★`;
     const waNum = page.dataset.whatsapp || '56912345678';
-    const waMsg = encodeURIComponent(`Hola Zilo, tengo un servicio en curso con ${provider.name}. Necesito ayuda.`);
+    const waMsg = encodeURIComponent(`Hola Fundez, tengo un servicio en curso con ${provider.name}. Necesito ayuda.`);
     document.getElementById('whatsappSupport').href = `https://wa.me/${waNum.replace(/\D/g, '')}?text=${waMsg}`;
 
     setTimeout(() => advanceTripStep('enroute'), 8000);
@@ -167,9 +167,9 @@
       <div class="p-3 rounded-xl bg-zilo-bg">
         <div class="flex justify-between mb-1">
           <span class="text-xs font-semibold">${r.author}</span>
-          <span class="text-xs text-yellow-400">${'★'.repeat(r.rating)}</span>
+          <span class="text-xs text-yellow-600">${'★'.repeat(r.rating)}</span>
         </div>
-        <p class="text-xs text-white/50">${r.text}</p>
+        <p class="text-xs text-gray-600">${r.text}</p>
       </div>
     `).join('');
 
@@ -179,7 +179,7 @@
       page.dataset.destLat = request.coords.lat;
       page.dataset.destLng = request.coords.lng;
       const prov = provider.location;
-      ZiloMap.initTracking(tMap, {
+      FundezMap.initTracking(tMap, {
         destLat: request.coords.lat,
         destLng: request.coords.lng,
         destLabel: request.address,
@@ -196,14 +196,14 @@
     loaderOverlay.classList.add('hidden');
     providerCard.classList.remove('hidden');
     requestForm.classList.add('hidden');
-    ZiloNotify.show('¡Proveedor asignado!', 'success');
+    FundezNotify.show('¡Proveedor asignado!', 'success');
   }
 
   function pollForProvider(requestId, attempts = 0) {
     if (attempts > 30) {
       loaderOverlay.classList.add('hidden');
       requestForm.classList.remove('hidden');
-      ZiloNotify.show('No hay proveedores disponibles. Intenta más tarde.', 'warning');
+      FundezNotify.show('No hay proveedores disponibles. Intenta más tarde.', 'warning');
       return;
     }
 
@@ -228,8 +228,8 @@
     socket.on(`provider_location_${requestId}`, (payload) => {
       const destLat = parseFloat(page.dataset.destLat);
       const destLng = parseFloat(page.dataset.destLng);
-      if (!isNaN(destLat) && typeof ZiloMap !== 'undefined') {
-        ZiloMap.updateProviderLocation('trackingMap', payload.lat, payload.lng, destLat, destLng);
+      if (!isNaN(destLat) && typeof FundezMap !== 'undefined') {
+        FundezMap.updateProviderLocation('trackingMap', payload.lat, payload.lng, destLat, destLng);
       }
       const locStatus = document.getElementById('providerLocationStatus');
       if (locStatus) {
@@ -245,7 +245,7 @@
     const address = addressInput.value.trim();
     if (!address) {
       addressInput.focus();
-      ZiloNotify.show('Ingresa una dirección', 'warning');
+      FundezNotify.show('Ingresa una dirección', 'warning');
       return;
     }
 
@@ -255,7 +255,7 @@
       const name = document.getElementById('giftName')?.value.trim();
       const phone = document.getElementById('giftPhone')?.value.trim();
       if (!name) {
-        ZiloNotify.show('Ingresa el nombre del beneficiario', 'warning');
+        FundezNotify.show('Ingresa el nombre del beneficiario', 'warning');
         return;
       }
       gift = {
@@ -291,7 +291,7 @@
     } catch (err) {
       btnRequest.disabled = false;
       btnRequest.textContent = 'Continuar al pago';
-      ZiloNotify.show(err.message || 'Error al procesar', 'error');
+      FundezNotify.show(err.message || 'Error al procesar', 'error');
     }
   });
 })();

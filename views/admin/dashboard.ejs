@@ -7,7 +7,7 @@
         <%- include('../partials/logo', { className: 'w-9 h-9' }) %>
         <div>
           <span class="zilo-label !text-[9px]">Operaciones</span>
-          <h1 class="text-base font-semibold">Zilo Admin</h1>
+          <h1 class="text-base font-semibold">Fundez Admin</h1>
         </div>
       </div>
       <a href="/logout" class="zilo-icon-btn" title="Cerrar sesión">
@@ -27,42 +27,42 @@
     <section class="admin-panel" data-panel="resumen">
       <div class="grid grid-cols-2 gap-2 mb-4">
         <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
-          <span class="text-[10px] text-white/40 uppercase">Ingresos</span>
-          <p class="text-lg font-extrabold text-emerald-400"><%= formatCLP(stats.totalRevenue) %></p>
+          <span class="text-[10px] text-gray-500 uppercase">Ingresos</span>
+          <p class="text-lg font-extrabold text-emerald-600"><%= formatCLP(stats.totalRevenue) %></p>
         </div>
         <div class="p-4 rounded-2xl stat-gold border">
-          <span class="zilo-label">Comisión Zilo</span>
+          <span class="zilo-label">Comisión Fundez</span>
           <p class="text-lg font-semibold"><%= formatCLP(stats.totalCommission) %></p>
         </div>
         <div class="p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/25">
-          <span class="text-[10px] text-white/40 uppercase">Deuda proveedores</span>
-          <p class="text-lg font-extrabold text-yellow-400"><%= formatCLP(stats.owedToProviders) %></p>
+          <span class="text-[10px] text-gray-500 uppercase">Deuda proveedores</span>
+          <p class="text-lg font-extrabold text-yellow-600"><%= formatCLP(stats.owedToProviders) %></p>
         </div>
         <div class="p-4 rounded-2xl bg-red-500/10 border border-red-500/25">
-          <span class="text-[10px] text-white/40 uppercase">Reclamos abiertos</span>
-          <p class="text-lg font-extrabold text-red-400"><%= stats.openComplaints %></p>
+          <span class="text-[10px] text-gray-500 uppercase">Reclamos abiertos</span>
+          <p class="text-lg font-extrabold text-red-600"><%= stats.openComplaints %></p>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-2 mb-4">
-        <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center">
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200 text-center">
           <strong class="block text-lg"><%= stats.activeRequests %></strong>
-          <span class="text-[9px] text-white/40 uppercase">Activas</span>
+          <span class="text-[9px] text-gray-500 uppercase">Activas</span>
         </div>
-        <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center">
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200 text-center">
           <strong class="block text-lg"><%= stats.activeChats %></strong>
-          <span class="text-[9px] text-white/40 uppercase">Chats WA</span>
+          <span class="text-[9px] text-gray-500 uppercase">Chats WA</span>
         </div>
-        <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center">
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200 text-center">
           <strong class="block text-lg"><%= stats.consentRate %>%</strong>
-          <span class="text-[9px] text-white/40 uppercase">Consent.</span>
+          <span class="text-[9px] text-gray-500 uppercase">Consent.</span>
         </div>
       </div>
-      <div class="p-4 rounded-2xl bg-zilo-card border border-white/8">
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
         <h3 class="text-sm font-semibold mb-2">Enlaces legales públicos</h3>
         <div class="flex flex-wrap gap-2">
-          <a href="/legal/privacidad" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-blue-500/50">Privacidad</a>
-          <a href="/legal/terminos" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-blue-500/50">Términos</a>
-          <a href="/legal/cookies" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:border-blue-500/50">Cookies</a>
+          <a href="/legal/privacidad" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Privacidad</a>
+          <a href="/legal/terminos" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Términos</a>
+          <a href="/legal/cookies" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Cookies</a>
         </div>
       </div>
     </section>
@@ -71,20 +71,20 @@
     <section class="admin-panel hidden" data-panel="servicios">
       <div class="flex justify-between items-center mb-3">
         <h3 class="text-lg font-semibold">Control de servicios</h3>
-        <span class="text-xs text-white/40"><%= stats.activeServices %>/<%= stats.totalServices %> activos</span>
+        <span class="text-xs text-gray-500"><%= stats.activeServices %>/<%= stats.totalServices %> activos</span>
       </div>
       <div id="servicesList" class="space-y-2">
         <% services.forEach(service => { %>
-          <div class="service-toggle-item flex items-center justify-between p-4 rounded-2xl bg-zilo-card border border-white/8 <%= service.enabled ? '' : 'opacity-50' %>" data-service-id="<%= service.id %>">
+          <div class="service-toggle-item flex items-center justify-between p-4 rounded-2xl bg-zilo-card border border-gray-200 <%= service.enabled ? '' : 'opacity-50' %>" data-service-id="<%= service.id %>">
             <div class="flex items-center gap-3">
               <%- include('../partials/service-icon', { icon: service.icon, color: service.color, size: 'sm' }) %>
               <div>
                 <strong class="text-sm block"><%= service.name %></strong>
-                <span class="text-xs text-white/40"><%= formatCLP(service.visitPrice) %> visita</span>
+                <span class="text-xs text-gray-500"><%= formatCLP(service.visitPrice) %> visita</span>
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <span class="service-status text-[10px] font-bold uppercase <%= service.enabled ? 'text-emerald-400' : 'text-red-400' %>"><%= service.enabled ? 'ON' : 'OFF' %></span>
+              <span class="service-status text-[10px] font-bold uppercase <%= service.enabled ? 'text-emerald-600' : 'text-red-600' %>"><%= service.enabled ? 'ON' : 'OFF' %></span>
               <label class="toggle-ios">
                 <input type="checkbox" class="service-toggle" data-id="<%= service.id %>" <%= service.enabled ? 'checked' : '' %>>
                 <span class="slider"></span>
@@ -99,21 +99,21 @@
     <section class="admin-panel hidden" data-panel="pagos">
       <h3 class="text-lg font-semibold mb-3">Pagos Mercado Pago</h3>
       <% if (payments.length === 0) { %>
-        <p class="text-center py-10 text-white/30 text-sm">Sin pagos registrados aún.</p>
+        <p class="text-center py-10 text-gray-500 text-sm">Sin pagos registrados aún.</p>
       <% } else { %>
         <div class="space-y-2">
           <% payments.forEach(p => { %>
-            <div class="p-4 rounded-xl bg-zilo-card border border-white/8 text-sm">
+            <div class="p-4 rounded-xl bg-zilo-card border border-gray-200 text-sm">
               <div class="flex justify-between mb-1">
                 <strong><%= p.serviceName %></strong>
-                <span class="text-emerald-400 font-bold"><%= formatCLP(p.amount) %></span>
+                <span class="text-emerald-600 font-bold"><%= formatCLP(p.amount) %></span>
               </div>
-              <p class="text-xs text-white/40"><%= p.clientName %> · <%= p.providerName %></p>
+              <p class="text-xs text-gray-500"><%= p.clientName %> · <%= p.providerName %></p>
               <div class="flex justify-between mt-2 text-[10px]">
-                <span class="text-white/30">ID: <%= p.paymentId || '—' %></span>
-                <span class="px-2 py-0.5 rounded-full bg-white/5 uppercase"><%= p.status %></span>
+                <span class="text-gray-500">ID: <%= p.paymentId || '—' %></span>
+                <span class="px-2 py-0.5 rounded-full bg-gray-50 uppercase"><%= p.status %></span>
               </div>
-              <div class="flex gap-3 mt-2 text-xs text-white/50">
+              <div class="flex gap-3 mt-2 text-xs text-gray-600">
                 <span>Comisión: <%= formatCLP(p.commission) %></span>
                 <span>Proveedor: <%= formatCLP(p.providerPayout) %></span>
               </div>
@@ -126,30 +126,30 @@
     <!-- PROVEEDORES / PAYOUTS -->
     <section class="admin-panel hidden" data-panel="proveedores">
       <h3 class="text-lg font-semibold mb-1">Liquidación proveedores</h3>
-      <p class="text-xs text-white/40 mb-4">Comisión plataforma: 15% · Pago pendiente tras servicio completado</p>
+      <p class="text-xs text-gray-500 mb-4">Comisión plataforma: 15% · Pago pendiente tras servicio completado</p>
       <div class="space-y-3">
         <% payouts.forEach(p => { %>
-          <div class="p-4 rounded-2xl bg-zilo-card border border-white/8">
+          <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
             <div class="flex items-center gap-3 mb-3">
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-xs font-bold"><%= p.provider.avatar %></div>
               <div class="flex-1">
                 <strong class="text-sm"><%= p.provider.name %></strong>
-                <span class="text-xs text-white/40 block"><%= p.jobs %> trabajos · <%= p.provider.rating %>★</span>
+                <span class="text-xs text-gray-500 block"><%= p.jobs %> trabajos · <%= p.provider.rating %>★</span>
               </div>
-              <span class="text-xs <%= p.provider.online ? 'text-emerald-400' : 'text-white/30' %>"><%= p.provider.online ? '● Online' : '○ Offline' %></span>
+              <span class="text-xs <%= p.provider.online ? 'text-emerald-600' : 'text-gray-500' %>"><%= p.provider.online ? '● Online' : '○ Offline' %></span>
             </div>
             <div class="grid grid-cols-3 gap-2 text-center">
               <div class="p-2 rounded-lg bg-yellow-500/10">
-                <strong class="block text-sm text-yellow-400"><%= formatCLP(p.pending) %></strong>
-                <span class="text-[9px] text-white/40">Por pagar</span>
+                <strong class="block text-sm text-yellow-600"><%= formatCLP(p.pending) %></strong>
+                <span class="text-[9px] text-gray-500">Por pagar</span>
               </div>
               <div class="p-2 rounded-lg bg-emerald-500/10">
-                <strong class="block text-sm text-emerald-400"><%= formatCLP(p.paid) %></strong>
-                <span class="text-[9px] text-white/40">Pagado</span>
+                <strong class="block text-sm text-emerald-600"><%= formatCLP(p.paid) %></strong>
+                <span class="text-[9px] text-gray-500">Pagado</span>
               </div>
-              <div class="p-2 rounded-lg bg-white/5">
+              <div class="p-2 rounded-lg bg-gray-50">
                 <strong class="block text-sm"><%= p.completed %></strong>
-                <span class="text-[9px] text-white/40">Completados</span>
+                <span class="text-[9px] text-gray-500">Completados</span>
               </div>
             </div>
           </div>
@@ -160,10 +160,10 @@
         <h4 class="text-sm font-semibold mt-6 mb-2">Marcar pagos a proveedor</h4>
         <div class="space-y-2">
           <% pendingPayouts.forEach(p => { %>
-            <div class="flex items-center justify-between p-3 rounded-xl bg-zilo-bg border border-white/8">
+            <div class="flex items-center justify-between p-3 rounded-xl bg-zilo-bg border border-gray-200">
               <div>
                 <span class="text-sm font-medium"><%= p.providerName %></span>
-                <span class="text-xs text-white/40 block"><%= formatCLP(p.providerPayout) %></span>
+                <span class="text-xs text-gray-500 block"><%= formatCLP(p.providerPayout) %></span>
               </div>
               <button type="button" class="btn-mark-payout px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-semibold" data-id="<%= p.id %>">Marcar pagado</button>
             </div>
@@ -177,21 +177,21 @@
       <h3 class="text-lg font-semibold mb-3">Reclamos y disputas</h3>
       <div class="space-y-2">
         <% complaints.forEach(c => { %>
-          <div class="p-4 rounded-xl bg-zilo-card border border-white/8" data-complaint-id="<%= c.id %>">
+          <div class="p-4 rounded-xl bg-zilo-card border border-gray-200" data-complaint-id="<%= c.id %>">
             <div class="flex justify-between items-start mb-2">
               <div>
                 <strong class="text-sm block"><%= c.subject %></strong>
-                <span class="text-xs text-white/40"><%= c.clientName %> · <%= c.type %></span>
+                <span class="text-xs text-gray-500"><%= c.clientName %> · <%= c.type %></span>
               </div>
               <span class="complaint-status px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
-                <%= c.status === 'abierto' ? 'bg-red-500/15 text-red-400' : c.status === 'en_revision' ? 'bg-yellow-500/15 text-yellow-400' : 'bg-emerald-500/15 text-emerald-400' %>">
+                <%= c.status === 'abierto' ? 'bg-red-500/15 text-red-600' : c.status === 'en_revision' ? 'bg-yellow-500/15 text-yellow-600' : 'bg-emerald-500/15 text-emerald-600' %>">
                 <%= c.status.replace('_', ' ') %>
               </span>
             </div>
-            <p class="text-xs text-white/50 mb-3"><%= c.description %></p>
+            <p class="text-xs text-gray-600 mb-3"><%= c.description %></p>
             <% if (c.status !== 'resuelto') { %>
               <div class="flex gap-2">
-                <button type="button" class="btn-complaint flex-1 py-2 rounded-lg bg-zilo-bg border border-white/10 text-xs" data-id="<%= c.id %>" data-status="en_revision">En revisión</button>
+                <button type="button" class="btn-complaint flex-1 py-2 rounded-lg bg-zilo-bg border border-gray-200 text-xs" data-id="<%= c.id %>" data-status="en_revision">En revisión</button>
                 <button type="button" class="btn-complaint flex-1 py-2 rounded-lg bg-emerald-600/80 text-xs font-semibold" data-id="<%= c.id %>" data-status="resuelto">Resolver</button>
               </div>
             <% } %>
@@ -204,16 +204,16 @@
     <section class="admin-panel hidden" data-panel="whatsapp">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-lg font-semibold">Soporte WhatsApp</h3>
-        <a href="<%= company.whatsappLink('Hola, soy soporte Zilo Admin') %>" target="_blank" rel="noopener" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366]/20 border border-[#25D366]/40 text-[#25D366] text-xs font-semibold">
+        <a href="<%= company.whatsappLink('Hola, soy soporte Fundez Admin') %>" target="_blank" rel="noopener" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366]/20 border border-[#25D366]/40 text-[#25D366] text-xs font-semibold">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           Abrir WA Empresa
         </a>
       </div>
-      <p class="text-xs text-white/40 mb-4">Línea oficial: <strong class="text-white/70"><%= company.whatsappDisplay %></strong></p>
+      <p class="text-xs text-gray-500 mb-4">Línea oficial: <strong class="text-gray-700"><%= company.whatsappDisplay %></strong></p>
       <div class="space-y-2">
         <% chats.forEach(ch => { %>
-          <a href="<%= company.whatsappLink('Hola ' + ch.clientName + ', te contactamos desde Zilo Soporte.') %>" target="_blank" rel="noopener"
-            class="flex items-center gap-3 p-4 rounded-xl bg-zilo-card border border-white/8 hover:border-[#25D366]/40 transition">
+          <a href="<%= company.whatsappLink('Hola ' + ch.clientName + ', te contactamos desde Fundez Soporte.') %>" target="_blank" rel="noopener"
+            class="flex items-center gap-3 p-4 rounded-xl bg-zilo-card border border-gray-200 hover:border-[#25D366]/40 transition">
             <div class="w-10 h-10 rounded-full bg-[#25D366]/20 flex items-center justify-center">
               <svg class="w-5 h-5 text-[#25D366]" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
             </div>
@@ -222,9 +222,9 @@
                 <strong class="text-sm"><%= ch.clientName %></strong>
                 <% if (ch.unread > 0) { %><span class="w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center"><%= ch.unread %></span><% } %>
               </div>
-              <p class="text-xs text-white/40 truncate"><%= ch.lastMessage %></p>
+              <p class="text-xs text-gray-500 truncate"><%= ch.lastMessage %></p>
             </div>
-            <span class="text-[10px] text-white/30 uppercase"><%= ch.status %></span>
+            <span class="text-[10px] text-gray-500 uppercase"><%= ch.status %></span>
           </a>
         <% }); %>
       </div>
@@ -233,29 +233,29 @@
     <!-- DATOS / CONSENTIMIENTO -->
     <section class="admin-panel hidden" data-panel="datos">
       <h3 class="text-lg font-semibold mb-1">Privacidad y consentimiento</h3>
-      <p class="text-xs text-white/40 mb-4">Cumplimiento Ley 19.628 (Chile) · DPO: <%= company.dpoEmail %></p>
-      <div class="p-4 rounded-2xl bg-zilo-card border border-white/8 mb-4">
+      <p class="text-xs text-gray-500 mb-4">Cumplimiento Ley 19.628 (Chile) · DPO: <%= company.dpoEmail %></p>
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
         <div class="flex justify-between text-sm mb-2">
           <span>Tasa de consentimiento</span>
-          <strong class="text-emerald-400"><%= stats.consentRate %>%</strong>
+          <strong class="text-emerald-600"><%= stats.consentRate %>%</strong>
         </div>
-        <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+        <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
           <div class="h-full bg-emerald-500 rounded-full" style="width:<%= stats.consentRate %>%"></div>
         </div>
       </div>
       <h4 class="text-sm font-semibold mb-2">Registros recientes</h4>
       <div class="space-y-2">
         <% consents.forEach(c => { %>
-          <div class="p-3 rounded-xl bg-zilo-bg border border-white/8 text-xs">
+          <div class="p-3 rounded-xl bg-zilo-bg border border-gray-200 text-xs">
             <div class="flex justify-between">
               <span class="font-medium uppercase"><%= c.type %></span>
-              <span class="<%= c.granted ? 'text-emerald-400' : 'text-red-400' %>"><%= c.granted ? 'Aceptado' : 'Rechazado' %></span>
+              <span class="<%= c.granted ? 'text-emerald-600' : 'text-red-600' %>"><%= c.granted ? 'Aceptado' : 'Rechazado' %></span>
             </div>
-            <span class="text-white/30"><%= c.userId || 'Anónimo' %> · v<%= c.version %> · <%= new Date(c.createdAt).toLocaleString('es-CL') %></span>
+            <span class="text-gray-500"><%= c.userId || 'Anónimo' %> · v<%= c.version %> · <%= new Date(c.createdAt).toLocaleString('es-CL') %></span>
           </div>
         <% }); %>
       </div>
-      <div class="mt-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 text-xs text-white/60">
+      <div class="mt-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 text-xs text-gray-600">
         <strong class="text-blue-300 block mb-1">Checklist legal pre-lanzamiento</strong>
         <ul class="space-y-1 list-disc list-inside">
           <li>Política de privacidad publicada</li>
@@ -271,24 +271,24 @@
     <!-- BACKUPS -->
     <section class="admin-panel hidden" data-panel="backups">
       <h3 class="text-lg font-semibold mb-1">Copias de seguridad</h3>
-      <p class="text-xs text-white/40 mb-4">Política GFS (estándar mercado SaaS) · datos del servidor + documentos de proveedores</p>
+      <p class="text-xs text-gray-500 mb-4">Política GFS (estándar mercado SaaS) · datos del servidor + documentos de proveedores</p>
 
       <div class="grid grid-cols-2 gap-2 mb-4">
         <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-          <span class="text-[9px] text-white/40 uppercase block">Estado</span>
-          <strong class="text-sm <%= backupConfig.enabled ? 'text-emerald-400' : 'text-red-400' %>"><%= backupConfig.enabled ? 'Activo' : 'Pausado' %></strong>
+          <span class="text-[9px] text-gray-500 uppercase block">Estado</span>
+          <strong class="text-sm <%= backupConfig.enabled ? 'text-emerald-600' : 'text-red-600' %>"><%= backupConfig.enabled ? 'Activo' : 'Pausado' %></strong>
         </div>
         <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
-          <span class="text-[9px] text-white/40 uppercase block">Último backup</span>
+          <span class="text-[9px] text-gray-500 uppercase block">Último backup</span>
           <strong class="text-xs text-blue-300"><%= backupConfig.lastBackupAt ? new Date(backupConfig.lastBackupAt).toLocaleString('es-CL') : 'Nunca' %></strong>
         </div>
-        <div class="p-3 rounded-xl bg-zilo-card border border-white/8 text-center col-span-2">
-          <span class="text-[9px] text-white/40 uppercase block">Próximo automático</span>
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200 text-center col-span-2">
+          <span class="text-[9px] text-gray-500 uppercase block">Próximo automático</span>
           <strong class="text-xs"><%= backupConfig.nextBackupAt ? new Date(backupConfig.nextBackupAt).toLocaleString('es-CL') : '—' %></strong>
         </div>
       </div>
 
-      <form id="backupConfigForm" class="p-4 rounded-2xl bg-zilo-card border border-white/8 space-y-3 mb-4">
+      <form id="backupConfigForm" class="p-4 rounded-2xl bg-zilo-card border border-gray-200 space-y-3 mb-4">
         <p class="text-sm font-semibold">Configuración</p>
 
         <label class="flex items-center justify-between text-sm">
@@ -322,70 +322,70 @@
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-[10px] text-white/40 uppercase block mb-1">Hora (24h)</label>
-            <input type="number" name="scheduleHour" min="0" max="23" value="<%= backupConfig.scheduleHour %>" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-white/10 text-sm">
+            <label class="text-[10px] text-gray-500 uppercase block mb-1">Hora (24h)</label>
+            <input type="number" name="scheduleHour" min="0" max="23" value="<%= backupConfig.scheduleHour %>" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
           </div>
           <div>
-            <label class="text-[10px] text-white/40 uppercase block mb-1">Minuto</label>
-            <input type="number" name="scheduleMinute" min="0" max="59" value="<%= backupConfig.scheduleMinute %>" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-white/10 text-sm">
+            <label class="text-[10px] text-gray-500 uppercase block mb-1">Minuto</label>
+            <input type="number" name="scheduleMinute" min="0" max="59" value="<%= backupConfig.scheduleMinute %>" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
           </div>
         </div>
 
         <p class="text-xs font-semibold text-zilo-accent pt-1">Retención (referencia mercado)</p>
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="text-[10px] text-white/40 block mb-1">Diarios (7–30 d)</label>
-            <input type="number" name="dailyRetentionDays" min="1" max="90" value="<%= backupConfig.dailyRetentionDays %>" class="w-full px-2 py-2 rounded-xl bg-zilo-bg border border-white/10 text-sm">
+            <label class="text-[10px] text-gray-500 block mb-1">Diarios (7–30 d)</label>
+            <input type="number" name="dailyRetentionDays" min="1" max="90" value="<%= backupConfig.dailyRetentionDays %>" class="w-full px-2 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
           </div>
           <div>
-            <label class="text-[10px] text-white/40 block mb-1">Semanales (4–12 sem)</label>
-            <input type="number" name="weeklyRetentionWeeks" min="1" max="52" value="<%= backupConfig.weeklyRetentionWeeks %>" class="w-full px-2 py-2 rounded-xl bg-zilo-bg border border-white/10 text-sm">
+            <label class="text-[10px] text-gray-500 block mb-1">Semanales (4–12 sem)</label>
+            <input type="number" name="weeklyRetentionWeeks" min="1" max="52" value="<%= backupConfig.weeklyRetentionWeeks %>" class="w-full px-2 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
           </div>
           <div>
-            <label class="text-[10px] text-white/40 block mb-1">Mensuales (12–36 mes)</label>
-            <input type="number" name="monthlyRetentionMonths" min="1" max="84" value="<%= backupConfig.monthlyRetentionMonths %>" class="w-full px-2 py-2 rounded-xl bg-zilo-bg border border-white/10 text-sm">
+            <label class="text-[10px] text-gray-500 block mb-1">Mensuales (12–36 mes)</label>
+            <input type="number" name="monthlyRetentionMonths" min="1" max="84" value="<%= backupConfig.monthlyRetentionMonths %>" class="w-full px-2 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
           </div>
         </div>
 
         <button type="submit" class="w-full py-2.5 rounded-xl bg-zilo-accent/20 border border-zilo-accent/30 text-sm font-medium text-zilo-accent">Guardar configuración</button>
       </form>
 
-      <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 text-xs text-white/60 mb-4">
+      <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 text-xs text-gray-600 mb-4">
         <strong class="text-blue-300 block mb-1">Estándar del mercado (GFS)</strong>
         <ul class="space-y-1 list-disc list-inside">
           <li><strong>Diarios:</strong> recuperación rápida de errores operativos (7–30 días)</li>
           <li><strong>Semanales:</strong> corrupción o fallos detectados tarde (4–12 semanas)</li>
           <li><strong>Mensuales:</strong> auditoría y cumplimiento legal (12–36 meses)</li>
         </ul>
-        <p class="mt-2 text-white/40">Zilo usa por defecto 14 días / 8 semanas / 12 meses — adecuado para plataforma de servicios del hogar en Chile.</p>
+        <p class="mt-2 text-gray-500">Fundez usa por defecto 14 días / 8 semanas / 12 meses — adecuado para plataforma de servicios del hogar en Chile.</p>
       </div>
 
       <div class="flex gap-2 mb-4">
-        <button type="button" id="btnRunBackup" class="flex-1 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-sm font-medium text-emerald-400">Generar backup ahora</button>
-        <button type="button" id="btnApplyRetention" class="flex-1 py-2.5 rounded-xl bg-zilo-card border border-white/10 text-sm text-white/70">Limpiar antiguos</button>
+        <button type="button" id="btnRunBackup" class="flex-1 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-sm font-medium text-emerald-600">Generar backup ahora</button>
+        <button type="button" id="btnApplyRetention" class="flex-1 py-2.5 rounded-xl bg-zilo-card border border-gray-200 text-sm text-gray-700">Limpiar antiguos</button>
       </div>
 
       <h4 class="text-sm font-semibold mb-2">Historial de backups</h4>
       <div id="backupList" class="space-y-2 max-h-72 overflow-y-auto">
         <% if (!backups.length) { %>
-          <p class="text-xs text-white/40 p-3 rounded-xl bg-zilo-bg border border-white/8">Aún no hay backups. Genera el primero con el botón superior.</p>
+          <p class="text-xs text-gray-500 p-3 rounded-xl bg-zilo-bg border border-gray-200">Aún no hay backups. Genera el primero con el botón superior.</p>
         <% } %>
         <% backups.forEach(b => { %>
-          <div class="p-3 rounded-xl bg-zilo-bg border border-white/8 text-xs backup-item" data-id="<%= b.id %>">
+          <div class="p-3 rounded-xl bg-zilo-bg border border-gray-200 text-xs backup-item" data-id="<%= b.id %>">
             <div class="flex justify-between items-start mb-1">
               <div>
                 <span class="font-semibold uppercase text-zilo-accent"><%= b.type %></span>
-                <span class="text-white/30 block"><%= new Date(b.createdAt).toLocaleString('es-CL') %></span>
+                <span class="text-gray-500 block"><%= new Date(b.createdAt).toLocaleString('es-CL') %></span>
               </div>
-              <span class="text-white/50"><%= formatBytes(b.stats?.totalBytes || 0) %></span>
+              <span class="text-gray-600"><%= formatBytes(b.stats?.totalBytes || 0) %></span>
             </div>
-            <p class="text-white/40 mb-2">
+            <p class="text-gray-500 mb-2">
               <%= b.stats?.users || 0 %> usuarios · <%= b.stats?.requests || 0 %> solicitudes
               <%= b.includesUploads ? ' · + documentos' : '' %>
             </p>
             <div class="flex gap-2">
-              <a href="/admin/backups/<%= b.id %>/download" class="flex-1 py-1.5 rounded-lg bg-white/5 text-center text-white/70 hover:bg-white/10">Descargar JSON</a>
-              <button type="button" class="btn-delete-backup flex-1 py-1.5 rounded-lg bg-red-500/10 text-red-400" data-id="<%= b.id %>">Eliminar</button>
+              <a href="/admin/backups/<%= b.id %>/download" class="flex-1 py-1.5 rounded-lg bg-gray-50 text-center text-gray-700 hover:bg-gray-100">Descargar JSON</a>
+              <button type="button" class="btn-delete-backup flex-1 py-1.5 rounded-lg bg-red-500/10 text-red-600" data-id="<%= b.id %>">Eliminar</button>
             </div>
           </div>
         <% }); %>
@@ -397,29 +397,29 @@
       <h3 class="text-lg font-semibold mb-3">Ciberseguridad</h3>
       <div class="grid grid-cols-2 gap-2 mb-4">
         <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-          <span class="text-[9px] text-white/40 uppercase block">Headers HTTP</span>
-          <strong class="text-sm text-emerald-400">Activo</strong>
+          <span class="text-[9px] text-gray-500 uppercase block">Headers HTTP</span>
+          <strong class="text-sm text-emerald-600">Activo</strong>
         </div>
         <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-          <span class="text-[9px] text-white/40 uppercase block">Cookies HttpOnly</span>
-          <strong class="text-sm text-emerald-400">Activo</strong>
+          <span class="text-[9px] text-gray-500 uppercase block">Cookies HttpOnly</span>
+          <strong class="text-sm text-emerald-600">Activo</strong>
         </div>
         <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-          <span class="text-[9px] text-white/40 uppercase block">Rate Limiting</span>
-          <strong class="text-sm text-emerald-400">Activo</strong>
+          <span class="text-[9px] text-gray-500 uppercase block">Rate Limiting</span>
+          <strong class="text-sm text-emerald-600">Activo</strong>
         </div>
         <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-          <span class="text-[9px] text-white/40 uppercase block">HSTS Producción</span>
-          <strong class="text-sm text-emerald-400"><%= process.env.NODE_ENV === 'production' ? 'Activo' : 'Staging' %></strong>
+          <span class="text-[9px] text-gray-500 uppercase block">HSTS Producción</span>
+          <strong class="text-sm text-emerald-600"><%= process.env.NODE_ENV === 'production' ? 'Activo' : 'Staging' %></strong>
         </div>
       </div>
       <h4 class="text-sm font-semibold mb-2">Auditoría de eventos</h4>
       <div class="space-y-1 max-h-80 overflow-y-auto">
         <% securityLogs.forEach(log => { %>
-          <div class="p-3 rounded-lg bg-zilo-card border border-white/8 text-xs font-mono">
-            <span class="text-blue-400"><%= log.event %></span>
-            <span class="text-white/30"> · <%= log.user || '—' %> · <%= log.ip || '—' %></span>
-            <span class="text-white/20 block"><%= new Date(log.createdAt).toLocaleString('es-CL') %></span>
+          <div class="p-3 rounded-lg bg-zilo-card border border-gray-200 text-xs font-mono">
+            <span class="text-blue-600"><%= log.event %></span>
+            <span class="text-gray-500"> · <%= log.user || '—' %> · <%= log.ip || '—' %></span>
+            <span class="text-gray-500 block"><%= new Date(log.createdAt).toLocaleString('es-CL') %></span>
           </div>
         <% }); %>
       </div>

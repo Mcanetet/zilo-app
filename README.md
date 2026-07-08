@@ -1,4 +1,4 @@
-# Zilo — Plataforma on-demand de servicios del hogar
+# Fundez — Plataforma on-demand de servicios del hogar
 
 Plataforma premium para Santiago, Chile. Node.js + Express + Socket.io + Mercado Pago + Leaflet.
 
@@ -83,11 +83,11 @@ public/             → CSS, JS, iconos SVG
 ```bash
 git init
 git add .
-git commit -m "Zilo v1.0"
+git commit -m "Fundez v1.0"
 gh auth login
 gh repo create zilo --public --source=. --push
 ```
 
 ## Licencia
 
-Propietario — Zilo SpA
+Propietario — Fundez SpA

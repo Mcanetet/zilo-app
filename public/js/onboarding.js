@@ -167,7 +167,7 @@
     }
 
     if (!skipped) {
-      ZiloNotify?.show('¡Tour completado! Ya conoces Zilo', 'success');
+      FundezNotify?.show('¡Tour completado! Ya conoces Fundez', 'success');
     }
   }
 
@@ -207,7 +207,7 @@
     document.addEventListener('keydown', keyHandler);
   }
 
-  window.ZiloOnboarding = { start };
+  window.FundezOnboarding = { start };
 
   document.addEventListener('DOMContentLoaded', () => {
     const cfgEl = document.getElementById('ziloOnboardingConfig');
@@ -215,10 +215,10 @@
     try {
       const config = JSON.parse(cfgEl.textContent);
       document.querySelectorAll('[data-restart-tour]').forEach(btn => {
-        btn.addEventListener('click', () => ZiloOnboarding.start({ ...config, autoStart: false }));
+        btn.addEventListener('click', () => FundezOnboarding.start({ ...config, autoStart: false }));
       });
       if (config.autoStart) {
-        setTimeout(() => ZiloOnboarding.start(config), 700);
+        setTimeout(() => FundezOnboarding.start(config), 700);
       }
     } catch (_) {}
   });

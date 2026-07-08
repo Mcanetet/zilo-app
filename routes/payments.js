@@ -28,7 +28,7 @@ router.get('/checkout', requireRole('client'), (req, res) => {
   const referral = store.getReferralStats(req.session.user.id);
 
   res.render('payments/checkout', {
-    title: 'Checkout — Zilo',
+    title: 'Checkout — Fundez',
     request,
     summary,
     referral,
@@ -108,7 +108,7 @@ router.get('/demo', requireRole('client'), (req, res) => {
     return res.redirect('/cliente');
   }
   res.render('payments/demo', {
-    title: 'Pago — Zilo',
+    title: 'Pago — Fundez',
     request,
     service: store.getServiceById(request.serviceId),
     formatCLP: store.formatCLP,
@@ -143,7 +143,7 @@ router.get('/exito', requireRole('client'), (req, res) => {
   const guardianUrl = company.guardianShareLink(request);
 
   res.render('payments/success', {
-    title: 'Pago exitoso — Zilo',
+    title: 'Pago exitoso — Fundez',
     request,
     formatCLP: store.formatCLP,
     beneficiaryWhatsapp,
@@ -154,12 +154,12 @@ router.get('/exito', requireRole('client'), (req, res) => {
 
 router.get('/error', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
-  res.render('payments/failure', { title: 'Pago fallido — Zilo', request });
+  res.render('payments/failure', { title: 'Pago fallido — Fundez', request });
 });
 
 router.get('/pendiente', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
-  res.render('payments/pending', { title: 'Pago pendiente — Zilo', request });
+  res.render('payments/pending', { title: 'Pago pendiente — Fundez', request });
 });
 
 router.post('/webhook', async (req, res) => {

@@ -83,8 +83,8 @@
       body: JSON.stringify(Object.fromEntries(fd))
     });
     const data = await res.json();
-    if (data.success) ZiloNotify.show('Perfil actualizado', 'success');
-    else ZiloNotify.show(data.error || 'Error', 'error');
+    if (data.success) FundezNotify.show('Perfil actualizado', 'success');
+    else FundezNotify.show(data.error || 'Error', 'error');
   });
 </script>
 

@@ -1,11 +1,11 @@
 {
-  "name": "Zilo",
-  "short_name": "Zilo",
+  "name": "Fundez",
+  "short_name": "Fundez",
   "description": "Servicios premium a domicilio en Santiago",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#070708",
-  "theme_color": "#070708",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
   "icons": [
     {
       "src": "/icon-192.png",

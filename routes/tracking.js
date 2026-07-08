@@ -17,7 +17,7 @@ router.get('/:token', (req, res) => {
   if (request.providerId) provider = store.getUserById(request.providerId);
 
   res.render('tracking/guardian', {
-    title: 'Modo Guardián — Zilo',
+    title: 'Modo Guardián — Fundez',
     request,
     provider,
     formatCLP: store.formatCLP,

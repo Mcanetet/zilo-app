@@ -14,7 +14,7 @@ router.get('/', requireRole('client'), (req, res) => {
   const referralBonus = req.session.referralBonus;
   if (referralBonus) delete req.session.referralBonus;
   res.render('client/dashboard', {
-    title: 'Zilo — Servicios',
+    title: 'Fundez — Servicios',
     user: req.session.user,
     profile,
     services: store.getActiveServices(),
@@ -42,7 +42,7 @@ router.get('/perfil', requireRole('client'), (req, res) => {
   const profile = store.getUserById(req.session.user.id);
   const referral = store.getReferralStats(req.session.user.id);
   res.render('client/profile', {
-    title: 'Mi perfil — Zilo',
+    title: 'Mi perfil — Fundez',
     user: req.session.user,
     profile,
     referral,
@@ -61,7 +61,7 @@ router.post('/perfil', requireRole('client'), (req, res) => {
 router.get('/hogar', requireRole('client'), (req, res) => {
   const passport = store.getHomePassport(req.session.user.id);
   res.render('client/hogar', {
-    title: 'Pasaporte Hogar — Zilo',
+    title: 'Pasaporte Hogar — Fundez',
     user: req.session.user,
     passport,
     formatCLP: store.formatCLP,
@@ -72,7 +72,7 @@ router.get('/hogar', requireRole('client'), (req, res) => {
 router.get('/historial', requireRole('client'), (req, res) => {
   const requests = store.getRequestsByClient(req.session.user.id);
   res.render('client/historial', {
-    title: 'Historial — Zilo',
+    title: 'Historial — Fundez',
     user: req.session.user,
     requests,
     formatCLP: store.formatCLP,
@@ -85,7 +85,7 @@ router.get('/invitar', requireRole('client'), (req, res) => {
   const referral = store.getReferralStats(req.session.user.id);
   const shareUrl = `${company.appUrl}/?ref=${referral.code}`;
   res.render('client/invitar', {
-    title: 'Invitar amigos — Zilo',
+    title: 'Invitar amigos — Fundez',
     user: req.session.user,
     profile,
     referral,
@@ -112,7 +112,7 @@ router.get('/servicio/:id', requireRole('client'), (req, res) => {
   }
   const profile = store.getUserById(req.session.user.id);
   res.render('client/service', {
-    title: `${service.name} — Zilo`,
+    title: `${service.name} — Fundez`,
     user: req.session.user,
     profile,
     service,

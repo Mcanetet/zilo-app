@@ -16,7 +16,7 @@
         <% if (typeof referral !== 'undefined' && referral.creditsCLP > 0) { %>
           <span class="px-2.5 py-1 rounded-full bg-zilo-success/15 text-zilo-success text-[10px] font-semibold"><%= formatCLP(referral.creditsCLP) %></span>
         <% } %>
-        <a href="/logout" class="w-10 h-10 rounded-full zilo-card-premium flex items-center justify-center text-zilo-muted hover:text-white transition" title="Cerrar sesión">
+        <a href="/logout" class="w-10 h-10 rounded-full zilo-card-premium flex items-center justify-center text-zilo-muted hover:text-zilo-accent transition" title="Cerrar sesión">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         </a>
       </div>
@@ -35,7 +35,7 @@
         <div class="zilo-health-ring !w-16 !h-16 shrink-0">
           <svg width="64" height="64" viewBox="0 0 64 64" class="!w-16 !h-16">
             <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
-            <circle cx="32" cy="32" r="28" fill="none" stroke="#C9A962" stroke-width="5" stroke-linecap="round"
+            <circle cx="32" cy="32" r="28" fill="none" stroke="#2563EB" stroke-width="5" stroke-linecap="round"
               stroke-dasharray="<%= 2 * Math.PI * 28 %>"
               stroke-dashoffset="<%= 2 * Math.PI * 28 * (1 - passport.healthScore / 100) %>"/>
           </svg>
@@ -114,7 +114,7 @@
   <%- include('../partials/nav-client', { navActive: 'inicio' }) %>
 
   <% if (typeof company !== 'undefined') { %>
-  <a href="<%= company.whatsappLink('Hola Zilo, necesito ayuda con un servicio.') %>" target="_blank" rel="noopener"
+  <a href="<%= company.whatsappLink('Hola Fundez, necesito ayuda con un servicio.') %>" target="_blank" rel="noopener"
     class="fixed bottom-24 right-5 z-40 w-13 h-13 w-12 h-12 rounded-full zilo-card-premium border border-zilo-border flex items-center justify-center hover:border-zilo-accent/30 transition"
     data-tour="concierge"
     title="Concierge WhatsApp">
@@ -125,10 +125,10 @@
 
 <%- include('../partials/guide-modal', {
   role: 'client',
-  title: 'Cómo usar Zilo',
+  title: 'Cómo usar Fundez',
   steps: [
     { title: 'Solicitar un servicio', body: 'En el inicio elige el servicio que necesitas (gásfiter, eléctrico, cerrajero, etc.). Ingresa la dirección, confirma en el mapa y describe el problema.', tip: 'Puedes activar "Regalar servicio" si otra persona recibirá la visita en su domicilio.' },
-    { title: 'Pagar en el checkout', body: 'Revisa el total, aplica tu crédito Zilo, canjea puntos o usa el código BIENVENIDO en tu primer servicio. Luego confirma el pago con Mercado Pago.', tip: 'Si el total queda en $0, el servicio se confirma automáticamente.' },
+    { title: 'Pagar en el checkout', body: 'Revisa el total, aplica tu crédito Fundez, canjea puntos o usa el código BIENVENIDO en tu primer servicio. Luego confirma el pago con Mercado Pago.', tip: 'Si el total queda en $0, el servicio se confirma automáticamente.' },
     { title: 'Seguimiento en vivo', body: 'Tras pagar verás el estado en tiempo real: búsqueda de técnico, asignación, en camino y llegada. Puedes llamar al proveedor desde la app.', tip: 'Comparte el enlace Modo Guardián con tu familia para que sigan el servicio sin crear cuenta.' },
     { title: 'Pasaporte Hogar', body: 'Cada servicio completado suma a tu historial técnico del inmueble y mejora tu puntaje de salud del hogar.', tip: 'Revisa la pestaña Hogar en la barra inferior.' },
     { title: 'Perfil y beneficios', body: 'Actualiza tu dirección en Perfil para agilizar futuras solicitudes. En Invitar ganas $5.000 por amigo y en Historial ves todos tus servicios.' }
@@ -145,7 +145,7 @@
   const socket = io();
   <% if (typeof referralBonus !== 'undefined' && referralBonus) { %>
   document.addEventListener('DOMContentLoaded', () => {
-    ZiloNotify.show('¡$<%= referralBonus.toLocaleString('es-CL') %> de crédito por invitación!', 'success');
+    FundezNotify.show('¡$<%= referralBonus.toLocaleString('es-CL') %> de crédito por invitación!', 'success');
   });
   <% } %>
   socket.on('services_updated', ({ services }) => {
@@ -158,7 +158,7 @@
     const fmt = n => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
     grid.innerHTML = active.map(s => `
       <a href="/cliente/servicio/${s.id}" class="group flex flex-col items-center gap-3 p-5 rounded-2xl zilo-card-premium hover:border-zilo-accent/25 transition-all">
-        ${ZiloIcons.wrap(s.icon, s.color, 'w-14 h-14', 32)}
+        ${FundezIcons.wrap(s.icon, s.color, 'w-14 h-14', 32)}
         <span class="font-medium text-sm text-center">${s.name}</span>
         <span class="text-xs text-zilo-muted">desde ${fmt(s.visitPrice)}</span>
       </a>

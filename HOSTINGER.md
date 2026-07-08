@@ -1,8 +1,8 @@
-# Desplegar Zilo en Hostinger
+# Desplegar Fundez en Hostinger
 
 ## Si sale "Unsupported framework or invalid project structure"
 
-Ese error aparece en el asistente **quick-install-node-addon** (Codex). Zilo es **Express.js**, no una app React/Next. Usa uno de estos métodos:
+Ese error aparece en el asistente **quick-install-node-addon** (Codex). Fundez es **Express.js**, no una app React/Next. Usa uno de estos métodos:
 
 ---
 
@@ -72,7 +72,7 @@ DB_PASSWORD=tu-clave-mysql
 4. Clic en **Redeploy**
 
 5. Revisa **Runtime logs** (o archivo `stderr.log` en la carpeta de la app).  
-   Busca: `No se pudo iniciar Zilo` o `DATABASE_URL`.
+   Busca: `No se pudo iniciar Fundez` o `DATABASE_URL`.
 
 > **Importante:** `.env` de tu Mac **no se sube a GitHub**. Las variables deben estar en el panel de Hostinger.
 
@@ -98,7 +98,7 @@ DB_PASSWORD=tu-clave-mysql
 
 ## MySQL (obligatorio)
 
-Zilo guarda usuarios, servicios y solicitudes en **MySQL**. Sin `DATABASE_URL` la app no arranca.
+Fundez guarda usuarios, servicios y solicitudes en **MySQL**. Sin `DATABASE_URL` la app no arranca.
 
 ### 1. Base de datos en Hostinger
 

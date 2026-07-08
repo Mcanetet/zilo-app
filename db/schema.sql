@@ -1,4 +1,4 @@
--- Zilo — esquema MySQL (Hostinger)
+-- Fundez — esquema MySQL (Hostinger)
 
 CREATE TABLE IF NOT EXISTS services (
   id VARCHAR(64) PRIMARY KEY,

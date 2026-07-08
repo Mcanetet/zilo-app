@@ -8,4 +8,4 @@ const dirs = [
 ];
 
 dirs.forEach((dir) => fs.mkdirSync(dir, { recursive: true }));
-console.log('Zilo build OK — carpetas de datos listas');
+console.log('Fundez build OK — carpetas de datos listas');

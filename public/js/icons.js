@@ -1,4 +1,4 @@
-window.ZiloIcons = {
+window.FundezIcons = {
   svg(icon, size = 24) {
     const icons = {
       electrico: '<path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z"/><path d="M8 20L5 17" opacity="0.5"/>',

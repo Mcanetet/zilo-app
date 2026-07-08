@@ -16,7 +16,7 @@
   async function uploadDocument(type, file, label) {
     if (!file) return;
     if (file.size > 6 * 1024 * 1024) {
-      ZiloNotify.show('El archivo no puede superar 6 MB', 'warning');
+      FundezNotify.show('El archivo no puede superar 6 MB', 'warning');
       return;
     }
     const data = await fileToBase64(file);
@@ -27,10 +27,10 @@
     });
     const json = await res.json();
     if (json.success) {
-      ZiloNotify.show('Documento guardado', 'success');
+      FundezNotify.show('Documento guardado', 'success');
       updateVerificationUI(json.verification);
       if (json.url && json.url !== 'demo') previewDoc(type, json.url);
-    } else ZiloNotify.show(json.error || 'Error al subir', 'error');
+    } else FundezNotify.show(json.error || 'Error al subir', 'error');
   }
 
   function previewDoc(type, url) {
@@ -129,7 +129,7 @@
       }
     } catch (err) {
       console.warn('Camera error:', err?.name, err?.message);
-      ZiloNotify.show(cameraErrorMessage(err), 'error');
+      FundezNotify.show(cameraErrorMessage(err), 'error');
       if (statusEl) statusEl.textContent = '';
       closeFaceModal();
     }
@@ -150,7 +150,7 @@
   document.getElementById('btnCaptureFace')?.addEventListener('click', async () => {
     if (!faceVideo || !faceCanvas) return;
     if (!faceVideo.videoWidth) {
-      ZiloNotify.show('Espera a que la cámara cargue o sube una foto', 'warning');
+      FundezNotify.show('Espera a que la cámara cargue o sube una foto', 'warning');
       return;
     }
     const ctx = faceCanvas.getContext('2d');
@@ -172,7 +172,7 @@
     if (btn) btn.disabled = false;
 
     if (json.success) {
-      ZiloNotify.show(json.faceResult?.message || 'Identidad verificada', 'success');
+      FundezNotify.show(json.faceResult?.message || 'Identidad verificada', 'success');
       updateVerificationUI(json.verification);
       const preview = document.getElementById('preview-selfie');
       if (preview && json.url) {
@@ -180,7 +180,7 @@
       }
       closeFaceModal();
     } else {
-      ZiloNotify.show(json.error || 'Verificación fallida', 'error');
+      FundezNotify.show(json.error || 'Verificación fallida', 'error');
     }
   }
 
@@ -188,7 +188,7 @@
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 6 * 1024 * 1024) {
-      ZiloNotify.show('La foto no puede superar 6 MB', 'warning');
+      FundezNotify.show('La foto no puede superar 6 MB', 'warning');
       return;
     }
     const data = await fileToBase64(file);
@@ -199,7 +199,7 @@
   // ——— Ubicación ———
   document.getElementById('btnLocationConsent')?.addEventListener('click', async () => {
     if (!navigator.geolocation) {
-      ZiloNotify.show('Tu navegador no soporta geolocalización', 'error');
+      FundezNotify.show('Tu navegador no soporta geolocalización', 'error');
       return;
     }
 
@@ -218,11 +218,11 @@
         });
         document.getElementById('locationStatus').textContent = 'Ubicación activa — los clientes verán tu recorrido';
         document.getElementById('check-location')?.classList.add('text-zilo-success');
-        ZiloNotify.show('Permiso de ubicación concedido', 'success');
+        FundezNotify.show('Permiso de ubicación concedido', 'success');
         updateVerificationUI(json.verification);
       }
     }, () => {
-      ZiloNotify.show('Debes permitir la ubicación para trabajar con Zilo', 'warning');
+      FundezNotify.show('Debes permitir la ubicación para trabajar con Fundez', 'warning');
     }, { enableHighAccuracy: true, timeout: 15000 });
   });
 
@@ -236,7 +236,7 @@
     if (json.success) {
       document.getElementById('locationStatus').textContent = 'Ubicación desactivada';
       document.getElementById('check-location')?.classList.remove('text-zilo-success');
-      ZiloNotify.show('Ubicación desactivada', 'info');
+      FundezNotify.show('Ubicación desactivada', 'info');
       updateVerificationUI(json.verification);
     }
   });

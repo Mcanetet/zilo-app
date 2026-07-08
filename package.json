@@ -1,7 +1,7 @@
 {
   "name": "zilo-app",
   "version": "1.0.0",
-  "description": "Zilo - servicios del hogar Express.js",
+  "description": "Fundez - servicios del hogar Express.js",
   "main": "index.js",
   "private": true,
   "scripts": {

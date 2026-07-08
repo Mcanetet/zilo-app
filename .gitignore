@@ -12,3 +12,5 @@ zilo-hostinger.zip
 # Documentos subidos por proveedores (KYC) — no van a GitHub
 public/uploads/providers/*
 !public/uploads/providers/.gitkeep
+public/uploads/requests/*
+!public/uploads/requests/.gitkeep

@@ -7,8 +7,15 @@
     aceptado: 'Aceptado',
     en_camino: 'En camino',
     en_sitio: 'En el sitio',
+    diagnostico: 'Diagnóstico',
+    reparando: 'Reparando',
+    comprando: 'Comprando',
+    presupuesto_pendiente: 'Presupuesto',
+    presupuesto_aprobado: 'Aprobado',
     completado: 'Completado'
   };
+
+  const WORK_STATUSES = ['en_sitio', 'diagnostico', 'reparando', 'comprando', 'presupuesto_pendiente', 'presupuesto_aprobado'];
 
   async function postStatus(jobId, techStatus) {
     const res = await fetch(`/tecnico/status/${jobId}`, {
@@ -60,14 +67,31 @@
       actions.appendChild(b);
     };
 
-    const transition = async (btn, next, successMsg) => {
+    const addLink = (label, href) => {
+      const a = document.createElement('a');
+      a.href = href;
+      a.className = 'flex-1 py-2.5 rounded-xl zilo-btn-primary !text-sm text-center';
+      a.textContent = label;
+      actions.appendChild(a);
+    };
+
+    if (WORK_STATUSES.includes(status)) {
+      if (status === 'en_camino') startSharing(card);
+      addLink(status === 'en_sitio' ? 'Registrar llegada' : 'Continuar visita', `/tecnico/trabajo/${card.dataset.jobId}`);
+      return;
+    }
+
+    const transition = async (btn, next, successMsg, redirect) => {
       btn.disabled = true;
       try {
         await postStatus(card.dataset.jobId, next);
         card.dataset.techStatus = next;
         if (next === 'en_camino') startSharing(card);
-        if (next === 'en_sitio' || next === 'completado') stopSharing(card.dataset.jobId);
-        if (next === 'completado') { card.remove(); notify('Trabajo completado', 'success'); return; }
+        if (redirect) {
+          notify(successMsg, 'success');
+          window.location.href = redirect;
+          return;
+        }
         notify(successMsg, 'success');
         render(card);
       } catch (err) {
@@ -83,12 +107,12 @@
     } else if (status === 'en_camino') {
       const info = document.createElement('span');
       info.className = 'flex-1 py-2.5 text-xs text-zilo-success flex items-center gap-1.5';
-      info.innerHTML = '<span class="w-2 h-2 rounded-full bg-zilo-success animate-pulse"></span> Compartiendo ubicación';
+      info.innerHTML = '<span class="w-2 h-2 rounded-full bg-zilo-success animate-pulse"></span> GPS activo';
       actions.appendChild(info);
-      addBtn('Llegué', 'py-2.5 px-4 rounded-xl zilo-btn-primary !text-sm', (b) => transition(b, 'en_sitio', 'Marcaste llegada'));
+      addBtn('Llegué', 'py-2.5 px-4 rounded-xl zilo-btn-primary !text-sm', (b) =>
+        transition(b, 'en_sitio', 'Bienvenido al domicilio', `/tecnico/trabajo/${card.dataset.jobId}`)
+      );
       startSharing(card);
-    } else if (status === 'en_sitio') {
-      addBtn('Completar servicio', 'flex-1 py-2.5 rounded-xl zilo-btn-primary !text-sm', (b) => transition(b, 'completado', 'Trabajo completado'));
     }
   }
 

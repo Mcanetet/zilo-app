@@ -91,12 +91,22 @@
     enroute: 'En camino',
     arrived: 'En el domicilio',
     in_progress: 'Trabajando',
-    completed: 'Completado'
+    completed: 'Completado',
+    diagnostico: 'Diagnóstico en sitio',
+    reparando: 'Reparando',
+    comprando: 'Comprando materiales',
+    presupuesto_pendiente: 'Presupuesto pendiente',
+    presupuesto_aprobado: 'Presupuesto aprobado'
   };
+
+  function techStatusLabel(request) {
+    if (request.techStatus && statusLabels[request.techStatus]) return statusLabels[request.techStatus];
+    return statusLabels[request.status] || request.status;
+  }
 
   function updateUI(data) {
     const r = data.request;
-    document.getElementById('gStatus').textContent = statusLabels[r.status] || r.status;
+    document.getElementById('gStatus').textContent = techStatusLabel(r);
     if (data.provider) {
       document.getElementById('gProvider').classList.remove('hidden');
       document.getElementById('gProviderName').textContent = data.provider.name;

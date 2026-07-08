@@ -1,0 +1,151 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="trabajoPage"
+  data-request-id="<%= request.id %>"
+  data-tech-status="<%= request.techStatus %>">
+
+  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
+    <div class="flex items-center gap-3">
+      <a href="/tecnico" class="zilo-icon-btn" title="Volver">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+      <div class="min-w-0">
+        <p class="zilo-label !text-[9px]">Visita en terreno</p>
+        <h1 class="text-base font-semibold truncate"><%= request.serviceName %></h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 px-5 py-5 pb-10 space-y-4">
+  <!-- Info cliente -->
+    <section class="zilo-card-premium rounded-2xl p-4">
+      <div class="flex justify-between items-start mb-2">
+        <div>
+          <strong class="text-sm block"><% if (request.isGift) { %>Regalo · <%= request.beneficiaryName %><% } else { %><%= request.clientName %><% } %></strong>
+          <span class="text-xs text-zilo-muted"><%= request.address %></span>
+        </div>
+        <span class="zilo-badge zilo-badge-muted" id="statusBadge"><%= techLabels[request.techStatus] || request.techStatus %></span>
+      </div>
+      <% if (request.notes) { %>
+        <p class="text-xs text-zilo-muted italic p-2.5 rounded-lg bg-zilo-bg/80 border border-zilo-border mt-2"><%= request.notes %></p>
+      <% } %>
+      <% if (request.clientPhotoUrl) { %>
+        <div class="mt-3">
+          <p class="zilo-label mb-1.5">Foto del cliente</p>
+          <a href="<%= request.clientPhotoUrl %>" target="_blank" rel="noopener">
+            <img src="<%= request.clientPhotoUrl %>" alt="Foto del requerimiento" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+          </a>
+          <p class="text-[10px] text-zilo-muted mt-1">El cliente subió esta referencia para que lleves posibles repuestos.</p>
+        </div>
+      <% } %>
+    </section>
+
+    <!-- Paso 1: Llegada -->
+    <section id="stepLlegada" class="zilo-card-premium rounded-2xl p-5 <%= ['en_sitio','en_camino','aceptado'].includes(request.techStatus) ? '' : 'hidden' %>">
+      <p class="zilo-label mb-1">Paso 1 · Llegada</p>
+      <h2 class="text-sm font-semibold mb-3">Registra lo que observas</h2>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-zilo-muted">Diagnóstico y observaciones *</label>
+          <textarea id="diagnosis" rows="4" class="zilo-input w-full mt-1 resize-none" placeholder="Describe el problema, estado del equipo, lo que necesitas..."></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-zilo-muted">Foto inicial de la visita *</label>
+          <input type="file" id="photoStart" accept="image/*" capture="environment" class="mt-1 block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
+          <div id="photoStartPreview" class="hidden mt-2">
+            <img src="" alt="Vista previa" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border">
+          </div>
+        </div>
+        <button type="button" id="btnLlegada" class="w-full py-3 rounded-xl zilo-btn-primary">Confirmar llegada</button>
+      </div>
+    </section>
+
+    <!-- Paso 2: Acción -->
+    <section id="stepAccion" class="zilo-card-premium rounded-2xl p-5 <%= request.techStatus === 'diagnostico' ? '' : 'hidden' %>">
+      <p class="zilo-label mb-1">Paso 2 · Decisión</p>
+      <h2 class="text-sm font-semibold mb-3">¿Qué harás ahora?</h2>
+      <div class="grid gap-2">
+        <button type="button" class="action-btn py-3 px-4 rounded-xl zilo-btn-primary !text-sm text-left" data-action="reparar">
+          <strong class="block">Reparar ahora</strong>
+          <span class="text-xs opacity-80">Tienes lo necesario para resolver</span>
+        </button>
+        <button type="button" class="action-btn py-3 px-4 rounded-xl zilo-btn-ghost !text-sm text-left" data-action="comprar">
+          <strong class="block">Ir a comprar materiales</strong>
+          <span class="text-xs text-zilo-muted">Necesitas repuestos o insumos</span>
+        </button>
+        <button type="button" class="action-btn py-3 px-4 rounded-xl zilo-btn-ghost !text-sm text-left" data-action="presupuesto">
+          <strong class="block">Generar presupuesto</strong>
+          <span class="text-xs text-zilo-muted">El trabajo es muy costoso, requiere aprobación</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Paso 2b: Presupuesto -->
+    <section id="stepPresupuesto" class="zilo-card-premium rounded-2xl p-5 <%= request.techStatus === 'presupuesto_pendiente' && (!request.siteReport || request.siteReport.budgetStatus !== 'pending') ? '' : 'hidden' %>">
+      <p class="zilo-label mb-1">Presupuesto</p>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-zilo-muted">Monto total estimado (CLP) *</label>
+          <input type="number" id="budgetAmount" min="1000" step="1000" class="zilo-input w-full mt-1" placeholder="Ej: 150000">
+        </div>
+        <div>
+          <label class="text-xs text-zilo-muted">Detalle del presupuesto *</label>
+          <textarea id="budgetDesc" rows="3" class="zilo-input w-full mt-1 resize-none" placeholder="Materiales, mano de obra, tiempo estimado..."></textarea>
+        </div>
+        <button type="button" id="btnPresupuesto" class="w-full py-3 rounded-xl zilo-btn-primary">Enviar presupuesto al cliente</button>
+      </div>
+    </section>
+
+    <!-- Esperando cliente -->
+    <section id="stepEsperaPresupuesto" class="zilo-card-premium rounded-2xl p-5 text-center <%= request.techStatus === 'presupuesto_pendiente' && request.siteReport && request.siteReport.budgetStatus === 'pending' ? '' : 'hidden' %>">
+      <p class="zilo-display text-lg mb-2">Esperando al cliente</p>
+      <p class="text-sm text-zilo-muted">Presupuesto de <strong class="text-zilo-accent"><%= request.siteReport ? formatCLP(request.siteReport.budgetAmount) : '' %></strong> enviado. Te avisaremos cuando responda.</p>
+      <% if (request.siteReport && request.siteReport.budgetDescription) { %>
+        <p class="text-xs text-zilo-muted mt-3 p-3 rounded-lg bg-zilo-bg/80 border border-zilo-border text-left"><%= request.siteReport.budgetDescription %></p>
+      <% } %>
+    </section>
+
+    <!-- Paso 3: Materiales (comprando) -->
+    <section id="stepMateriales" class="zilo-card-premium rounded-2xl p-5 <%= ['comprando','reparando','presupuesto_aprobado'].includes(request.techStatus) ? '' : 'hidden' %>">
+      <p class="zilo-label mb-1">Materiales</p>
+      <div id="materialsList" class="space-y-2 mb-3">
+        <% if (request.siteReport && request.siteReport.materials && request.siteReport.materials.length) { %>
+          <% request.siteReport.materials.forEach(m => { %>
+            <div class="flex justify-between items-center p-3 rounded-xl bg-zilo-bg/80 border border-zilo-border text-sm">
+              <span><%= m.description %></span>
+              <strong class="text-zilo-accent"><%= formatCLP(m.amount) %></strong>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+      <div class="space-y-2 border-t border-zilo-border pt-3">
+        <input type="text" id="matDesc" class="zilo-input w-full !py-2 text-sm" placeholder="Descripción del material">
+        <input type="number" id="matAmount" class="zilo-input w-full !py-2 text-sm" placeholder="Precio CLP" min="100">
+        <input type="file" id="matReceipt" accept="image/*,application/pdf" class="block w-full text-xs text-zilo-muted file:mr-2 file:py-1.5 file:px-2 file:rounded file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent">
+        <button type="button" id="btnAddMaterial" class="w-full py-2 rounded-xl zilo-btn-ghost !text-sm">+ Agregar material</button>
+      </div>
+    </section>
+
+    <!-- Paso 4: Cierre -->
+    <section id="stepCierre" class="zilo-card-premium rounded-2xl p-5 <%= ['reparando','comprando','presupuesto_aprobado'].includes(request.techStatus) ? '' : 'hidden' %>">
+      <p class="zilo-label mb-1">Paso final · Cierre</p>
+      <h2 class="text-sm font-semibold mb-3">Resumen de la visita</h2>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-zilo-muted">Trabajo realizado *</label>
+          <textarea id="workNotes" rows="4" class="zilo-input w-full mt-1 resize-none" placeholder="Qué hiciste, qué quedó funcionando, recomendaciones..."></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-zilo-muted">Foto final de la visita *</label>
+          <input type="file" id="photoEnd" accept="image/*" capture="environment" class="mt-1 block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
+          <div id="photoEndPreview" class="hidden mt-2">
+            <img src="" alt="Vista previa" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border">
+          </div>
+        </div>
+        <button type="button" id="btnCompletar" class="w-full py-3 rounded-xl zilo-btn-primary">Completar visita</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<%- include('../partials/footer', { pageScript: '/js/tecnico-trabajo.js' }) %>

@@ -3,6 +3,20 @@ const router = express.Router();
 const store = require('../models/store');
 const { requireRole } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
+const { saveRequestFile } = require('../lib/uploads');
+
+const TECH_LABELS = {
+  asignado: 'Asignado',
+  aceptado: 'Aceptado',
+  en_camino: 'En camino',
+  en_sitio: 'En el sitio',
+  diagnostico: 'Diagnóstico',
+  reparando: 'Reparando',
+  comprando: 'Comprando materiales',
+  presupuesto_pendiente: 'Presupuesto enviado',
+  presupuesto_aprobado: 'Presupuesto aprobado',
+  completado: 'Completado'
+};
 
 function serializeJob(request) {
   const service = store.getServiceById(request.serviceId);
@@ -13,8 +27,10 @@ function serializeJob(request) {
     clientName: request.clientName || '—',
     address: request.address || '',
     notes: request.notes || '',
+    clientPhotoUrl: request.clientPhotoUrl || null,
     status: request.status,
     techStatus: request.techStatus || 'asignado',
+    siteReport: request.siteReport || null,
     coords: request.coords || null,
     isGift: !!request.isGift,
     beneficiaryName: request.beneficiaryName || null
@@ -23,7 +39,7 @@ function serializeJob(request) {
 
 router.get('/', requireRole('tecnico'), (req, res) => {
   const tecnico = store.getUserById(req.session.user.id);
-  const socio = tecnico && tecnico.parentId ? store.getUserById(tecnico.parentId) : null;
+  const socio = tecnico?.parentId ? store.getUserById(tecnico.parentId) : null;
   const jobs = store.getRequestsByTechnician(tecnico.id)
     .filter(r => r.techStatus !== 'completado' && r.status !== 'completed')
     .map(serializeJob);
@@ -34,14 +50,32 @@ router.get('/', requireRole('tecnico'), (req, res) => {
     tecnico,
     socio,
     jobs,
+    techLabels: TECH_LABELS,
     services: store.SERVICES,
+    formatCLP: store.formatCLP
+  });
+});
+
+router.get('/trabajo/:requestId', requireRole('tecnico'), (req, res) => {
+  const tecnico = store.getUserById(req.session.user.id);
+  const request = store.getRequestForTechnician(req.params.requestId, tecnico.id);
+  if (!request || request.techStatus === 'completado' || request.status === 'completed') {
+    return res.redirect('/tecnico');
+  }
+
+  res.render('tecnico/trabajo', {
+    title: 'Visita en terreno — Fundez',
+    user: req.session.user,
+    tecnico,
+    request: serializeJob(request),
+    techLabels: TECH_LABELS,
     formatCLP: store.formatCLP
   });
 });
 
 router.post('/status/:requestId', requireRole('tecnico'), (req, res) => {
   const { techStatus } = req.body;
-  const valid = ['aceptado', 'en_camino', 'en_sitio', 'completado'];
+  const valid = ['aceptado', 'en_camino', 'en_sitio'];
   if (!valid.includes(techStatus)) return res.status(400).json({ success: false, error: 'Estado inválido' });
 
   const request = store.updateTechStatus(req.params.requestId, req.session.user.id, techStatus);
@@ -51,6 +85,73 @@ router.post('/status/:requestId', requireRole('tecnico'), (req, res) => {
   io.emit(`request_update_${request.id}`, { request });
 
   res.json({ success: true, request: { id: request.id, status: request.status, techStatus: request.techStatus } });
+});
+
+router.post('/trabajo/:requestId/llegada', requireRole('tecnico'), (req, res) => {
+  const { diagnosis, photoStart } = req.body;
+  let photoUrl = null;
+  if (photoStart) {
+    try {
+      photoUrl = saveRequestFile(req.params.requestId, 'inicio', photoStart);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'No se pudo guardar la foto inicial' });
+    }
+  }
+  const result = store.recordSiteArrival(req.params.requestId, req.session.user.id, { diagnosis, photoStart: photoUrl });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+
+  req.app.get('io').emit(`request_update_${result.request.id}`, { request: result.request });
+  res.json({ success: true, request: serializeJob(result.request) });
+});
+
+router.post('/trabajo/:requestId/accion', requireRole('tecnico'), (req, res) => {
+  const result = store.setSiteAction(req.params.requestId, req.session.user.id, req.body.action);
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  req.app.get('io').emit(`request_update_${result.request.id}`, { request: result.request });
+  res.json({ success: true, request: serializeJob(result.request) });
+});
+
+router.post('/trabajo/:requestId/presupuesto', requireRole('tecnico'), (req, res) => {
+  const result = store.submitSiteBudget(req.params.requestId, req.session.user.id, req.body);
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  req.app.get('io').emit(`request_update_${result.request.id}`, { request: result.request });
+  res.json({ success: true, request: serializeJob(result.request) });
+});
+
+router.post('/trabajo/:requestId/material', requireRole('tecnico'), (req, res) => {
+  let receiptUrl = null;
+  if (req.body.receipt) {
+    try {
+      receiptUrl = saveRequestFile(req.params.requestId, 'boleta', req.body.receipt);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'No se pudo guardar la boleta' });
+    }
+  }
+  const result = store.addSiteMaterial(req.params.requestId, req.session.user.id, {
+    description: req.body.description,
+    amount: req.body.amount,
+    receiptUrl
+  });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, material: result.material, materials: result.request.siteReport.materials });
+});
+
+router.post('/trabajo/:requestId/completar', requireRole('tecnico'), (req, res) => {
+  let photoUrl = null;
+  if (req.body.photoEnd) {
+    try {
+      photoUrl = saveRequestFile(req.params.requestId, 'fin', req.body.photoEnd);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'No se pudo guardar la foto final' });
+    }
+  }
+  const result = store.completeSiteWork(req.params.requestId, req.session.user.id, {
+    workNotes: req.body.workNotes,
+    photoEnd: photoUrl
+  });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  req.app.get('io').emit(`request_update_${result.request.id}`, { request: result.request });
+  res.json({ success: true, request: serializeJob(result.request) });
 });
 
 router.post('/ubicacion', requireRole('tecnico'), requireModule('provider_ubicacion'), (req, res) => {

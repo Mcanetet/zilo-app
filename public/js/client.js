@@ -59,6 +59,36 @@
     });
   }
 
+  const clientPhotoInput = document.getElementById('clientPhoto');
+  const clientPhotoPreview = document.getElementById('clientPhotoPreview');
+  if (clientPhotoInput && clientPhotoPreview) {
+    clientPhotoInput.addEventListener('change', () => {
+      const file = clientPhotoInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        clientPhotoPreview.querySelector('img').src = reader.result;
+        clientPhotoPreview.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function fileInputToBase64(input) {
+    return new Promise((resolve) => {
+      const file = input?.files?.[0];
+      if (!file) return resolve(null);
+      if (file.size > 6 * 1024 * 1024) {
+        FundezNotify.show('La foto no puede superar 6 MB', 'warning');
+        return resolve(null);
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function geocodeAddress() {
     const address = addressInput.value.trim();
     if (address.length < 5) return;
@@ -137,6 +167,39 @@
     }
   }
 
+  function showBudgetBanner(request) {
+    const banner = document.getElementById('budgetBanner');
+    if (!banner || !request?.siteReport) return;
+    const sr = request.siteReport;
+    if (request.techStatus !== 'presupuesto_pendiente' || sr.budgetStatus !== 'pending') {
+      banner.classList.add('hidden');
+      return;
+    }
+    const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
+    document.getElementById('budgetBannerText').textContent =
+      `El técnico envió un presupuesto de ${fmt(sr.budgetAmount)}: ${sr.budgetDescription || ''}`;
+    banner.classList.remove('hidden');
+  }
+
+  async function respondBudget(approved) {
+    if (!currentRequestId) return;
+    const res = await fetch(`/cliente/presupuesto/${currentRequestId}/responder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ approved })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      FundezNotify.show(data.error || 'Error al responder', 'error');
+      return;
+    }
+    FundezNotify.show(approved ? 'Presupuesto aprobado' : 'Presupuesto rechazado', approved ? 'success' : 'info');
+    document.getElementById('budgetBanner')?.classList.add('hidden');
+  }
+
+  document.getElementById('btnApproveBudget')?.addEventListener('click', () => respondBudget(true));
+  document.getElementById('btnRejectBudget')?.addEventListener('click', () => respondBudget(false));
+
   function showProvider(provider, request) {
     if (request?.id) currentRequestId = request.id;
 
@@ -156,6 +219,7 @@
     }
     renderVerificationBadges(provider);
     document.getElementById('tripProviderLabel').textContent = `${provider.name} · ${provider.rating}★`;
+    if (request) showBudgetBanner(request);
     const waNum = page.dataset.whatsapp || '56912345678';
     const waMsg = encodeURIComponent(`Hola Fundez, tengo un servicio en curso con ${provider.name}. Necesito ayuda.`);
     document.getElementById('whatsappSupport').href = `https://wa.me/${waNum.replace(/\D/g, '')}?text=${waMsg}`;
@@ -223,6 +287,14 @@
       if (payload.provider) {
         clearInterval(loaderInterval);
         showProvider(payload.provider, payload.request);
+      } else if (payload.request) {
+        showBudgetBanner(payload.request);
+        if (payload.request.techStatus === 'en_camino' || payload.request.techStatus === 'en_sitio') {
+          advanceTripStep('enroute');
+        }
+        if (['diagnostico', 'reparando', 'comprando'].includes(payload.request.techStatus)) {
+          advanceTripStep('arrived');
+        }
       }
     });
     socket.on(`provider_location_${requestId}`, (payload) => {
@@ -271,6 +343,8 @@
     try {
       if (!latInput.value) await geocodeAddress();
 
+      const clientPhoto = clientPhotoInput ? await fileInputToBase64(clientPhotoInput) : null;
+
       const res = await fetch('/cliente/solicitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -280,7 +354,8 @@
           notes: document.getElementById('notes').value,
           lat: latInput.value,
           lng: lngInput.value,
-          gift
+          gift,
+          clientPhoto
         })
       });
 

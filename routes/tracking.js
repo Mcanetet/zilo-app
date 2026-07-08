@@ -51,9 +51,14 @@ router.get('/:token/estado', (req, res) => {
       serviceName: request.serviceName,
       address: request.address,
       status: request.status,
+      techStatus: request.techStatus,
       beneficiaryName: request.beneficiaryName,
       isGift: request.isGift,
-      coords: request.coords
+      coords: request.coords,
+      siteReport: request.siteReport ? {
+        budgetStatus: request.siteReport.budgetStatus,
+        budgetAmount: request.siteReport.budgetAmount
+      } : null
     },
     provider
   });

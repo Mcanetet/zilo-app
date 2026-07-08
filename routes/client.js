@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const store = require('../models/store');
+const { saveRequestFile } = require('../lib/uploads');
 const company = require('../config/company');
 const { getClientOnboardingSteps } = require('../lib/onboarding');
 const { requireRole } = require('../middleware/auth');
@@ -123,7 +124,7 @@ router.get('/servicio/:id', requireRole('client'), requireModule('client_solicit
 });
 
 router.post('/solicitar', requireRole('client'), requireModule('client_solicitar'), async (req, res) => {
-  const { serviceId, address, notes, lat, lng, gift } = req.body;
+  const { serviceId, address, notes, lat, lng, gift, clientPhoto } = req.body;
   const service = store.getServiceById(serviceId);
   if (!service || !service.enabled) {
     return res.status(400).json({ error: 'Servicio no disponible' });
@@ -131,6 +132,18 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
   if (gift?.name && !store.isModuleEnabled('client_regalo')) {
     return res.status(403).json({ error: 'El módulo de regalos no está habilitado' });
   }
+
+  let clientPhotoUrl = null;
+  if (clientPhoto && store.isModuleEnabled('client_foto')) {
+    try {
+      const tempId = `tmp-${Date.now()}`;
+      clientPhotoUrl = saveRequestFile(tempId, 'cliente', clientPhoto);
+    } catch (err) {
+      console.error('Error guardando foto cliente:', err.message);
+      return res.status(400).json({ error: 'No se pudo guardar la foto. Intenta con otra imagen.' });
+    }
+  }
+
   try {
     const request = await store.createRequest({
       clientId: req.session.user.id,
@@ -138,8 +151,25 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
       address,
       notes,
       coords: lat && lng ? { lat, lng } : null,
-      gift: gift?.name ? gift : null
+      gift: gift?.name ? gift : null,
+      clientPhotoUrl
     });
+
+    if (clientPhotoUrl && clientPhotoUrl.includes('/tmp-')) {
+      const fs = require('fs');
+      const path = require('path');
+      const oldPath = path.join(__dirname, '../public', clientPhotoUrl);
+      const newDir = path.join(__dirname, '../public/uploads/requests', request.id);
+      fs.mkdirSync(newDir, { recursive: true });
+      const newName = `cliente-${Date.now()}${path.extname(oldPath)}`;
+      const newPath = path.join(newDir, newName);
+      if (fs.existsSync(oldPath)) {
+        fs.renameSync(oldPath, newPath);
+        request.clientPhotoUrl = `/uploads/requests/${request.id}/${newName}`;
+        await require('../models/repository').saveRequest(request);
+      }
+    }
+
     res.json({ success: true, request });
   } catch (err) {
     console.error('Error creando solicitud:', err.message);
@@ -165,6 +195,26 @@ router.get('/solicitud/:id', requireRole('client'), (req, res) => {
     provider = store.getPublicProviderProfile(store.getUserById(request.providerId));
   }
   res.json({ request, provider });
+});
+
+router.post('/presupuesto/:id/responder', requireRole('client'), (req, res) => {
+  const approved = req.body.approved === true || req.body.approved === 'true';
+  const result = store.respondSiteBudget(req.params.id, req.session.user.id, approved);
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+
+  const io = req.app.get('io');
+  io.emit(`request_update_${result.request.id}`, { request: result.request });
+
+  res.json({
+    success: true,
+    approved: result.approved,
+    request: {
+      id: result.request.id,
+      techStatus: result.request.techStatus,
+      status: result.request.status,
+      siteReport: result.request.siteReport
+    }
+  });
 });
 
 module.exports = router;

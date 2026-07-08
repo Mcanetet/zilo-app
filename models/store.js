@@ -53,7 +53,7 @@ function ensureReady() {
   }
 }
 
-async function createRequest({ clientId, serviceId, address, notes, coords: inputCoords, gift }) {
+async function createRequest({ clientId, serviceId, address, notes, coords: inputCoords, gift, clientPhotoUrl }) {
   const service = getServiceById(serviceId);
   const client = getUserById(clientId);
   const fullAddress = address || client.address;
@@ -97,6 +97,7 @@ async function createRequest({ clientId, serviceId, address, notes, coords: inpu
     discountPromo: 0,
     pointsUsed: 0,
     promoCode: null,
+    clientPhotoUrl: clientPhotoUrl || null,
     guardianToken: uuidv4().replace(/-/g, '').slice(0, 12),
     coords
   };
@@ -750,7 +751,17 @@ function updateTechStatus(requestId, technicianId, techStatus) {
   const request = requests.find(r => r.id === requestId);
   if (!request || request.technicianId !== technicianId) return null;
   request.techStatus = techStatus;
-  const map = { aceptado: 'assigned', en_camino: 'in_progress', en_sitio: 'in_progress', completado: 'completed' };
+  const map = {
+    aceptado: 'assigned',
+    en_camino: 'in_progress',
+    en_sitio: 'in_progress',
+    diagnostico: 'in_progress',
+    reparando: 'in_progress',
+    comprando: 'in_progress',
+    presupuesto_pendiente: 'in_progress',
+    presupuesto_aprobado: 'in_progress',
+    completado: 'completed'
+  };
   const mappedStatus = map[techStatus];
   if (mappedStatus) {
     request.status = mappedStatus;
@@ -762,6 +773,155 @@ function updateTechStatus(requestId, technicianId, techStatus) {
   }
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   return request;
+}
+
+function getRequestForTechnician(requestId, technicianId) {
+  return requests.find(r => r.id === requestId && r.technicianId === technicianId) || null;
+}
+
+function ensureSiteReport(request) {
+  if (!request.siteReport) {
+    request.siteReport = {
+      arrivedAt: null,
+      diagnosis: '',
+      photoStart: null,
+      photoEnd: null,
+      action: null,
+      workNotes: '',
+      budgetAmount: null,
+      budgetDescription: '',
+      budgetStatus: null,
+      budgetRespondedAt: null,
+      materials: []
+    };
+  }
+  return request.siteReport;
+}
+
+function recordSiteArrival(requestId, technicianId, { diagnosis, photoStart }) {
+  const request = getRequestForTechnician(requestId, technicianId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (!['en_sitio', 'en_camino', 'aceptado'].includes(request.techStatus)) {
+    return { error: 'No puedes registrar llegada en este estado.' };
+  }
+  diagnosis = (diagnosis || '').trim();
+  if (!diagnosis) return { error: 'Describe lo que observas en el lugar.' };
+  if (!photoStart) return { error: 'Sube la foto inicial de la visita.' };
+
+  const sr = ensureSiteReport(request);
+  sr.arrivedAt = new Date().toISOString();
+  sr.diagnosis = diagnosis;
+  sr.photoStart = photoStart;
+  request.techStatus = 'diagnostico';
+  request.status = 'in_progress';
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request };
+}
+
+function setSiteAction(requestId, technicianId, action) {
+  const request = getRequestForTechnician(requestId, technicianId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (request.techStatus !== 'diagnostico') return { error: 'Primero registra tu llegada y diagnóstico.' };
+
+  const valid = ['reparar', 'comprar', 'presupuesto'];
+  if (!valid.includes(action)) return { error: 'Acción inválida.' };
+
+  const sr = ensureSiteReport(request);
+  sr.action = action;
+  if (action === 'reparar') request.techStatus = 'reparando';
+  else if (action === 'comprar') request.techStatus = 'comprando';
+  else request.techStatus = 'presupuesto_pendiente';
+
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request };
+}
+
+function submitSiteBudget(requestId, technicianId, { amount, description }) {
+  const request = getRequestForTechnician(requestId, technicianId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (request.techStatus !== 'presupuesto_pendiente') return { error: 'No hay presupuesto pendiente de envío.' };
+
+  const parsed = parseInt(amount, 10);
+  if (!parsed || parsed < 1000) return { error: 'Ingresa un monto válido (mín. $1.000).' };
+  description = (description || '').trim();
+  if (!description) return { error: 'Describe el trabajo y materiales del presupuesto.' };
+
+  const sr = ensureSiteReport(request);
+  sr.budgetAmount = parsed;
+  sr.budgetDescription = description;
+  sr.budgetStatus = 'pending';
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request };
+}
+
+function respondSiteBudget(requestId, clientId, approved) {
+  const request = requests.find(r => r.id === requestId && r.clientId === clientId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (request.techStatus !== 'presupuesto_pendiente') return { error: 'No hay presupuesto pendiente.' };
+  const sr = ensureSiteReport(request);
+  if (sr.budgetStatus !== 'pending') return { error: 'Este presupuesto ya fue respondido.' };
+
+  sr.budgetStatus = approved ? 'approved' : 'rejected';
+  sr.budgetRespondedAt = new Date().toISOString();
+  if (approved) {
+    request.techStatus = 'presupuesto_aprobado';
+  } else {
+    request.techStatus = 'completado';
+    request.status = 'completed';
+    request.completedAt = new Date().toISOString();
+    sr.workNotes = 'Presupuesto rechazado por el cliente. Visita finalizada.';
+  }
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request, approved };
+}
+
+function addSiteMaterial(requestId, technicianId, { description, amount, receiptUrl }) {
+  const request = getRequestForTechnician(requestId, technicianId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (!['comprando', 'reparando', 'presupuesto_aprobado'].includes(request.techStatus)) {
+    return { error: 'No puedes agregar materiales en este estado.' };
+  }
+
+  const parsed = parseInt(amount, 10);
+  if (!parsed || parsed < 100) return { error: 'Monto de material inválido.' };
+  description = (description || '').trim();
+  if (!description) return { error: 'Describe el material.' };
+
+  const sr = ensureSiteReport(request);
+  sr.materials.push({
+    id: `mat-${Date.now()}`,
+    description,
+    amount: parsed,
+    receiptUrl: receiptUrl || null,
+    addedAt: new Date().toISOString()
+  });
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request, material: sr.materials[sr.materials.length - 1] };
+}
+
+function completeSiteWork(requestId, technicianId, { workNotes, photoEnd }) {
+  const request = getRequestForTechnician(requestId, technicianId);
+  if (!request) return { error: 'Solicitud no encontrada.' };
+
+  const allowed = ['reparando', 'comprando', 'presupuesto_aprobado'];
+  if (!allowed.includes(request.techStatus)) {
+    return { error: 'Completa el flujo antes de finalizar (diagnóstico y acción).' };
+  }
+
+  workNotes = (workNotes || '').trim();
+  if (!workNotes) return { error: 'Escribe el resumen de lo realizado.' };
+  if (!photoEnd) return { error: 'Sube la foto final de la visita.' };
+
+  const sr = ensureSiteReport(request);
+  sr.workNotes = workNotes;
+  sr.photoEnd = photoEnd;
+  request.techStatus = 'completado';
+  request.status = 'completed';
+  request.completedAt = new Date().toISOString();
+  request.payoutStatus = request.payoutStatus || 'pendiente';
+  addLogbookEntryFromRequest(request);
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  return { success: true, request };
 }
 
 function getRequestsByTechnician(technicianId) {
@@ -1001,6 +1161,13 @@ module.exports = {
   updateRequestStatus,
   assignTechnician,
   updateTechStatus,
+  getRequestForTechnician,
+  recordSiteArrival,
+  setSiteAction,
+  submitSiteBudget,
+  respondSiteBudget,
+  addSiteMaterial,
+  completeSiteWork,
   getRequestsByTechnician,
   updateTechnicianLocation,
   computeEtaMinutes,

@@ -80,6 +80,17 @@
         <textarea id="notes" rows="3" placeholder="Cuéntanos qué ocurre..." class="zilo-input resize-none"></textarea>
       </div>
 
+      <% if (mod('client_foto')) { %>
+      <div>
+        <label class="zilo-label block mb-1.5">Foto del problema <span class="text-zilo-muted normal-case font-normal">(opcional)</span></label>
+        <p class="text-[11px] text-zilo-muted mb-2">Ayuda al técnico a llevar repuestos o herramientas desde el inicio.</p>
+        <input type="file" id="clientPhoto" accept="image/*" class="block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
+        <div id="clientPhotoPreview" class="hidden mt-2">
+          <img src="" alt="Vista previa" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+        </div>
+      </div>
+      <% } %>
+
       <button type="button" id="btnRequest" class="zilo-btn-primary">Continuar al pago</button>
     </section>
 
@@ -113,6 +124,14 @@
     </div>
 
     <section id="providerCard" class="hidden mt-5 space-y-4 animate-slide-up">
+      <div id="budgetBanner" class="hidden p-4 rounded-2xl border border-zilo-warning/30 bg-zilo-warning/10">
+        <p class="text-sm font-semibold text-zilo-warning mb-1">Presupuesto pendiente</p>
+        <p id="budgetBannerText" class="text-xs text-zilo-muted mb-3"></p>
+        <div class="flex gap-2">
+          <button type="button" id="btnApproveBudget" class="flex-1 py-2 rounded-xl zilo-btn-primary !text-sm">Aprobar</button>
+          <button type="button" id="btnRejectBudget" class="flex-1 py-2 rounded-xl zilo-btn-ghost !text-sm">Rechazar</button>
+        </div>
+      </div>
       <div class="p-4 rounded-2xl zilo-card-premium">
         <div class="flex justify-between items-center mb-4">
           <p class="zilo-label">Seguimiento</p>

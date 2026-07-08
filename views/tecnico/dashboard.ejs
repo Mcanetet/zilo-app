@@ -50,6 +50,12 @@
             <% if (j.notes) { %>
               <p class="text-xs text-zilo-muted italic p-2.5 rounded-lg bg-zilo-bg/80 border border-zilo-border mb-3"><%= j.notes %></p>
             <% } %>
+            <% if (j.clientPhotoUrl) { %>
+              <p class="text-[10px] text-zilo-accent mb-2 flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Cliente adjuntó foto de referencia
+              </p>
+            <% } %>
 
             <div class="flex gap-2" data-role="actions"></div>
           </div>

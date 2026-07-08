@@ -337,14 +337,25 @@ async function migrate() {
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && !s.startsWith('--'));
 
+  try {
+    await db.raw('SET FOREIGN_KEY_CHECKS = 0');
+  } catch (_) { /* ignora si no se puede */ }
+
   for (const statement of statements) {
     try {
-      await db.query(statement);
+      await db.raw(statement);
     } catch (err) {
       const ignorable = ['ER_TABLE_EXISTS_ERROR', 'ER_DUP_KEYNAME', 'ER_DUP_FIELDNAME'];
-      if (!ignorable.includes(err.code)) throw err;
+      if (!ignorable.includes(err.code)) {
+        try { await db.raw('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) { /* noop */ }
+        throw err;
+      }
     }
   }
+
+  try {
+    await db.raw('SET FOREIGN_KEY_CHECKS = 1');
+  } catch (_) { /* noop */ }
 }
 
 async function upsertSeedUser(user) {

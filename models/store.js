@@ -444,6 +444,18 @@ function setPaymentPreference(requestId, preferenceId) {
   return request;
 }
 
+function setCardPaymentSession(requestId, { gateway, token, paymentUrl, preferenceId, buyOrder }) {
+  const request = requests.find(r => r.id === requestId);
+  if (!request) return null;
+  request.paymentGateway = gateway || null;
+  request.transbankToken = token || null;
+  request.paymentUrl = paymentUrl || null;
+  request.transbankBuyOrder = buyOrder || null;
+  if (preferenceId) request.preferenceId = preferenceId;
+  repository.persist(() => repository.saveRequest(request), `pago ${requestId}`);
+  return request;
+}
+
 function markPaymentApproved(requestId, paymentId) {
   const request = requests.find(r => r.id === requestId);
   if (!request) return null;
@@ -1305,6 +1317,7 @@ module.exports = {
   getOnlineProviders,
   createRequest,
   setPaymentPreference,
+  setCardPaymentSession,
   markPaymentApproved,
   activateRequest,
   assignProvider,

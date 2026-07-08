@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const store = require('../models/store');
 const mp = require('../lib/mercadopago');
+const transbank = require('../lib/transbank');
 const gateways = require('../lib/payments/gateways');
+const cardCheckout = require('../lib/payments/cardCheckout');
 const { notifyProvidersForRequest } = require('../lib/dispatch');
 const { requireRole } = require('../middleware/auth');
 const company = require('../config/company');
@@ -54,7 +56,7 @@ router.get('/checkout', requireRole('client'), (req, res) => {
     service: store.getServiceById(request.serviceId),
     formatCLP: store.formatCLP,
     pointsValue: store.POINTS_VALUE_CLP,
-    mpConfigured: mp.isConfigured(),
+    mpConfigured: cardCheckout.isAnyCardGatewayConfigured(),
     cardGateway: gateways.getActiveCardGateway(),
     gatewayStatus: gateways.getGatewayStatus(),
     company,
@@ -129,26 +131,99 @@ router.post('/crear', requireRole('client'), async (req, res) => {
     });
   }
 
-  if (!mp.isConfigured()) {
-    return res.json({
-      success: true,
-      demo: true,
-      checkoutUrl: `${baseUrl}/pagos/demo?ref=${request.id}`
-    });
-  }
-
   const service = store.getServiceById(request.serviceId);
   try {
-    const preference = await mp.createPreference({ request: updated, service, baseUrl });
-    const checkoutUrl = process.env.MP_SANDBOX === 'true'
-      ? preference.sandbox_init_point
-      : preference.init_point;
+    const payment = await cardCheckout.createCardPayment({ request: updated, service, baseUrl });
 
-    store.setPaymentPreference(request.id, preference.id);
-    res.json({ success: true, demo: false, checkoutUrl, preferenceId: preference.id });
+    if (payment.mode === 'demo') {
+      return res.json({
+        success: true,
+        demo: true,
+        checkoutUrl: `${baseUrl}/pagos/demo?ref=${request.id}`
+      });
+    }
+
+    if (payment.mode === 'transbank') {
+      store.setCardPaymentSession(request.id, {
+        gateway: 'transbank',
+        token: payment.token,
+        paymentUrl: payment.paymentUrl,
+        buyOrder: payment.buyOrder
+      });
+      return res.json({
+        success: true,
+        transbank: true,
+        redirect: `${baseUrl}${payment.redirectPath}`
+      });
+    }
+
+    if (payment.mode === 'mercadopago') {
+      store.setCardPaymentSession(request.id, {
+        gateway: 'mercadopago',
+        preferenceId: payment.preferenceId
+      });
+      return res.json({
+        success: true,
+        demo: false,
+        checkoutUrl: payment.checkoutUrl,
+        preferenceId: payment.preferenceId
+      });
+    }
+
+    return res.status(500).json({ error: 'No hay pasarela de pago disponible' });
   } catch (err) {
-    console.error('Mercado Pago error:', err.message);
+    console.error('Error creando pago con tarjeta:', err.message);
     res.status(500).json({ error: 'No se pudo crear el pago. Intenta nuevamente.' });
+  }
+});
+
+router.get('/transbank/iniciar', requireRole('client'), (req, res) => {
+  const request = store.requests.find(r => r.id === req.query.ref);
+  if (!request || request.clientId !== req.session.user.id) {
+    return res.redirect('/cliente');
+  }
+  if (!request.transbankToken || !request.paymentUrl) {
+    return res.redirect(`/pagos/checkout?ref=${request.id}`);
+  }
+
+  res.render('payments/transbank-iniciar', {
+    title: 'Webpay Plus — Fundez',
+    token: request.transbankToken,
+    paymentUrl: request.paymentUrl
+  });
+});
+
+router.post('/transbank/retorno', requireRole('client'), async (req, res) => {
+  const ref = req.query.ref;
+  const request = store.requests.find(r => r.id === ref && r.clientId === req.session.user.id);
+  if (!request) return res.redirect('/cliente');
+
+  const token = req.body.token_ws;
+  if (!token) {
+    return res.redirect(`/pagos/error?ref=${ref}&motivo=cancelado`);
+  }
+
+  try {
+    const result = await transbank.commitTransaction(token);
+    const expectedAmount = Math.round(Number(request.amountDue ?? request.estimatedVisit ?? 0));
+    const paidAmount = transbank.getCommittedAmount(result);
+
+    if (
+      transbank.isApproved(result) &&
+      (paidAmount == null || paidAmount === expectedAmount)
+    ) {
+      const paymentId = transbank.getAuthorizationId(result) || `tbk-${Date.now()}`;
+      store.markPaymentApproved(request.id, String(paymentId));
+      store.activateRequest(request.id);
+      notifyProviders(req, request);
+      return res.redirect(`/pagos/exito?ref=${ref}`);
+    }
+
+    console.warn('Transbank no autorizado:', result?.response_code, result?.status);
+    return res.redirect(`/pagos/error?ref=${ref}`);
+  } catch (err) {
+    console.error('Transbank commit error:', err.message);
+    return res.redirect(`/pagos/error?ref=${ref}`);
   }
 });
 
@@ -234,7 +309,7 @@ router.get('/exito', requireRole('client'), (req, res) => {
 
 router.get('/error', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
-  res.render('payments/failure', { title: 'Pago fallido — Fundez', request });
+  res.render('payments/failure', { title: 'Pago fallido — Fundez', request, query: req.query });
 });
 
 router.get('/pendiente', requireRole('client'), (req, res) => {

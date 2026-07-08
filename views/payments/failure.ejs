@@ -5,8 +5,15 @@
     <svg class="w-10 h-10 text-zilo-danger" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
   </div>
   <h1 class="zilo-display text-2xl mb-2">Pago no completado</h1>
-  <p class="text-zilo-muted mb-8 max-w-xs leading-relaxed">No pudimos procesar el pago. Puedes intentar de nuevo desde el checkout.</p>
-  <a href="/cliente" class="zilo-btn-primary !w-auto !px-10">Volver al inicio</a>
+  <% if (typeof query !== 'undefined' && query.motivo === 'cancelado') { %>
+    <p class="text-zilo-muted mb-8 max-w-xs leading-relaxed">Cancelaste el pago en la pasarela. Puedes intentarlo nuevamente desde el checkout.</p>
+  <% } else { %>
+    <p class="text-zilo-muted mb-8 max-w-xs leading-relaxed">No pudimos procesar el pago. Si el cargo apareció en tu cuenta, contáctanos por soporte.</p>
+  <% } %>
+  <% if (request) { %>
+    <a href="/pagos/checkout?ref=<%= request.id %>" class="zilo-btn-primary !w-auto !px-10 mb-3">Reintentar pago</a>
+  <% } %>
+  <a href="/cliente" class="text-sm text-zilo-muted hover:text-gray-700">Volver al inicio</a>
 </div>
 
 <%- include('../partials/footer') %>

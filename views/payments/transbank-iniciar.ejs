@@ -1,0 +1,19 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6">
+  <div class="w-full zilo-card-premium rounded-3xl p-8 text-center">
+    <div class="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-zilo-accent border-t-transparent animate-spin"></div>
+    <p class="zilo-label mb-2">Redirigiendo a Webpay</p>
+    <p class="text-sm text-zilo-muted">Transbank procesará tu pago de forma segura</p>
+  </div>
+</div>
+
+<form id="tbkForm" action="<%= paymentUrl %>" method="POST" class="hidden">
+  <input type="hidden" name="token_ws" value="<%= token %>">
+</form>
+
+<script>
+  document.getElementById('tbkForm').submit();
+</script>
+
+<%- include('../partials/footer') %>

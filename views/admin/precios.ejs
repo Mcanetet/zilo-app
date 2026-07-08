@@ -94,13 +94,14 @@
         <p class="text-xs text-gray-500 mb-3">Las API keys se configuran en variables de entorno de Hostinger. Nunca se exponen al cliente.</p>
         <div class="space-y-2 text-sm">
           <% const gw = typeof gatewayStatus !== 'undefined' ? gatewayStatus : {}; %>
-          <% ['mercadopago','transbank','paypal'].forEach(id => { const g = gw[id]; if (!g) return; %>
+          <% ['transbank','mercadopago','paypal'].forEach(id => { const g = gw[id]; if (!g) return; %>
             <div class="flex justify-between items-center p-3 rounded-lg bg-gray-50">
               <span><%= g.label %></span>
               <span class="text-xs font-medium <%= g.configured ? 'text-emerald-600' : 'text-gray-400' %>"><%= g.configured ? '✓ Configurada' : '○ Sin credenciales' %></span>
             </div>
           <% }); %>
         </div>
+        <p class="text-[10px] text-gray-400 mt-3">Transbank: <code>TRANSBANK_COMMERCE_CODE</code>, <code>TRANSBANK_API_KEY</code>, <code>TRANSBANK_ENV=production</code>. Integración: <code>TRANSBANK_ENV=integration</code>.</p>
       </section>
 
       <section class="zilo-card-premium rounded-2xl p-5 border border-gray-200">

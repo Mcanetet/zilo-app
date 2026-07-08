@@ -166,7 +166,11 @@
 
     <% if (!mpConfigured && (summary.paymentMethod || 'card') === 'card') { %>
     <p class="text-xs text-zilo-warning/90 p-3 rounded-xl border border-zilo-warning/20 bg-zilo-warning/5 text-center">
-      Modo demo — pasarela de tarjeta no configurada en servidor
+      Modo demo — ninguna pasarela de tarjeta configurada en el servidor
+    </p>
+    <% } else if (cardGateway && (summary.paymentMethod || 'card') === 'card') { %>
+    <p class="text-xs text-zilo-muted p-3 rounded-xl border border-zilo-border bg-zilo-bg/50 text-center">
+      Pago seguro con <strong><%= cardGateway.label %></strong>. Fundez no almacena datos de tu tarjeta.
     </p>
     <% } %>
 
@@ -322,7 +326,8 @@
       return;
     }
     if (data.free) window.location.href = data.redirect;
-    else window.location.href = data.redirect || data.checkoutUrl;
+    else if (data.redirect) window.location.href = data.redirect;
+    else window.location.href = data.checkoutUrl;
   });
 
   recalc();

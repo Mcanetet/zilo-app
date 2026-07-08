@@ -24,6 +24,13 @@
     if (tab) tab.click();
   }
 
+  document.querySelectorAll('.admin-goto-tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = document.querySelector(`.admin-tab[data-tab="${btn.dataset.tab}"]`);
+      if (tab) tab.click();
+    });
+  });
+
   document.querySelectorAll('.service-toggle').forEach(toggle => {
     toggle.addEventListener('change', async () => {
       const serviceId = toggle.dataset.id;

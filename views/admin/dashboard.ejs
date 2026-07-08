@@ -20,7 +20,7 @@
       </div>
     </div>
     <nav class="admin-tabs flex gap-1 px-3 pb-3 overflow-x-auto scrollbar-hide" id="adminTabs">
-      <% [['resumen','Resumen'],['modulos','Módulos'],['servicios','Servicios'],['demo','Cuentas demo'],['pagos','Pagos'],['proveedores','Socios'],['reclamos','Reclamos'],['whatsapp','WhatsApp'],['datos','Datos'],['backups','Backups'],['seguridad','Seguridad']].forEach(([id,label]) => { %>
+      <% [['resumen','Resumen'],['finanzas','Finanzas'],['modulos','Módulos'],['servicios','Servicios'],['demo','Cuentas demo'],['pagos','Pagos'],['proveedores','Socios'],['reclamos','Reclamos'],['whatsapp','WhatsApp'],['datos','Datos'],['backups','Backups'],['seguridad','Seguridad']].forEach(([id,label]) => { %>
         <button type="button" data-tab="<%= id %>" class="admin-tab <%= id === 'resumen' ? 'admin-tab-active' : '' %>"><%= label %></button>
       <% }); %>
     </nav>
@@ -66,9 +66,114 @@
         <h3 class="text-sm font-semibold mb-2">Configuración y legales</h3>
         <div class="flex flex-wrap gap-2">
           <a href="/admin/precios" class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-700 hover:border-blue-500/50 font-medium">Precios y urgencia</a>
+          <button type="button" class="admin-goto-tab text-xs px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 hover:border-emerald-500/50 font-medium" data-tab="finanzas">Centro financiero</button>
           <a href="/legal/privacidad" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Privacidad</a>
           <a href="/legal/terminos" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Términos</a>
           <a href="/legal/cookies" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50">Cookies</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINANZAS -->
+    <section class="admin-panel hidden" data-panel="finanzas">
+      <% const fin = financialReport.summary; %>
+      <div class="flex justify-between items-start gap-3 mb-4">
+        <div>
+          <h3 class="text-lg font-semibold">Centro financiero</h3>
+          <p class="text-xs text-gray-500 mt-1">Visitas cobradas, comisiones, liquidación y tendencia semanal</p>
+        </div>
+        <a href="/admin/finanzas/export.csv" class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-700 font-medium shrink-0">Exportar CSV</a>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+          <span class="text-[10px] text-gray-500 uppercase">Visitas cobradas</span>
+          <p class="text-lg font-extrabold text-emerald-600"><%= formatCLP(fin.visitsCollected) %></p>
+        </div>
+        <div class="p-4 rounded-2xl stat-gold border">
+          <span class="zilo-label">Comisión Fundez</span>
+          <p class="text-lg font-semibold"><%= formatCLP(fin.appCommission) %></p>
+        </div>
+        <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25">
+          <span class="text-[10px] text-gray-500 uppercase">Facturado (completados)</span>
+          <p class="text-lg font-extrabold text-blue-600"><%= formatCLP(fin.totalBilled) %></p>
+        </div>
+        <div class="p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/25">
+          <span class="text-[10px] text-gray-500 uppercase">Pendiente socios</span>
+          <p class="text-lg font-extrabold text-yellow-600"><%= formatCLP(fin.providerPending) %></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= fin.approvedCount %></strong>
+          <span class="text-[9px] text-gray-500 uppercase">Pagos OK</span>
+        </div>
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= fin.activeCount %></strong>
+          <span class="text-[9px] text-gray-500 uppercase">Activos</span>
+        </div>
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= fin.pendingTransferCount %></strong>
+          <span class="text-[9px] text-gray-500 uppercase">Transf. pend.</span>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <h4 class="text-sm font-semibold mb-3">Desglose de ingresos</h4>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-gray-500">Visitas técnicas</span><strong><%= formatCLP(fin.visitsCollected) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">Mano de obra (completados)</span><strong><%= formatCLP(fin.serviceVolume) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">Materiales</span><strong><%= formatCLP(fin.materialsVolume) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">Recargos tarjeta (+<%= financialReport.pricing.cardSurcharge %>%)</span><strong><%= formatCLP(fin.cardSurcharges) %></strong></div>
+          <div class="flex justify-between border-t border-gray-200 pt-2"><span class="text-gray-500">Comisión mano de obra (<%= Math.round(financialReport.pricing.laborRate * 100) %>%)</span><strong class="text-blue-600"><%= formatCLP(fin.laborCommission) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">Comisión materiales (<%= Math.round(financialReport.pricing.materialsRate * 100) %>%)</span><strong class="text-blue-600"><%= formatCLP(fin.materialsCommission) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">Pagado a socios</span><strong class="text-emerald-600"><%= formatCLP(fin.providerPaid) %></strong></div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <h4 class="text-sm font-semibold mb-3">Tendencia — últimos 7 días (visitas)</h4>
+        <div class="flex items-end gap-1 h-24">
+          <% financialReport.dailyTrend.forEach(function(day) { %>
+            <div class="flex-1 flex flex-col items-center gap-1">
+              <div class="w-full rounded-t bg-blue-500/70" style="height: <%= Math.max(4, Math.round((day.amount / financialReport.maxDaily) * 100)) %>%"></div>
+              <span class="text-[8px] text-gray-500 text-center leading-tight"><%= day.label %></span>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 mb-4">
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <h4 class="text-sm font-semibold mb-2">Por método de pago</h4>
+          <% if (!financialReport.byPaymentMethod.length) { %>
+            <p class="text-xs text-gray-500">Sin datos aún.</p>
+          <% } %>
+          <% financialReport.byPaymentMethod.forEach(function(row) { %>
+            <div class="flex justify-between text-sm py-1 border-b border-gray-100 last:border-0">
+              <span><%= row.name %> <span class="text-gray-400 text-xs">(<%= row.count %>)</span></span>
+              <strong><%= formatCLP(row.amount) %></strong>
+            </div>
+          <% }); %>
+        </div>
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <h4 class="text-sm font-semibold mb-2">Por pasarela</h4>
+          <% financialReport.byGateway.forEach(function(row) { %>
+            <div class="flex justify-between text-sm py-1 border-b border-gray-100 last:border-0">
+              <span><%= row.name %> <span class="text-gray-400 text-xs">(<%= row.count %>)</span></span>
+              <strong><%= formatCLP(row.amount) %></strong>
+            </div>
+          <% }); %>
+        </div>
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <h4 class="text-sm font-semibold mb-2">Por urgencia</h4>
+          <% financialReport.byUrgency.forEach(function(row) { %>
+            <div class="flex justify-between text-sm py-1 border-b border-gray-100 last:border-0">
+              <span><%= row.name %> <span class="text-gray-400 text-xs">(<%= row.count %>)</span></span>
+              <strong><%= formatCLP(row.amount) %></strong>
+            </div>
+          <% }); %>
         </div>
       </div>
     </section>
@@ -560,7 +665,24 @@
           <span class="text-[9px] text-gray-500 uppercase block">HSTS Producción</span>
           <strong class="text-sm text-emerald-600"><%= process.env.NODE_ENV === 'production' ? 'Activo' : 'Staging' %></strong>
         </div>
+        <div class="p-3 rounded-xl <%= adminIpAllowlist.length ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-gray-50 border-gray-200' %> border text-center">
+          <span class="text-[9px] text-gray-500 uppercase block">Allowlist IP admin</span>
+          <strong class="text-sm <%= adminIpAllowlist.length ? 'text-emerald-600' : 'text-gray-500' %>"><%= adminIpAllowlist.length ? 'Activo (' + adminIpAllowlist.length + ')' : 'Desactivado' %></strong>
+        </div>
       </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4 text-xs text-gray-600">
+        <h4 class="text-sm font-semibold text-gray-800 mb-2">Restricción por IP (producción)</h4>
+        <p class="mb-2">Tu IP actual: <code class="font-mono bg-gray-100 px-1.5 py-0.5 rounded"><%= clientIp %></code></p>
+        <% if (adminIpAllowlist.length) { %>
+          <p class="mb-2">IPs autorizadas: <code class="font-mono"><%= adminIpAllowlist.join(', ') %></code></p>
+        <% } else { %>
+          <p class="mb-2">Para activar, define en Hostinger:</p>
+          <code class="block bg-gray-100 p-2 rounded font-mono text-[10px] break-all">ADMIN_IP_ALLOWLIST=<%= clientIp %></code>
+          <p class="mt-2 text-gray-500">Solo se aplica con <code>NODE_ENV=production</code>. En local usa <code>ADMIN_IP_ALLOWLIST_ENFORCE=true</code> para probar.</p>
+        <% } %>
+      </div>
+
       <h4 class="text-sm font-semibold mb-2">Auditoría de eventos</h4>
       <div class="space-y-1 max-h-80 overflow-y-auto">
         <% securityLogs.forEach(log => { %>

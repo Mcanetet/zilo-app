@@ -51,4 +51,49 @@ function rateLimitLogin(maxPerMinute = 10) {
   };
 }
 
-module.exports = { securityHeaders, rateLimitSimple, rateLimitLogin };
+function getClientIp(req) {
+  const forwarded = req.get('x-forwarded-for');
+  if (forwarded) return String(forwarded).split(',')[0].trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function parseAdminIpAllowlist() {
+  return String(process.env.ADMIN_IP_ALLOWLIST || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function adminIpAllowlist() {
+  return (req, res, next) => {
+    const allowed = parseAdminIpAllowlist();
+    if (!allowed.length) return next();
+
+    const enforce = process.env.NODE_ENV === 'production'
+      || process.env.ADMIN_IP_ALLOWLIST_ENFORCE === 'true';
+    if (!enforce) return next();
+
+    const ip = getClientIp(req);
+    if (allowed.includes(ip)) return next();
+
+    try {
+      const store = require('../models/store');
+      store.logSecurityEvent('admin_ip_blocked', ip, req);
+    } catch (_) { /* store no listo */ }
+
+    return res.status(403).render('error', {
+      title: 'Acceso restringido',
+      message: 'Tu dirección IP no está autorizada para el panel de administración.',
+      code: 403
+    });
+  };
+}
+
+module.exports = {
+  securityHeaders,
+  rateLimitSimple,
+  rateLimitLogin,
+  getClientIp,
+  parseAdminIpAllowlist,
+  adminIpAllowlist
+};

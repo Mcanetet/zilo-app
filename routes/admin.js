@@ -6,8 +6,10 @@ const store = require('../models/store');
 const company = require('../config/company');
 const backup = require('../lib/backup');
 const { requireRole } = require('../middleware/auth');
-const { rateLimitLogin } = require('../middleware/security');
+const { rateLimitLogin, adminIpAllowlist, getClientIp, parseAdminIpAllowlist } = require('../middleware/security');
 const { qrDataUrl } = require('../lib/mfa');
+
+router.use(adminIpAllowlist());
 
 const ADMIN_SESSION_MS = 4 * 60 * 60 * 1000;
 const MFA_PENDING_MS = 5 * 60 * 1000;
@@ -233,9 +235,56 @@ router.get('/', requireRole('admin'), (req, res) => {
     mfaStatus: store.getAdminMfaStatus(req.session.user.id),
     mfaMessage: req.query.mfa || null,
     mfaError: req.query.mfa_error || null,
-    initialTab: req.query.tab || null
+    initialTab: req.query.tab || null,
+    financialReport: store.getFinancialReport(),
+    clientIp: getClientIp(req),
+    adminIpAllowlist: parseAdminIpAllowlist()
   });
 });
+
+router.get('/finanzas/export.csv', requireRole('admin'), (req, res) => {
+  const report = store.getFinancialReport();
+  const payments = store.getPayments();
+  const lines = [
+    'id,servicio,cliente,socio,monto,comision,socio_pago,metodo,urgencia,estado,pagado_en'
+  ];
+
+  payments.forEach((p) => {
+    const reqRow = store.getAllRequests().find((r) => r.id === p.id) || {};
+    lines.push([
+      p.id,
+      csvEscape(p.serviceName),
+      csvEscape(p.clientName),
+      csvEscape(p.providerName),
+      p.amount,
+      p.commission,
+      p.providerPayout,
+      csvEscape(reqRow.paymentMethod || ''),
+      csvEscape(p.urgencyTierLabel || ''),
+      csvEscape(p.status),
+      csvEscape(p.paidAt || '')
+    ].join(','));
+  });
+
+  lines.push('');
+  lines.push('Resumen');
+  lines.push(`Visitas cobradas,${report.summary.visitsCollected}`);
+  lines.push(`Recargos tarjeta,${report.summary.cardSurcharges}`);
+  lines.push(`Comisión Fundez,${report.summary.appCommission}`);
+  lines.push(`Pendiente socios,${report.summary.providerPending}`);
+  lines.push(`Transferencias pendientes,${report.summary.pendingTransferCount}`);
+
+  store.logSecurityEvent('finanzas_export', `${payments.length} filas`, req);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="fundez-finanzas.csv"');
+  res.send('\uFEFF' + lines.join('\n'));
+});
+
+function csvEscape(value) {
+  const str = String(value ?? '');
+  if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+  return str;
+}
 
 router.post('/toggle-service', requireRole('admin'), (req, res) => {
   const { serviceId, enabled } = req.body;

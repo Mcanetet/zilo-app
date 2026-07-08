@@ -1366,6 +1366,114 @@ function getAdminStats() {
   };
 }
 
+function bumpFinanceBucket(map, key, amount = 0, count = 1) {
+  if (!map[key]) map[key] = { count: 0, amount: 0 };
+  map[key].count += count;
+  map[key].amount += amount;
+}
+
+function getFinancialReport() {
+  const pricing = getPricingConfig();
+  const approved = requests.filter((r) => r.paymentStatus === 'approved');
+  const pendingXfer = requests.filter((r) => r.paymentStatus === 'pending_transfer');
+  const payouts = getProviderPayouts();
+
+  const summary = {
+    visitsCollected: 0,
+    cardSurcharges: 0,
+    serviceVolume: 0,
+    materialsVolume: 0,
+    totalBilled: 0,
+    appCommission: 0,
+    laborCommission: 0,
+    materialsCommission: 0,
+    providerPending: payouts.reduce((s, p) => s + p.pending, 0),
+    providerPaid: payouts.reduce((s, p) => s + p.paid, 0),
+    pendingTransferCount: pendingXfer.length,
+    pendingTransferAmount: pendingXfer.reduce((s, r) => s + (r.amountDue || 0), 0),
+    approvedCount: approved.length,
+    completedCount: approved.filter((r) => r.status === 'completed').length,
+    activeCount: approved.filter((r) => ['searching', 'assigned', 'in_progress'].includes(r.status)).length
+  };
+
+  const byPaymentMethod = {};
+  const byGateway = {};
+  const byUrgency = {};
+  const last7Days = {};
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    last7Days[key] = {
+      date: key,
+      label: d.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' }),
+      amount: 0,
+      count: 0
+    };
+  }
+
+  const gatewayLabels = {
+    transbank: 'Transbank',
+    mercadopago: 'Mercado Pago',
+    paypal: 'PayPal',
+    transferencia: 'Transferencia',
+    demo: 'Demo'
+  };
+
+  approved.forEach((r) => {
+    const visitPaid = r.visitPricePaid || r.amountDue || 0;
+    summary.visitsCollected += visitPaid;
+    summary.cardSurcharges += r.paymentSurchargeAmount || 0;
+
+    const method = r.paymentMethod === 'transfer' ? 'Transferencia' : 'Tarjeta';
+    bumpFinanceBucket(byPaymentMethod, method, visitPaid);
+
+    const gwKey = r.paymentGateway || (r.paymentMethod === 'transfer' ? 'transferencia' : 'demo');
+    bumpFinanceBucket(byGateway, gatewayLabels[gwKey] || gwKey, visitPaid);
+
+    bumpFinanceBucket(byUrgency, r.urgencyTierLabel || 'Sin urgencia', visitPaid);
+
+    if (r.paidAt) {
+      const day = String(r.paidAt).slice(0, 10);
+      if (last7Days[day]) {
+        last7Days[day].amount += visitPaid;
+        last7Days[day].count++;
+      }
+    }
+
+    if (r.status === 'completed') {
+      const fin = r.financials || computeRequestFinancials(r, pricing);
+      summary.serviceVolume += fin.serviceAmount || 0;
+      summary.materialsVolume += fin.materialsTotal || 0;
+      summary.totalBilled += fin.grandTotal || 0;
+      summary.appCommission += fin.appTotal || 0;
+      summary.laborCommission += fin.laborCommission || 0;
+      summary.materialsCommission += fin.materialsCommission || 0;
+    }
+  });
+
+  const toRows = (map) => Object.entries(map)
+    .map(([name, v]) => ({ name, ...v }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const maxDaily = Math.max(1, ...Object.values(last7Days).map((d) => d.amount));
+
+  return {
+    summary,
+    byPaymentMethod: toRows(byPaymentMethod),
+    byGateway: toRows(byGateway),
+    byUrgency: toRows(byUrgency),
+    dailyTrend: Object.values(last7Days),
+    maxDaily,
+    pricing: {
+      laborRate: pricing.laborCommissionRate,
+      materialsRate: pricing.materialsCommissionRate,
+      cardSurcharge: pricing.cardSurchargePercent
+    }
+  };
+}
+
 function needsOnboarding(user) {
   return user && user.onboardingCompleted !== true;
 }
@@ -1461,6 +1569,7 @@ module.exports = {
   getPayments,
   getProviderPayouts,
   getAdminStats,
+  getFinancialReport,
   getConsentsSummary,
   recordConsent,
   get consentRecords() { return consentRecords; },

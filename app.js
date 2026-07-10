@@ -99,7 +99,7 @@ app.get('/', (req, res) => {
   }
   res.render('landing', {
     title: 'Fundez — Servicios premium a domicilio',
-    services: store.getActiveServices(),
+    services: store.getLandingServices(),
     referralBanner: req.session.pendingReferral || null
   });
 });

@@ -774,6 +774,7 @@ function persist(fn, label) {
 }
 
 module.exports = {
+  SEED_SERVICES,
   migrate,
   ensureDemoData,
   seedIfEmpty,

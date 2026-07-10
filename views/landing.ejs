@@ -66,9 +66,9 @@
 
   <section class="relative z-10 px-5 pb-10 max-w-lg mx-auto">
     <p class="zilo-label mb-4 text-center">Especialidades</p>
-    <div class="flex flex-wrap justify-center gap-2">
-      <% services.forEach(s => { %>
-        <span class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full zilo-card-premium text-sm text-zilo-muted">
+    <div class="flex flex-wrap justify-center gap-2.5">
+      <% (services || []).forEach(s => { %>
+        <span class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-full zilo-card-premium text-sm font-medium text-zilo-text border border-zilo-border">
           <%- include('partials/service-icon', { icon: s.icon, color: s.color, size: 'xs' }) %>
           <%= s.name %>
         </span>

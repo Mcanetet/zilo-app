@@ -519,6 +519,13 @@ function getActiveServices() {
   return SERVICES.filter(s => s.enabled);
 }
 
+function getLandingServices() {
+  const active = getActiveServices();
+  if (active.length) return active;
+  const { SEED_SERVICES } = require('./repository');
+  return SEED_SERVICES.filter(s => s.enabled);
+}
+
 function toggleService(serviceId, enabled) {
   const service = getServiceById(serviceId);
   if (!service) return null;
@@ -1543,6 +1550,7 @@ module.exports = {
   formatCLP,
   getServiceById,
   getActiveServices,
+  getLandingServices,
   toggleService,
   getModules,
   getModulesByAudience,

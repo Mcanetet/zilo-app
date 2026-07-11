@@ -1,17 +1,16 @@
 <%- include('../partials/head', { bodyClass: 'admin-page' }) %>
 <%
-const ap = require('../../lib/adminPermissions');
 if (typeof adminAccess === 'undefined' || !adminAccess) {
-  adminAccess = ap.resolveAdminAccess(typeof user !== 'undefined' ? user : null);
+  adminAccess = { profileId: 'superadmin', isSuperAdmin: true, permissions: [] };
 }
-if (typeof adminProfiles === 'undefined') adminProfiles = ap.getProfilesList();
-if (typeof adminPermissionGroups === 'undefined') adminPermissionGroups = ap.getPermissionGroups();
-if (typeof adminNav === 'undefined' || !adminNav.length) adminNav = ap.getNavForAccess(adminAccess);
+if (typeof adminProfiles === 'undefined') adminProfiles = [];
+if (typeof adminPermissionGroups === 'undefined') adminPermissionGroups = {};
+if (typeof adminNav === 'undefined') adminNav = [];
 if (typeof adminTeam === 'undefined') adminTeam = [];
-if (typeof initialTab === 'undefined' || !initialTab) initialTab = ap.getFirstAccessiblePanel(adminAccess);
+if (typeof initialTab === 'undefined' || !initialTab) initialTab = 'resumen';
 var canAccessPanelFn = (typeof canAccessPanel === 'function')
   ? canAccessPanel
-  : function(panelId) { return ap.canAccessPanel(adminAccess, panelId); };
+  : function() { return true; };
 function panelClass(id) {
   if (!canAccessPanelFn(id)) return 'admin-panel hidden';
   return id === initialTab ? 'admin-panel' : 'admin-panel hidden';

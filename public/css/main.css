@@ -186,16 +186,86 @@
 .admin-tabs::-webkit-scrollbar { display: none; }
 
 .zilo-icon-wrap {
-  background: linear-gradient(145deg, color-mix(in srgb, var(--icon-accent) 16%, transparent), color-mix(in srgb, var(--icon-accent) 5%, #FFFFFF));
-  border: 1px solid color-mix(in srgb, var(--icon-accent) 26%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
-  color: color-mix(in srgb, var(--icon-accent) 78%, #111827);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  background: #FFFFFF;
+  border: 1px solid var(--zilo-border);
+  box-shadow: none;
+  color: #4B5563;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.zilo-icon-wrap .zilo-icon {
+  opacity: 0.88;
 }
 .group:hover .zilo-icon-wrap {
-  transform: scale(1.04);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--icon-accent) 22%, transparent);
+  transform: none;
+  background: #FAFBFC;
+  border-color: rgba(37, 99, 235, 0.22);
+  color: var(--zilo-accent);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
 }
+.group:hover .zilo-icon-wrap .zilo-icon {
+  opacity: 1;
+}
+
+/* Especialidades — pills minimalistas */
+.zilo-icon-hero {
+  background: #F2F4F7;
+  border-color: transparent;
+  color: #374151;
+}
+
+.zilo-specialty-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--zilo-text);
+  background: #FFFFFF;
+  border: 1px solid var(--zilo-border);
+  transition: border-color 0.2s, background 0.2s;
+}
+.zilo-specialty-pill:hover {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: #FAFBFC;
+}
+.zilo-specialty-pill .zilo-icon-wrap {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  border-color: transparent;
+  background: #F2F4F7;
+  color: #6B7280;
+}
+.zilo-specialty-pill:hover .zilo-icon-wrap {
+  background: var(--zilo-accent-soft);
+  color: var(--zilo-accent);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.zilo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #FFFFFF;
+  color: var(--zilo-text);
+  border: 1px solid var(--zilo-border);
+}
+.zilo-tag .zilo-icon-wrap {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 0.375rem;
+  border: none;
+  background: #F2F4F7;
+  color: #6B7280;
+}
+
 .zilo-icon { display: block; }
 
 .leaflet-container { background: #EEF1F6 !important; border-radius: 1rem; }
@@ -288,16 +358,6 @@
 }
 .zilo-badge-success { background: #E7F6EF; color: var(--zilo-success); border-color: rgba(5,150,105,0.25); }
 .zilo-badge-muted { background: #F2F4F7; color: var(--zilo-muted); border-color: var(--zilo-border); }
-
-.zilo-tag {
-  padding: 0.35rem 0.85rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  background: var(--zilo-accent-soft);
-  color: var(--zilo-accent-strong);
-  border: 1px solid rgba(37,99,235,0.18);
-}
 
 .zilo-divider {
   height: 1px;

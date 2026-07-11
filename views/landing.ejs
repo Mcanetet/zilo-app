@@ -71,8 +71,8 @@
     <p class="zilo-label mb-4 text-center"><%= t('landing.specialties') %></p>
     <div class="flex flex-wrap justify-center gap-2.5">
       <% (services || []).forEach(s => { %>
-        <span class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-full zilo-card-premium text-sm font-medium text-zilo-text border border-zilo-border">
-          <%- include('partials/service-icon', { icon: s.icon, color: s.color, size: 'xs' }) %>
+        <span class="zilo-specialty-pill">
+          <%- include('partials/service-icon', { icon: s.icon, size: 'xs' }) %>
           <%= s.name %>
         </span>
       <% }); %>

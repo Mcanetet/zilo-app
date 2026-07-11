@@ -153,7 +153,10 @@
         <% provider.specialties.forEach(s => {
           const svc = services.find(x => x.id === s);
         %>
-          <span class="zilo-tag"><%= svc ? svc.name : s %></span>
+          <span class="zilo-tag">
+            <% if (svc) { %><%- include('../partials/service-icon', { icon: svc.icon, size: 'xs' }) %><% } %>
+            <%= svc ? svc.name : s %>
+          </span>
         <% }); %>
       </div>
     </div>

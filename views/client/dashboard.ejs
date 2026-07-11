@@ -111,7 +111,7 @@
       <% services.forEach(service => { %>
         <a href="/cliente/servicio/<%= service.id %>" data-service-id="<%= service.id %>"
           class="service-item group flex flex-col items-center gap-3 p-5 rounded-2xl zilo-card-premium hover:border-zilo-accent/25 hover:-translate-y-0.5 transition-all duration-300">
-          <%- include('../partials/service-icon', { icon: service.icon, color: service.color, size: 'lg' }) %>
+          <%- include('../partials/service-icon', { icon: service.icon, size: 'lg' }) %>
           <span class="font-medium text-sm text-center leading-tight"><%= service.name %></span>
           <span class="text-xs text-zilo-muted"><%= t('client.from_price') %> <%= formatCLP(service.visitPrice) %></span>
         </a>
@@ -193,7 +193,7 @@
     const fmt = n => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
     grid.innerHTML = active.map(s => `
       <a href="/cliente/servicio/${s.id}" class="group flex flex-col items-center gap-3 p-5 rounded-2xl zilo-card-premium hover:border-zilo-accent/25 transition-all">
-        ${FundezIcons.wrap(s.icon, s.color, 'w-14 h-14', 32)}
+        ${FundezIcons.wrap(s.icon, null, 'w-14 h-14', 28)}
         <span class="font-medium text-sm text-center">${s.name}</span>
         <span class="text-xs text-zilo-muted">desde ${fmt(s.visitPrice)}</span>
       </a>

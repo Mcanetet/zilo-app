@@ -78,8 +78,9 @@
         <span class="zilo-label block mb-1.5"><%= t('register.specialties') %></span>
         <div class="grid grid-cols-2 gap-2">
           <% services.forEach(function(s){ %>
-            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-zilo-border cursor-pointer hover:border-zilo-accent/40 transition text-sm">
-              <input type="checkbox" name="specialties" value="<%= s.id %>" class="rounded accent-[#2563EB]" <%= (form.specialties || []).includes(s.id) ? 'checked' : '' %>>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-zilo-border cursor-pointer hover:border-zilo-accent/30 hover:bg-zilo-bg/50 transition text-sm">
+              <input type="checkbox" name="specialties" value="<%= s.id %>" class="rounded accent-[#2563EB] shrink-0" <%= (form.specialties || []).includes(s.id) ? 'checked' : '' %>>
+              <%- include('partials/service-icon', { icon: s.icon, size: 'xs' }) %>
               <span><%= s.name %></span>
             </label>
           <% }); %>

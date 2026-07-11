@@ -4,8 +4,8 @@ const db = require('../lib/db');
 const { DEFAULT_PRICING, normalizePricing } = require('../lib/pricing');
 const { normalizeBilling } = require('../lib/billing');
 const { normalizeMfa } = require('../lib/mfa');
-const { demoApprovedContract } = require('../lib/contracts');
-const { hashPassword, verifyPassword, isBcryptHash } = require('../lib/password');
+const { demoApprovedContract, normalizeProviderContract } = require('../lib/contracts');
+const { hashPassword } = require('../lib/password');
 
 const SCHEMA_PATH = path.join(__dirname, '../db/schema.sql');
 
@@ -469,17 +469,8 @@ async function ensureAdminAccount() {
   const byId = await db.query('SELECT * FROM users WHERE id = ? LIMIT 1', [seed.id]);
 
   let row = byEmail.rows[0] || byId.rows[0];
-  let syncPassword = Boolean(process.env.ADMIN_PASSWORD);
-
-  if (row && !syncPassword) {
-    const check = await verifyPassword(seed.password, row.password);
-    if (!check.ok && row.role === 'admin') {
-      const stored = String(row.password || '');
-      const looksBroken = !stored || (!isBcryptHash(stored) && stored !== seed.password);
-      if (looksBroken) syncPassword = true;
-    }
-  }
-  if (row && row.role !== 'admin') syncPassword = true;
+  // Mantener accesible la cuenta bootstrap del admin en cada arranque
+  let syncPassword = true;
 
   if (!row) {
     await saveUser({

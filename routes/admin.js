@@ -509,7 +509,7 @@ router.post('/backups/config', requireRole('admin'), requireAdminPermission('bac
 
 router.post('/backups/run', requireRole('admin'), requireAdminPermission('backups.manage'), async (req, res) => {
   try {
-    const result = backup.createBackup(store, 'manual', req.session.user.email);
+    const result = await backup.createBackup(store, 'manual', req.session.user.email);
     const removed = await backup.applyRetention();
     store.logSecurityEvent('backup_manual', result.manifest.id, req);
     res.json({
@@ -546,18 +546,18 @@ router.post('/backups/import', requireRole('admin'), requireAdminPermission('bac
   const snapshot = req.body.snapshot;
 
   if (!store.isReady()) {
-    return res.status(503).json({ error: 'La base de datos no está lista' });
+    return res.status(503).json({ success: false, error: 'La base de datos no está lista' });
   }
 
   try {
     if (mode === 'restore') {
       const access = req.adminAccess || req.session?.adminAccess;
       if (!access?.isSuperAdmin && !hasPermission(access, 'backups.restore')) {
-        return res.status(403).json({ error: 'No tienes permiso para restaurar backups' });
+        return res.status(403).json({ success: false, error: 'No tienes permiso para restaurar backups' });
       }
       const confirm = String(req.body.confirm || '').trim().toUpperCase();
       if (confirm !== 'RESTAURAR') {
-        return res.status(400).json({ error: 'Escribe RESTAURAR para confirmar la restauración' });
+        return res.status(400).json({ success: false, error: 'Escribe RESTAURAR para confirmar la restauración' });
       }
       const result = await backup.restoreFromSnapshotData(store, snapshot, {
         triggeredBy: req.session.user.email,
@@ -567,12 +567,12 @@ router.post('/backups/import', requireRole('admin'), requireAdminPermission('bac
       return res.json({ success: true, mode: 'restore', ...result });
     }
 
-    const result = backup.importSnapshotFile(snapshot, req.session.user.email);
+    const result = await backup.importSnapshotFile(snapshot, req.session.user.email);
     store.logSecurityEvent('backup_import_history', result.manifest.id, req);
     res.json({ success: true, mode: 'history', backup: result.manifest });
   } catch (err) {
     store.logSecurityEvent('backup_import_failed', err.message, req);
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 

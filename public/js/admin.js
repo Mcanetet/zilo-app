@@ -512,6 +512,32 @@
   const btnImportHistory = document.getElementById('btnImportBackupHistory');
   const btnImportRestore = document.getElementById('btnImportBackupRestore');
 
+  async function parseJsonResponse(res) {
+    const text = await res.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch (_) {
+      throw new Error(res.ok ? 'Respuesta inválida del servidor' : `Error del servidor (${res.status})`);
+    }
+  }
+
+  function normalizeImportSnapshot(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    if (raw.snapshot && typeof raw.snapshot === 'object' && !Array.isArray(raw.snapshot)) {
+      return raw.snapshot;
+    }
+    return raw;
+  }
+
+  function isValidImportSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    if (snapshot.app === 'fundez') return true;
+    return Array.isArray(snapshot.users)
+      || Array.isArray(snapshot.services)
+      || Array.isArray(snapshot.requests);
+  }
+
   function setImportButtonsEnabled(enabled) {
     if (btnImportHistory) btnImportHistory.disabled = !enabled;
     if (btnImportRestore) btnImportRestore.disabled = !enabled;
@@ -545,11 +571,9 @@
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const snapshot = JSON.parse(String(reader.result || ''));
-        if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
-          throw new Error('JSON inválido');
-        }
-        if (!Array.isArray(snapshot.users) && !Array.isArray(snapshot.services)) {
+        const parsed = JSON.parse(String(reader.result || '').replace(/^\uFEFF/, ''));
+        const snapshot = normalizeImportSnapshot(parsed);
+        if (!isValidImportSnapshot(snapshot)) {
           throw new Error('No parece un backup de Fundez');
         }
         pendingImportSnapshot = snapshot;
@@ -571,10 +595,14 @@
     try {
       const res = await fetch('/admin/backups/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        credentials: 'same-origin',
         body: JSON.stringify({ mode: 'history', snapshot: pendingImportSnapshot })
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (data.success) {
         FundezNotify.show('Backup importado al historial', 'success');
         setTimeout(() => location.reload(), 900);
@@ -583,8 +611,8 @@
         btnImportHistory.disabled = false;
         btnImportHistory.textContent = 'Agregar al historial';
       }
-    } catch (_) {
-      FundezNotify.show('Error de conexión', 'error');
+    } catch (err) {
+      FundezNotify.show(err.message || 'Error de conexión', 'error');
       btnImportHistory.disabled = false;
       btnImportHistory.textContent = 'Agregar al historial';
     }
@@ -607,10 +635,14 @@
     try {
       const res = await fetch('/admin/backups/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        credentials: 'same-origin',
         body: JSON.stringify({ mode: 'restore', confirm: 'RESTAURAR', snapshot: pendingImportSnapshot })
       });
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       if (data.success) {
         FundezNotify.show(`Backup restaurado (copia previa: ${data.preRestoreBackupId?.slice(0, 8)}…)`, 'success');
         setTimeout(() => location.reload(), 1200);
@@ -619,8 +651,8 @@
         btnImportRestore.disabled = false;
         btnImportRestore.textContent = 'Importar y restaurar';
       }
-    } catch (_) {
-      FundezNotify.show('Error de conexión al restaurar', 'error');
+    } catch (err) {
+      FundezNotify.show(err.message || 'Error de conexión al restaurar', 'error');
       btnImportRestore.disabled = false;
       btnImportRestore.textContent = 'Importar y restaurar';
     }
@@ -655,10 +687,14 @@
       try {
         const res = await fetch(`/admin/backups/${btn.dataset.id}/restore`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          credentials: 'same-origin',
           body: JSON.stringify({ confirm: 'RESTAURAR', restoreUploads: true })
         });
-        const data = await res.json();
+        const data = await parseJsonResponse(res);
         if (data.success) {
           FundezNotify.show(`Datos restaurados (backup previo: ${data.preRestoreBackupId?.slice(0, 8)}…)`, 'success');
           setTimeout(() => location.reload(), 1200);
@@ -667,8 +703,8 @@
           btn.disabled = false;
           btn.textContent = 'Restaurar';
         }
-      } catch (_) {
-        FundezNotify.show('Error de conexión al restaurar', 'error');
+      } catch (err) {
+        FundezNotify.show(err.message || 'Error de conexión al restaurar', 'error');
         btn.disabled = false;
         btn.textContent = 'Restaurar';
       }

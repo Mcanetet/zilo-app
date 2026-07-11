@@ -5,6 +5,7 @@ const { DEFAULT_PRICING, normalizePricing } = require('../lib/pricing');
 const { normalizeBilling } = require('../lib/billing');
 const { normalizeMfa } = require('../lib/mfa');
 const { demoApprovedContract } = require('../lib/contracts');
+const { hashPassword, verifyPassword, isBcryptHash } = require('../lib/password');
 
 const SCHEMA_PATH = path.join(__dirname, '../db/schema.sql');
 
@@ -448,8 +449,96 @@ async function ensureDemoPricing() {
   }
 }
 
+function getAdminSeedConfig() {
+  return {
+    id: 'admin-1',
+    email: (process.env.ADMIN_EMAIL || 'admin@fundez.cl').trim().toLowerCase(),
+    password: process.env.ADMIN_PASSWORD || 'admin123',
+    name: process.env.ADMIN_NAME || 'Admin Fundez',
+    phone: '+56 9 0000 0000',
+    adminAccess: { profileId: 'superadmin', isSuperAdmin: true, permissions: [] }
+  };
+}
+
+async function ensureAdminAccount() {
+  const seed = getAdminSeedConfig();
+  const hashed = await hashPassword(seed.password);
+  const adminAccessJson = JSON.stringify(seed.adminAccess);
+
+  const byEmail = await db.query('SELECT * FROM users WHERE email = ? LIMIT 1', [seed.email]);
+  const byId = await db.query('SELECT * FROM users WHERE id = ? LIMIT 1', [seed.id]);
+
+  let row = byEmail.rows[0] || byId.rows[0];
+  let syncPassword = Boolean(process.env.ADMIN_PASSWORD);
+
+  if (row && !syncPassword) {
+    const check = await verifyPassword(seed.password, row.password);
+    if (!check.ok && row.role === 'admin') {
+      const stored = String(row.password || '');
+      const looksBroken = !stored || (!isBcryptHash(stored) && stored !== seed.password);
+      if (looksBroken) syncPassword = true;
+    }
+  }
+  if (row && row.role !== 'admin') syncPassword = true;
+
+  if (!row) {
+    await saveUser({
+      id: seed.id,
+      email: seed.email,
+      password: hashed,
+      name: seed.name,
+      role: 'admin',
+      phone: seed.phone,
+      adminAccess: seed.adminAccess,
+      active: true
+    });
+    console.log(`✓ Cuenta admin creada (${seed.email})`);
+    return;
+  }
+
+  const sets = ['email = ?', 'name = ?', "role = 'admin'", 'active = 1', 'admin_access = ?'];
+  const params = [seed.email, seed.name, adminAccessJson];
+  if (syncPassword) {
+    sets.push('password = ?');
+    params.push(hashed);
+  }
+  params.push(row.id);
+  await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
+  console.log(`✓ Cuenta admin sincronizada (${seed.email}${syncPassword ? ', contraseña actualizada' : ''})`);
+}
+
+async function resetAdminPassword(plainPassword) {
+  const seed = getAdminSeedConfig();
+  const password = plainPassword || seed.password;
+  const hashed = await hashPassword(password);
+  const adminAccessJson = JSON.stringify(seed.adminAccess);
+
+  const res = await db.query('SELECT id FROM users WHERE email = ? OR id = ? LIMIT 1', [seed.email, seed.id]);
+  if (!res.rows.length) {
+    await saveUser({
+      id: seed.id,
+      email: seed.email,
+      password: hashed,
+      name: seed.name,
+      role: 'admin',
+      phone: seed.phone,
+      adminAccess: seed.adminAccess,
+      active: true
+    });
+    return { created: true, email: seed.email };
+  }
+
+  await db.query(
+    `UPDATE users SET email = ?, password = ?, role = 'admin', active = 1, admin_access = ? WHERE id = ?`,
+    [seed.email, hashed, adminAccessJson, res.rows[0].id]
+  );
+  return { created: false, email: seed.email, userId: res.rows[0].id };
+}
+
 async function ensureDemoUsers() {
+  await ensureAdminAccount();
   for (const user of SEED_USERS) {
+    if (user.role === 'admin') continue;
     await upsertSeedUser(user);
   }
 }
@@ -880,6 +969,9 @@ module.exports = {
   SEED_SERVICES,
   migrate,
   ensureDemoData,
+  ensureAdminAccount,
+  resetAdminPassword,
+  getAdminSeedConfig,
   seedIfEmpty,
   loadAll,
   saveUser,

@@ -1,6 +1,6 @@
 {
   "name": "fundez-app",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Fundez - servicios del hogar Express.js",
   "main": "index.js",
   "private": true,
@@ -10,7 +10,8 @@
     "dev": "node index.js",
     "db:setup": "node scripts/db-setup.js",
     "db:seed": "node scripts/db-setup.js",
-    "db:test": "node scripts/test-db.js"
+    "db:test": "node scripts/test-db.js",
+    "admin:reset": "node scripts/reset-admin.js"
   },
   "engines": {
     "node": "20.x"

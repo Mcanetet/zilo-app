@@ -68,7 +68,8 @@ router.get('/login', (req, res) => {
 });
 
 router.post('/login', rateLimitLogin(8), async (req, res) => {
-  const { email, password } = req.body;
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
   const result = await store.authenticateUser(email, password, { allowedRoles: ['admin'] });
 
   if (result.error === 'wrong_portal') {

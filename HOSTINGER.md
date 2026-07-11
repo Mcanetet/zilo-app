@@ -131,7 +131,24 @@ Esto crea las tablas e inserta los usuarios demo:
 | Proveedor nuevo | `marta@fundez.cl` | `proveedor123` |
 | Admin | `admin@fundez.cl` | `admin123` |
 
-> Si la BD ya tiene usuarios, el seed se omite (no borra datos existentes).
+> En cada arranque la app sincroniza la cuenta admin por correo. Si no puedes entrar, define `ADMIN_PASSWORD` en Hostinger y reinicia, o ejecuta `npm run admin:reset`.
+
+### Recuperar acceso admin
+
+En **Variables de entorno** de Hostinger agrega:
+
+```env
+ADMIN_EMAIL=admin@fundez.cl
+ADMIN_PASSWORD=tu_clave_segura
+```
+
+Reinicia la app. También puedes ejecutar en SSH:
+
+```bash
+npm run admin:reset
+# o con clave personalizada:
+npm run admin:reset -- MiClaveSegura2026
+```
 
 ### 3. Desarrollo local
 

@@ -14,6 +14,12 @@
   </header>
 
   <main class="flex-1 px-5 py-5 pb-10">
+    <div class="mb-5 p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15">
+      <p class="zilo-label mb-1">Tu equipo</p>
+      <p class="text-2xl font-bold text-zilo-accent"><%= technicians.length %></p>
+      <p class="text-xs text-zilo-muted">técnicos registrados · asigna trabajos desde el cuadro de mando</p>
+    </div>
+
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="mb-4 p-3 rounded-xl border border-zilo-danger/30 bg-zilo-danger/10 text-sm text-zilo-danger"><%= error %></div>
     <% } %>

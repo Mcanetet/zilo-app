@@ -19,7 +19,10 @@
     </div>
   </header>
 
-  <main class="flex-1 px-5 py-5 space-y-4">
+  <main class="flex-1 px-5 py-5 space-y-4 pb-28">
+    <%- include('../partials/checkout-progress', { checkoutStep: 2 }) %>
+    <%- include('../partials/trust-strip', { trustStats: typeof trustStats !== 'undefined' ? trustStats : {} }) %>
+
     <div class="zilo-card-premium rounded-2xl p-5">
       <p class="text-xs text-zilo-muted mb-1"><%= request.address %></p>
       <% if (request.urgencyTierLabel) { %>
@@ -192,6 +195,16 @@
     </button>
     <a href="/cliente" class="block text-center text-sm text-zilo-muted hover:text-gray-700 py-2">Cancelar</a>
   </main>
+
+  <div id="stickyCheckoutBar" class="sticky-order-bar is-visible">
+    <div class="sticky-order-inner max-w-lg mx-auto">
+      <div class="min-w-0">
+        <p class="text-[10px] text-zilo-muted uppercase tracking-wide">Total a pagar</p>
+        <strong class="text-zilo-accent text-base" id="stickyCheckoutTotal"><%= formatCLP(summary.amountDue) %></strong>
+      </div>
+      <button type="button" id="btnPaySticky" class="sticky-order-btn">Pagar ahora</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -308,6 +321,8 @@
       if (s.urgencyTierLabel) document.getElementById('lineUrgencyLabel').textContent = s.urgencyTierLabel;
     }
     document.getElementById('lineTotal').textContent = fmt(s.amountDue);
+    const stickyTotal = document.getElementById('stickyCheckoutTotal');
+    if (stickyTotal) stickyTotal.textContent = fmt(s.amountDue);
     updatePayLabel(s.amountDue);
 
     const show = (id, val) => {
@@ -326,6 +341,7 @@
 
   btnPay.addEventListener('click', async () => {
     btnPay.disabled = true;
+    document.getElementById('btnPaySticky')?.setAttribute('disabled', 'disabled');
     const code = promoCode.value.trim() || (usePromo?.checked ? 'BIENVENIDO' : '');
     const res = await fetch('/pagos/crear', {
       method: 'POST',
@@ -342,6 +358,7 @@
     });
     const data = await res.json();
     btnPay.disabled = false;
+    document.getElementById('btnPaySticky')?.removeAttribute('disabled');
     if (!data.success) {
       FundezNotify.show(data.error || 'Error', 'error');
       return;
@@ -352,6 +369,8 @@
   });
 
   recalc();
+
+  document.getElementById('btnPaySticky')?.addEventListener('click', () => btnPay.click());
 })();
 </script>
 

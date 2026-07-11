@@ -30,6 +30,28 @@
       linkText: 'Abrir guía del cliente'
     }) %>
 
+    <% if (typeof trustStats !== 'undefined') { %>
+    <div class="mb-5 zilo-page-enter-delay-1">
+      <%- include('../partials/trust-strip', { trustStats }) %>
+    </div>
+    <% } %>
+
+    <% if (typeof lastCompleted !== 'undefined' && lastCompleted && mod('client_solicitar')) { %>
+    <a href="/cliente/servicio/<%= lastCompleted.serviceId %>" class="block zilo-card-premium rounded-2xl p-4 mb-5 border border-emerald-500/20 bg-emerald-50/50 hover:border-emerald-500/35 transition">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="zilo-label mb-0.5">Repetir servicio</p>
+          <strong class="text-sm block truncate"><%= lastCompleted.serviceName %></strong>
+          <span class="text-xs text-zilo-muted">Un toque para solicitar de nuevo</span>
+        </div>
+        <svg class="w-5 h-5 text-zilo-muted shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </a>
+    <% } %>
+
     <% if (typeof passport !== 'undefined' && passport && mod('client_pasaporte')) { %>
     <a href="/cliente/hogar" data-tour="passport" class="block zilo-card-premium rounded-2xl p-4 mb-5 border border-zilo-accent/15 hover:border-zilo-accent/30 transition">
       <div class="flex items-center gap-4">
@@ -111,7 +133,7 @@
             <div>
               <strong class="text-sm block"><%= req.serviceName %></strong>
               <% if (req.isGift) { %><span class="text-[10px] text-zilo-accent">Regalo · <%= req.beneficiaryName %></span><% } %>
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase bg-zilo-accent/10 text-zilo-accent inline-block mt-1"><%= req.status %></span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-zilo-accent/10 text-zilo-accent inline-block mt-1"><%= req.statusLabel || req.status %></span>
             </div>
             <svg class="w-5 h-5 text-zilo-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
           </a>

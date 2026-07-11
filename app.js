@@ -24,6 +24,8 @@ const legalRoutes = require('./routes/legal');
 const trackingRoutes = require('./routes/tracking');
 const documentosRoutes = require('./routes/documentos');
 const langRoutes = require('./routes/lang');
+const alandRoutes = require('./routes/aland');
+const aland = require('./lib/aland');
 
 const app = express();
 const server = http.createServer(app);
@@ -122,6 +124,7 @@ app.use('/legal', legalRoutes);
 app.use('/seguimiento', trackingRoutes);
 app.use('/documentos', documentosRoutes);
 app.use('/lang', langRoutes);
+app.use('/aland', alandRoutes);
 
 app.use((req, res, next) => {
   if (store.isReady() || req.path === '/health') return next();
@@ -160,6 +163,13 @@ io.on('connection', (socket) => {
     dispatchPendingToTechnician(io, tecnicoId);
   });
 
+  socket.on('aland_join', ({ conversationId, clientId, providerId, admin }) => {
+    if (conversationId) socket.join(`aland_conv_${conversationId}`);
+    if (clientId) socket.join(`aland_client_${clientId}`);
+    if (providerId) socket.join(`aland_provider_${providerId}`);
+    if (admin) socket.join('aland_admin');
+  });
+
   socket.on('disconnect', () => {
     if (socket.providerId) {
       store.providerSockets.delete(socket.providerId);
@@ -194,6 +204,10 @@ async function initDatabase() {
     try {
       await store.init();
       global.__ziloInitError = null;
+      await aland.ensureConfig();
+      await aland.syncKnowledgeFromApp(store);
+      await backup.ensureStartupBackup(store);
+      aland.startEscalationWatcher(store, io);
       backup.startBackupScheduler(store, (event, detail) => {
         store.logSecurityEvent(event, detail, null);
       });

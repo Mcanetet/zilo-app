@@ -5,8 +5,30 @@
 
   <%- include('../partials/back-header', { backUrl: '/proveedor', label: 'Perfil profesional', title: 'Mi perfil' }) %>
 
-  <main class="flex-1 px-5 py-5 space-y-5">
-    <div class="text-center py-4">
+  <main class="flex-1 px-5 py-5 space-y-5 pb-10">
+    <% 
+      const vItems = [
+        provider.phone, provider.email,
+        provider.verification?.idCardFront,
+        provider.verification?.idCardBack,
+        provider.verification?.faceVerified,
+        provider.locationShare?.consent
+      ];
+      const vDone = vItems.filter(Boolean).length;
+      const vPct = Math.round((vDone / vItems.length) * 100);
+    %>
+    <div class="p-4 rounded-2xl zilo-card-premium">
+      <div class="flex justify-between items-center mb-2">
+        <p class="zilo-label mb-0">Progreso de verificación</p>
+        <span class="text-xs font-semibold text-zilo-accent"><%= vPct %>%</span>
+      </div>
+      <div class="h-2 rounded-full bg-zilo-border overflow-hidden">
+        <div class="h-full rounded-full bg-gradient-to-r from-zilo-accent to-zilo-success transition-all" style="width:<%= vPct %>%"></div>
+      </div>
+      <p class="text-[10px] text-zilo-muted mt-2"><%= vDone %> de <%= vItems.length %> requisitos completados</p>
+    </div>
+
+    <div class="text-center py-2">
       <div class="w-20 h-20 mx-auto rounded-2xl zilo-card-premium flex items-center justify-center text-xl font-semibold text-zilo-accent border border-zilo-accent/25 mb-3" id="avatarDisplay"><%= provider.avatar %></div>
       <h2 class="zilo-display text-2xl" id="nameDisplay"><%= provider.name %></h2>
       <span id="verificationStatusBadge" class="zilo-badge mt-2 <%= provider.verification?.status === 'verified' ? 'zilo-badge-success' : '' %>">

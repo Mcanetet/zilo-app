@@ -29,6 +29,7 @@ const SEED_MODULES = [
   { id: 'client_promos', audience: 'client', name: 'Promociones', description: 'Banners de promos en el inicio del cliente', sortOrder: 8, enabled: true },
   { id: 'client_historial', audience: 'client', name: 'Historial', description: 'Ver servicios anteriores del cliente', sortOrder: 9, enabled: true },
   { id: 'client_whatsapp', audience: 'client', name: 'Concierge WhatsApp', description: 'Botón flotante de soporte por WhatsApp', sortOrder: 10, enabled: true },
+  { id: 'client_aland', audience: 'client', name: 'Chat Aland IA', description: 'Asistente IA por servicio antes de solicitar visita', sortOrder: 11, enabled: true },
   { id: 'provider_online', audience: 'provider', name: 'Modo en línea', description: 'Activar disponibilidad para recibir trabajos', sortOrder: 1, enabled: true },
   { id: 'provider_aceptar', audience: 'provider', name: 'Aceptar solicitudes', description: 'Modal de nuevas solicitudes entrantes', sortOrder: 2, enabled: true },
   { id: 'provider_equipo', audience: 'provider', name: 'Gestión de técnicos', description: 'Crear y administrar subusuarios técnicos', sortOrder: 3, enabled: true },
@@ -36,7 +37,14 @@ const SEED_MODULES = [
   { id: 'provider_verificacion', audience: 'provider', name: 'Verificación KYC', description: 'Carnet, selfie y consentimiento de ubicación', sortOrder: 5, enabled: true },
   { id: 'provider_ubicacion', audience: 'provider', name: 'Ubicación en tiempo real', description: 'Compartir GPS durante el servicio', sortOrder: 6, enabled: true },
   { id: 'provider_perfil', audience: 'provider', name: 'Perfil público', description: 'Editar datos visibles para clientes', sortOrder: 7, enabled: true },
-  { id: 'provider_contrato', audience: 'provider', name: 'Contrato de socio', description: 'Firma del contrato de prestación y documentos legales', sortOrder: 8, enabled: true }
+  { id: 'provider_contrato', audience: 'provider', name: 'Contrato de socio', description: 'Firma del contrato de prestación y documentos legales', sortOrder: 8, enabled: true },
+  { id: 'provider_mensajes', audience: 'provider', name: 'Mensajes Aland IA', description: 'Consultas derivadas por Aland IA desde clientes', sortOrder: 9, enabled: true }
+];
+
+const SEED_PROMOS = [
+  { id: 'first', title: '20% en tu 1er servicio', desc: 'Código BIENVENIDO al pagar', code: 'BIENVENIDO', color: '#B8956B', sortOrder: 1, enabled: true },
+  { id: 'refer', title: 'Invita y gana $5.000', desc: 'Tú y tu amigo reciben crédito', code: null, color: '#8B7355', sortOrder: 2, enabled: true },
+  { id: 'gift', title: 'Regala un servicio', desc: 'Modo Guardián para tu familia', code: null, color: '#A67C52', sortOrder: 3, enabled: true }
 ];
 
 function defaultProviderVerification() {
@@ -362,6 +370,18 @@ function rowToModule(row) {
   };
 }
 
+function rowToPromo(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    desc: row.description,
+    code: row.code,
+    color: row.color,
+    sortOrder: row.sort_order || 0,
+    enabled: Boolean(row.enabled)
+  };
+}
+
 function rowToRequest(row) {
   const payload = parseJson(row.payload, {});
   return {
@@ -432,13 +452,19 @@ async function upsertSeedUser(user) {
 
 async function ensureDemoServices() {
   for (const service of SEED_SERVICES) {
-    await saveService(service);
+    await saveService(service, { preserveEnabled: true });
   }
 }
 
 async function ensureDemoModules() {
   for (const mod of SEED_MODULES) {
     await saveModule(mod, { preserveEnabled: true });
+  }
+}
+
+async function ensureDemoPromos() {
+  for (const promo of SEED_PROMOS) {
+    await savePromo(promo, { preserveEnabled: true });
   }
 }
 
@@ -469,8 +495,6 @@ async function ensureAdminAccount() {
   const byId = await db.query('SELECT * FROM users WHERE id = ? LIMIT 1', [seed.id]);
 
   let row = byEmail.rows[0] || byId.rows[0];
-  // Mantener accesible la cuenta bootstrap del admin en cada arranque
-  let syncPassword = true;
 
   if (!row) {
     await saveUser({
@@ -487,15 +511,23 @@ async function ensureAdminAccount() {
     return;
   }
 
-  const sets = ['email = ?', 'name = ?', "role = 'admin'", 'active = 1', 'admin_access = ?'];
-  const params = [seed.email, seed.name, adminAccessJson];
+  await db.query(
+    `UPDATE users SET role = 'admin', active = 1,
+      admin_access = COALESCE(admin_access, ?),
+      email = COALESCE(NULLIF(email, ''), ?),
+      name = COALESCE(NULLIF(name, ''), ?)
+     WHERE id = ?`,
+    [adminAccessJson, seed.email, seed.name, row.id]
+  );
+
+  const syncPassword = process.env.ADMIN_SYNC_PASSWORD === '1' || process.env.ADMIN_SYNC_PASSWORD === 'true';
   if (syncPassword) {
-    sets.push('password = ?');
-    params.push(hashed);
+    await db.query('UPDATE users SET password = ? WHERE id = ?', [hashed, row.id]);
+    console.log(`✓ Cuenta admin verificada (${seed.email}) — contraseña sincronizada desde ADMIN_PASSWORD`);
+    return;
   }
-  params.push(row.id);
-  await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
-  console.log(`✓ Cuenta admin sincronizada (${seed.email}${syncPassword ? ', contraseña actualizada' : ''})`);
+
+  console.log(`✓ Cuenta admin verificada (${seed.email}) — datos existentes conservados`);
 }
 
 async function resetAdminPassword(plainPassword) {
@@ -530,7 +562,10 @@ async function ensureDemoUsers() {
   await ensureAdminAccount();
   for (const user of SEED_USERS) {
     if (user.role === 'admin') continue;
-    await upsertSeedUser(user);
+    const exists = await db.query('SELECT id FROM users WHERE id = ? LIMIT 1', [user.id]);
+    if (exists.rows.length) continue;
+    const hashed = await hashPassword(user.password);
+    await saveUser({ ...user, password: hashed });
   }
 }
 
@@ -576,15 +611,16 @@ async function ensureDemoExtras() {
   }
 }
 
-/** Garantiza usuarios demo (cliente, proveedores, admin) aunque la BD ya tenga datos */
+/** Garantiza catálogo y cuenta admin sin sobrescribir datos de producción */
 async function ensureDemoData() {
-  console.log('Verificando datos demo en MySQL...');
+  console.log('Verificando datos en MySQL (modo conservador)...');
   await ensureDemoServices();
   await ensureDemoModules();
+  await ensureDemoPromos();
   await ensureDemoPricing();
   await ensureDemoUsers();
   await ensureDemoExtras();
-  console.log(`✓ ${SEED_USERS.length} usuarios demo listos (${SEED_USERS.map((u) => u.email).join(', ')})`);
+  console.log('✓ Catálogo verificado — historial de pagos y datos existentes conservados');
   return true;
 }
 
@@ -593,21 +629,20 @@ async function seedIfEmpty() {
   return ensureDemoData();
 }
 
-async function loadAll() {
-  const [usersRes, servicesRes, modulesRes, pricingRes, requestsRes, logbookRes, complaintsRes, chatsRes, consentsRes, logsRes, notifRes] = await Promise.all([
-    db.query('SELECT * FROM users ORDER BY created_at ASC'),
-    db.query('SELECT * FROM services ORDER BY name ASC'),
-    db.query('SELECT * FROM modules ORDER BY audience ASC, sort_order ASC'),
-    db.query('SELECT * FROM pricing_config WHERE id = ?', ['default']).catch(() => ({ rows: [] })),
-    db.query('SELECT * FROM service_requests ORDER BY created_at DESC'),
-    db.query('SELECT * FROM home_logbook ORDER BY entry_date DESC'),
-    db.query('SELECT * FROM complaints ORDER BY created_at DESC'),
-    db.query('SELECT * FROM chats ORDER BY updated_at DESC'),
-    db.query('SELECT * FROM consent_records ORDER BY created_at DESC'),
-    db.query('SELECT * FROM security_logs ORDER BY created_at DESC LIMIT 200'),
-    db.query('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 300').catch(() => ({ rows: [] }))
-  ]);
-
+function mapLoadedRows({
+  usersRes,
+  servicesRes,
+  modulesRes,
+  promosRes,
+  pricingRes,
+  requestsRes,
+  logbookRes,
+  complaintsRes,
+  chatsRes,
+  consentsRes,
+  logsRes,
+  notifRes
+}) {
   let pricing = DEFAULT_PRICING;
   if (pricingRes.rows?.[0]?.config) {
     pricing = normalizePricing(parseJson(pricingRes.rows[0].config, DEFAULT_PRICING));
@@ -617,6 +652,7 @@ async function loadAll() {
     users: usersRes.rows.map(rowToUser),
     services: servicesRes.rows.map(rowToService),
     modules: modulesRes.rows.map(rowToModule),
+    promos: (promosRes?.rows || []).map(rowToPromo),
     pricing,
     requests: requestsRes.rows.map(rowToRequest),
     homeLogbook: logbookRes.rows.map((row) => ({
@@ -663,7 +699,7 @@ async function loadAll() {
       userAgent: row.user_agent,
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : null
     })),
-    securityLogs: logsRes.rows.map((row) => ({
+    securityLogs: (logsRes.rows || []).map((row) => ({
       id: row.id,
       event: row.event,
       detail: row.detail,
@@ -686,6 +722,60 @@ async function loadAll() {
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : null
     }))
   };
+}
+
+async function fetchDataRows({ logsLimit = 200, notifLimit = 300, includeSecurityLogs = true } = {}) {
+  const logsQuery = !includeSecurityLogs
+    ? Promise.resolve({ rows: [] })
+    : logsLimit == null
+      ? db.query('SELECT * FROM security_logs ORDER BY created_at DESC')
+      : db.query(`SELECT * FROM security_logs ORDER BY created_at DESC LIMIT ${Math.max(1, logsLimit)}`);
+
+  const notifQuery = notifLimit == null
+    ? db.query('SELECT * FROM notifications ORDER BY created_at DESC').catch(() => ({ rows: [] }))
+    : db.query(`SELECT * FROM notifications ORDER BY created_at DESC LIMIT ${Math.max(1, notifLimit)}`).catch(() => ({ rows: [] }));
+
+  const [usersRes, servicesRes, modulesRes, promosRes, pricingRes, requestsRes, logbookRes, complaintsRes, chatsRes, consentsRes, logsRes, notifRes] = await Promise.all([
+    db.query('SELECT * FROM users ORDER BY created_at ASC'),
+    db.query('SELECT * FROM services ORDER BY name ASC'),
+    db.query('SELECT * FROM modules ORDER BY audience ASC, sort_order ASC'),
+    db.query('SELECT * FROM promos ORDER BY sort_order ASC, title ASC').catch(() => ({ rows: [] })),
+    db.query('SELECT * FROM pricing_config WHERE id = ?', ['default']).catch(() => ({ rows: [] })),
+    db.query('SELECT * FROM service_requests ORDER BY created_at DESC'),
+    db.query('SELECT * FROM home_logbook ORDER BY entry_date DESC'),
+    db.query('SELECT * FROM complaints ORDER BY created_at DESC'),
+    db.query('SELECT * FROM chats ORDER BY updated_at DESC'),
+    db.query('SELECT * FROM consent_records ORDER BY created_at DESC'),
+    logsQuery,
+    notifQuery
+  ]);
+
+  return {
+    usersRes,
+    servicesRes,
+    modulesRes,
+    promosRes,
+    pricingRes,
+    requestsRes,
+    logbookRes,
+    complaintsRes,
+    chatsRes,
+    consentsRes,
+    logsRes,
+    notifRes
+  };
+}
+
+async function loadAll() {
+  return mapLoadedRows(await fetchDataRows({ logsLimit: null, notifLimit: null, includeSecurityLogs: true }));
+}
+
+async function loadAllForBackup({ includeSecurityLogs = true } = {}) {
+  return mapLoadedRows(await fetchDataRows({
+    logsLimit: includeSecurityLogs ? null : 0,
+    notifLimit: null,
+    includeSecurityLogs
+  }));
 }
 
 async function saveUser(user) {
@@ -740,7 +830,10 @@ async function saveUser(user) {
   );
 }
 
-async function saveService(service) {
+async function saveService(service, { preserveEnabled = false } = {}) {
+  const updateEnabled = preserveEnabled
+    ? ''
+    : ', enabled = VALUES(enabled)';
   await db.query(
     `INSERT INTO services (id, name, icon, color, visit_price, basic_min, basic_max, description, enabled)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -751,8 +844,7 @@ async function saveService(service) {
        visit_price = VALUES(visit_price),
        basic_min = VALUES(basic_min),
        basic_max = VALUES(basic_max),
-       description = VALUES(description),
-       enabled = VALUES(enabled)`,
+       description = VALUES(description)${updateEnabled}`,
     [service.id, service.name, service.icon, service.color, service.visitPrice, service.basicMin, service.basicMax, service.description, service.enabled ? 1 : 0]
   );
 }
@@ -769,6 +861,31 @@ async function saveModule(mod, { preserveEnabled = false } = {}) {
        description = VALUES(description),
        sort_order = VALUES(sort_order)${updateEnabled}`,
     [mod.id, mod.audience, mod.name, mod.description || null, mod.sortOrder || 0, mod.enabled ? 1 : 0]
+  );
+}
+
+async function savePromo(promo, { preserveEnabled = false } = {}) {
+  const updateEnabled = preserveEnabled
+    ? ''
+    : ', enabled = VALUES(enabled)';
+  await db.query(
+    `INSERT INTO promos (id, title, description, code, color, sort_order, enabled)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       title = VALUES(title),
+       description = VALUES(description),
+       code = VALUES(code),
+       color = VALUES(color),
+       sort_order = VALUES(sort_order)${updateEnabled}`,
+    [
+      promo.id,
+      promo.title,
+      promo.desc || promo.description || null,
+      promo.code || null,
+      promo.color || null,
+      promo.sortOrder || 0,
+      promo.enabled !== false ? 1 : 0
+    ]
   );
 }
 
@@ -895,7 +1012,9 @@ async function restoreFromSnapshot(snapshot) {
     complaints: 0,
     chats: 0,
     consents: 0,
-    securityLogs: 0
+    securityLogs: 0,
+    notifications: 0,
+    promos: 0
   };
 
   for (const service of snapshot.services || []) {
@@ -910,6 +1029,11 @@ async function restoreFromSnapshot(snapshot) {
 
   if (snapshot.pricing) {
     await savePricingConfig(snapshot.pricing);
+  }
+
+  for (const promo of snapshot.promos || []) {
+    await savePromo(promo);
+    stats.promos++;
   }
 
   for (const user of snapshot.users || []) {
@@ -947,6 +1071,11 @@ async function restoreFromSnapshot(snapshot) {
     stats.securityLogs++;
   }
 
+  for (const notification of snapshot.notifications || []) {
+    await saveNotification(notification);
+    stats.notifications++;
+  }
+
   return stats;
 }
 
@@ -965,9 +1094,11 @@ module.exports = {
   getAdminSeedConfig,
   seedIfEmpty,
   loadAll,
+  loadAllForBackup,
   saveUser,
   saveService,
   saveModule,
+  savePromo,
   savePricingConfig,
   saveRequest,
   saveLogbookEntry,

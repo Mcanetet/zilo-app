@@ -1053,3 +1053,153 @@
   z-index: 2;
   background: transparent;
 }
+
+/* ── Client UX: trust, funnel, sticky CTA ── */
+.trust-strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+  margin-bottom: 1rem;
+}
+.trust-strip::-webkit-scrollbar { display: none; }
+.trust-strip-item {
+  flex: 1 0 140px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.875rem;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid var(--zilo-border);
+  font-size: 0.625rem;
+  color: var(--zilo-muted);
+  line-height: 1.35;
+}
+.trust-strip-item strong {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--zilo-text);
+  margin-bottom: 0.125rem;
+}
+.trust-strip-icon { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+
+.checkout-progress { margin-bottom: 1rem; }
+.checkout-progress-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+.checkout-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 4.5rem;
+}
+.checkout-progress-dot {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: #F2F4F7;
+  color: var(--zilo-muted);
+  border: 2px solid var(--zilo-border);
+  transition: all 0.25s ease;
+}
+.checkout-progress-step.is-active .checkout-progress-dot {
+  background: var(--zilo-accent);
+  color: #fff;
+  border-color: var(--zilo-accent);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.checkout-progress-step.is-done .checkout-progress-dot {
+  background: var(--zilo-success);
+  color: #fff;
+  border-color: var(--zilo-success);
+}
+.checkout-progress-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--zilo-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.checkout-progress-step.is-active .checkout-progress-label { color: var(--zilo-accent); }
+.checkout-progress-step.is-done .checkout-progress-label { color: var(--zilo-success); }
+.checkout-progress-line {
+  flex: 1;
+  height: 2px;
+  max-width: 2.5rem;
+  background: var(--zilo-border);
+  margin-bottom: 1.125rem;
+  transition: background 0.25s;
+}
+.checkout-progress-line.is-done { background: var(--zilo-success); }
+
+.sticky-order-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--zilo-border);
+  box-shadow: 0 -8px 32px rgba(16,24,40,0.08);
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease;
+  pointer-events: none;
+}
+.sticky-order-bar.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.sticky-order-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.sticky-order-btn {
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #fff;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  box-shadow: 0 4px 14px rgba(37,99,235,0.28);
+  transition: transform 0.2s, opacity 0.2s;
+}
+.sticky-order-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.sticky-order-btn:active:not(:disabled) { transform: scale(0.98); }
+
+.provider-workflow .checkout-progress-step { min-width: 3.5rem; }
+.provider-workflow .checkout-progress-line { max-width: 1.75rem; }
+.provider-wall-card { transition: border-color 0.2s, transform 0.2s; }
+.provider-wall-card:hover { border-color: rgba(37,99,235,0.35); transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .zilo-page-enter,
+  .zilo-page-enter-delay-1,
+  .zilo-page-enter-delay-2,
+  .zilo-page-enter-delay-3,
+  .sticky-order-bar,
+  .toast,
+  .guardian-pulse,
+  .trip-step.active .trip-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}

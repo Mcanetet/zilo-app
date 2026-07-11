@@ -1,0 +1,24 @@
+<% const stats = typeof trustStats !== 'undefined' ? trustStats : {}; %>
+<div class="trust-strip" role="region" aria-label="Garantías Fundez">
+  <div class="trust-strip-item">
+    <span class="trust-strip-icon" aria-hidden="true">🛡️</span>
+    <div>
+      <strong>Técnicos verificados</strong>
+      <span><%= stats.verifiedProviders || '100' %>% identidad confirmada</span>
+    </div>
+  </div>
+  <div class="trust-strip-item">
+    <span class="trust-strip-icon" aria-hidden="true">⭐</span>
+    <div>
+      <strong><%= stats.avgRating || '4.9' %> promedio</strong>
+      <span><%= stats.completedServices ? stats.completedServices.toLocaleString('es-CL') + '+' : '1.200+' %> servicios</span>
+    </div>
+  </div>
+  <div class="trust-strip-item">
+    <span class="trust-strip-icon" aria-hidden="true">⚡</span>
+    <div>
+      <strong>Asignación <%= stats.responseTime || '~45 min' %></strong>
+      <span>Santiago y alrededores</span>
+    </div>
+  </div>
+</div>

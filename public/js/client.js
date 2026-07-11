@@ -90,6 +90,9 @@
       document.getElementById('displayServicePrice').textContent = f.servicePrice;
       document.getElementById('displayTotalPrice').textContent = f.estimatedTotal;
 
+      const stickyTotal = document.getElementById('stickyTotal');
+      if (stickyTotal) stickyTotal.textContent = f.estimatedTotal;
+
       const adjRow = document.getElementById('urgencyAdjustmentRow');
       if (adjRow) {
         if (p.adjustmentAmount !== 0) {
@@ -190,12 +193,34 @@
   function advanceTripStep(step) {
     document.querySelectorAll('.trip-step').forEach(el => {
       el.classList.remove('active');
-      if (['paid','assigned'].includes(el.dataset.step) || el.dataset.step === step) el.classList.add('done');
+      const ds = el.dataset.step;
+      if (ds === 'paid' || ds === 'assigned') el.classList.add('done');
+      else el.classList.remove('done');
+    });
+    const order = ['paid', 'assigned', 'enroute', 'arrived'];
+    const idx = order.indexOf(step);
+    order.slice(0, idx).forEach(s => {
+      const el = document.querySelector(`.trip-step[data-step="${s}"]`);
+      if (el) el.classList.add('done');
     });
     const current = document.querySelector(`.trip-step[data-step="${step}"]`);
     if (current) { current.classList.add('active'); current.classList.remove('done'); }
-    if (step === 'enroute') document.getElementById('tripEta').textContent = 'ETA ~12 min';
-    if (step === 'arrived') document.getElementById('tripEta').textContent = '¡Ha llegado!';
+    const etaEl = document.getElementById('tripEta');
+    if (!etaEl) return;
+    if (step === 'enroute') etaEl.textContent = 'En camino a tu domicilio';
+    if (step === 'arrived') etaEl.textContent = '¡Ha llegado!';
+  }
+
+  function syncTripFromRequest(request) {
+    if (!request) return;
+    const ts = request.techStatus;
+    if (['diagnostico', 'reparando', 'comprando', 'presupuesto_pendiente', 'presupuesto_aprobado', 'completado'].includes(ts)) {
+      advanceTripStep('arrived');
+    } else if (ts === 'en_camino' || ts === 'en_sitio') {
+      advanceTripStep('enroute');
+    } else if (ts === 'aceptado' || ts === 'asignado' || request.providerId) {
+      advanceTripStep('assigned');
+    }
   }
 
   function renderVerificationBadges(provider) {
@@ -273,8 +298,7 @@
     const waMsg = encodeURIComponent(`Hola Fundez, tengo un servicio en curso con ${provider.name}. Necesito ayuda.`);
     document.getElementById('whatsappSupport').href = `https://wa.me/${waNum.replace(/\D/g, '')}?text=${waMsg}`;
 
-    setTimeout(() => advanceTripStep('enroute'), 8000);
-    setTimeout(() => advanceTripStep('arrived'), 20000);
+    if (request) syncTripFromRequest(request);
 
     document.getElementById('reviewsList').innerHTML = provider.reviews.map(r => `
       <div class="p-3 rounded-xl bg-zilo-bg">
@@ -338,12 +362,7 @@
         showProvider(payload.provider, payload.request);
       } else if (payload.request) {
         showBudgetBanner(payload.request);
-        if (payload.request.techStatus === 'en_camino' || payload.request.techStatus === 'en_sitio') {
-          advanceTripStep('enroute');
-        }
-        if (['diagnostico', 'reparando', 'comprando'].includes(payload.request.techStatus)) {
-          advanceTripStep('arrived');
-        }
+        syncTripFromRequest(payload.request);
       }
     });
     socket.on(`provider_location_${requestId}`, (payload) => {
@@ -362,7 +381,7 @@
     pollForProvider(requestId);
   }
 
-  btnRequest.addEventListener('click', async () => {
+  async function submitRequest() {
     const address = addressInput.value.trim();
     if (!address) {
       addressInput.focus();
@@ -388,6 +407,8 @@
 
     btnRequest.disabled = true;
     btnRequest.textContent = 'Procesando...';
+    const stickyBtn = document.getElementById('btnRequestSticky');
+    if (stickyBtn) stickyBtn.disabled = true;
 
     try {
       if (!latInput.value) await geocodeAddress();
@@ -416,7 +437,22 @@
     } catch (err) {
       btnRequest.disabled = false;
       btnRequest.textContent = 'Continuar al pago';
+      if (stickyBtn) stickyBtn.disabled = false;
       FundezNotify.show(err.message || 'Error al procesar', 'error');
     }
-  });
+  }
+
+  btnRequest.addEventListener('click', submitRequest);
+  document.getElementById('btnRequestSticky')?.addEventListener('click', submitRequest);
+
+  const stickyBar = document.getElementById('stickyOrderBar');
+  const requestFormEl = document.getElementById('requestForm');
+  if (stickyBar && requestFormEl && !trackingId) {
+    const observer = new IntersectionObserver(([entry]) => {
+      const visible = !entry.isIntersecting;
+      stickyBar.classList.toggle('is-visible', visible);
+      stickyBar.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    }, { threshold: 0, rootMargin: '0px 0px -80px 0px' });
+    observer.observe(requestFormEl);
+  }
 })();

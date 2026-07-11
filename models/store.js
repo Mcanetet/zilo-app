@@ -52,6 +52,7 @@ let CHATS = [];
 let consentRecords = [];
 let securityLogs = [];
 let notifications = [];
+let PROMOS = [];
 let initialized = false;
 
 function afterEvent(run) {
@@ -93,6 +94,7 @@ async function init() {
   consentRecords = data.consentRecords;
   securityLogs = data.securityLogs;
   notifications = data.notifications || [];
+  PROMOS = data.promos || [];
   initialized = true;
   const events = require('../lib/events');
   events.init(module.exports);
@@ -261,11 +263,9 @@ function applyReferralCode(userId, code) {
   return { success: true, bonus: 5000 };
 }
 
-const PROMOS = [
-  { id: 'first', title: '20% en tu 1er servicio', desc: 'Código BIENVENIDO al pagar', code: 'BIENVENIDO', color: '#B8956B' },
-  { id: 'refer', title: 'Invita y gana $5.000', desc: 'Tú y tu amigo reciben crédito', code: null, color: '#8B7355' },
-  { id: 'gift', title: 'Regala un servicio', desc: 'Modo Guardián para tu familia', code: null, color: '#A67C52' }
-];
+function getActivePromos() {
+  return PROMOS.filter((p) => p.enabled !== false);
+}
 
 function getCheckoutSummary(userId, requestId) {
   const user = getUserById(userId);
@@ -1610,6 +1610,185 @@ function getRequestsByClient(clientId) {
   return requests.filter(r => r.clientId === clientId);
 }
 
+const REQUEST_STATUS_LABELS = {
+  pending_payment: 'Pago pendiente',
+  pending: 'Pago pendiente',
+  pending_transfer: 'Transferencia pendiente',
+  searching: 'Buscando técnico',
+  assigned: 'Técnico asignado',
+  in_progress: 'En curso',
+  completed: 'Completado',
+  cancelled: 'Cancelado'
+};
+
+function getRequestStatusLabel(request) {
+  if (!request) return '—';
+  if (request.techStatus === 'en_camino') return 'En camino';
+  if (request.techStatus === 'en_sitio' || request.techStatus === 'diagnostico') return 'En sitio';
+  if (request.techStatus === 'presupuesto_pendiente') return 'Presupuesto pendiente';
+  return REQUEST_STATUS_LABELS[request.status] || request.status;
+}
+
+function enrichRequestForClient(request) {
+  if (!request) return null;
+  return {
+    ...request,
+    statusLabel: getRequestStatusLabel(request)
+  };
+}
+
+function getActiveRequestsForClient(clientId) {
+  return requests
+    .filter(r => r.clientId === clientId && ['searching', 'assigned', 'in_progress'].includes(r.status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5)
+    .map(enrichRequestForClient);
+}
+
+function getLastCompletedRequest(clientId) {
+  const completed = requests
+    .filter(r => r.clientId === clientId && r.status === 'completed')
+    .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
+  return completed[0] ? enrichRequestForClient(completed[0]) : null;
+}
+
+function getClientTrustStats() {
+  const providers = USERS.filter(u => u.role === 'provider');
+  const completed = requests.filter(r => r.status === 'completed').length;
+  const avgRating = providers.length
+    ? (providers.reduce((s, p) => s + (p.rating || 0), 0) / providers.length).toFixed(1)
+    : '4.9';
+  const verified = providers.filter(p => p.verification?.faceVerified || p.verification?.status === 'verified').length;
+  return {
+    completedServices: Math.max(completed, 120),
+    avgRating,
+    verifiedProviders: providers.length ? Math.round((verified / providers.length) * 100) : 100,
+    responseTime: '~45 min'
+  };
+}
+
+function submitClientReview(requestId, clientId, { rating, text }) {
+  const request = requests.find(r => r.id === requestId && r.clientId === clientId);
+  if (!request) return { error: 'Solicitud no encontrada' };
+  if (request.status !== 'completed') return { error: 'Solo puedes calificar servicios completados' };
+  if (request.clientReview) return { error: 'Ya calificaste este servicio' };
+
+  const stars = Math.min(5, Math.max(1, parseInt(rating, 10) || 0));
+  if (!stars) return { error: 'Selecciona una calificación' };
+
+  const provider = request.providerId ? getUserById(request.providerId) : null;
+  const client = getUserById(clientId);
+  const reviewText = (text || '').trim().slice(0, 500);
+
+  if (provider) {
+    const nameParts = (client?.name || 'Cliente').split(' ');
+    const author = nameParts.length > 1
+      ? `${nameParts[0]} ${nameParts[1][0]}.`
+      : nameParts[0];
+    const review = {
+      author,
+      rating: stars,
+      text: reviewText || 'Servicio completado vía Fundez',
+      date: new Date().toISOString().slice(0, 10)
+    };
+    provider.reviews = [review, ...(provider.reviews || [])].slice(0, 50);
+    provider.reviewsCount = (provider.reviewsCount || 0) + 1;
+    const ratings = provider.reviews.map(r => r.rating);
+    provider.rating = Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10;
+    repository.persist(() => repository.saveUser(provider), `proveedor ${provider.id}`);
+  }
+
+  request.clientReview = {
+    rating: stars,
+    text: reviewText,
+    at: new Date().toISOString()
+  };
+  repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+
+  if (client) {
+    client.ziloPoints = (client.ziloPoints || 0) + 25;
+    repository.persist(() => repository.saveUser(client), `usuario ${client.id}`);
+  }
+
+  return { success: true, review: request.clientReview };
+}
+
+function getTechStatusLabel(techStatus) {
+  const map = {
+    aceptado: 'Aceptado',
+    asignado: 'Técnico asignado',
+    en_camino: 'En camino',
+    en_sitio: 'En sitio',
+    diagnostico: 'Diagnóstico',
+    reparando: 'Reparando',
+    comprando: 'Comprando materiales',
+    presupuesto_pendiente: 'Presupuesto pendiente',
+    presupuesto_aprobado: 'Presupuesto aprobado',
+    completado: 'Completado'
+  };
+  return map[techStatus] || null;
+}
+
+function enrichRequestForProvider(request) {
+  if (!request) return null;
+  return {
+    ...request,
+    statusLabel: getRequestStatusLabel(request),
+    techStatusLabel: getTechStatusLabel(request.techStatus) || getRequestStatusLabel(request)
+  };
+}
+
+function getProviderPayoutSummary(providerId) {
+  const row = getProviderPayouts().find(p => p.provider.id === providerId);
+  if (!row) return { pending: 0, paid: 0, jobs: 0, completed: 0 };
+  return { pending: row.pending, paid: row.paid, jobs: row.jobs, completed: row.completed };
+}
+
+function getActiveRequestsForProvider(providerId) {
+  return requests
+    .filter(r => r.providerId === providerId && ['assigned', 'in_progress'].includes(r.status))
+    .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt))
+    .map(enrichRequestForProvider);
+}
+
+function getProviderDashboardStats(providerId) {
+  const provider = getUserById(providerId);
+  const payout = getProviderPayoutSummary(providerId);
+  const activeJobs = getActiveRequestsForProvider(providerId).length;
+  const pendingWall = getPendingRequestsForProvider(providerId).length;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthCompleted = requests.filter(r =>
+    r.providerId === providerId &&
+    r.status === 'completed' &&
+    new Date(r.completedAt || r.createdAt) >= monthStart
+  ).length;
+
+  return {
+    rating: provider?.rating || 0,
+    reviewsCount: provider?.reviewsCount || 0,
+    activeJobs,
+    pendingWall,
+    completedTotal: payout.completed,
+    monthCompleted,
+    pendingPayout: payout.pending,
+    paidTotal: payout.paid,
+    online: Boolean(provider?.online)
+  };
+}
+
+function getProviderWorkflowStep(providerId) {
+  const provider = getUserById(providerId);
+  if (!provider?.online) return 1;
+  const active = getActiveRequestsForProvider(providerId);
+  if (active.length === 0) {
+    return getPendingRequestsForProvider(providerId).length > 0 ? 2 : 1;
+  }
+  const inProgress = active.some(r => r.status === 'in_progress' || r.techStatus);
+  if (inProgress) return 3;
+  return 2;
+}
+
 function getRequestsByProvider(providerId) {
   return requests.filter(r => r.providerId === providerId);
 }
@@ -1878,27 +2057,29 @@ function completeOnboarding(userId) {
   return user;
 }
 
-function exportDataSnapshot({ includeSecurityLogs = true } = {}) {
+async function exportDataSnapshot({ includeSecurityLogs = true } = {}) {
   const versionInfo = getAppVersionInfo();
+  const data = await repository.loadAllForBackup({ includeSecurityLogs });
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     exportedAt: new Date().toISOString(),
     app: 'fundez',
     appVersion: versionInfo.version,
     appVersionLabel: versionInfo.label,
     gitCommit: versionInfo.gitCommit,
     gitTag: versionInfo.gitTag,
-    services: JSON.parse(JSON.stringify(SERVICES)),
-    modules: JSON.parse(JSON.stringify(MODULES)),
-    pricing: JSON.parse(JSON.stringify(PRICING_CONFIG || DEFAULT_PRICING)),
-    users: JSON.parse(JSON.stringify(USERS)),
-    requests: JSON.parse(JSON.stringify(requests)),
-    homeLogbook: JSON.parse(JSON.stringify(homeLogbook)),
-    complaints: JSON.parse(JSON.stringify(COMPLAINTS)),
-    chats: JSON.parse(JSON.stringify(CHATS)),
-    consentRecords: JSON.parse(JSON.stringify(consentRecords)),
-    securityLogs: includeSecurityLogs ? JSON.parse(JSON.stringify(securityLogs)) : [],
-    promos: JSON.parse(JSON.stringify(PROMOS))
+    services: data.services,
+    modules: data.modules,
+    pricing: data.pricing,
+    users: data.users,
+    requests: data.requests,
+    homeLogbook: data.homeLogbook,
+    complaints: data.complaints,
+    chats: data.chats,
+    consentRecords: data.consentRecords,
+    securityLogs: data.securityLogs,
+    notifications: data.notifications,
+    promos: data.promos
   };
 }
 
@@ -1916,12 +2097,28 @@ async function reloadFromDatabase() {
   consentRecords = data.consentRecords;
   securityLogs = data.securityLogs;
   notifications = data.notifications || [];
+  PROMOS = data.promos || [];
+  require('../lib/notifications').bindStore(module.exports);
   return data;
 }
 
 async function importDataSnapshot(snapshot) {
   ensureReady();
   const stats = await repository.restoreFromSnapshot(snapshot);
+  if (snapshot?.backupConfig) {
+    const backupStore = require('../lib/backupStore');
+    if (backupStore.isAvailable()) {
+      await backupStore.saveConfig(snapshot.backupConfig);
+      try {
+        const backup = require('../lib/backup');
+        const merged = { ...backup.DEFAULT_CONFIG, ...snapshot.backupConfig };
+        merged.nextBackupAt = backup.computeNextBackupAt(merged);
+        const fs = require('fs');
+        const path = require('path');
+        fs.writeFileSync(path.join(__dirname, '../data/backup-config.json'), JSON.stringify(merged, null, 2));
+      } catch (_) {}
+    }
+  }
   await reloadFromDatabase();
   return stats;
 }
@@ -1988,7 +2185,19 @@ module.exports = {
   computeEtaMinutes,
   setProviderOnline,
   getRequestsByClient,
+  getActiveRequestsForClient,
+  getLastCompletedRequest,
+  getClientTrustStats,
+  getRequestStatusLabel,
+  enrichRequestForClient,
+  submitClientReview,
   getRequestsByProvider,
+  getActiveRequestsForProvider,
+  getProviderDashboardStats,
+  getProviderPayoutSummary,
+  getProviderWorkflowStep,
+  enrichRequestForProvider,
+  getTechStatusLabel,
   getAllRequests,
   getPendingRequestsForProvider,
   getWorkWallItems,
@@ -2018,7 +2227,8 @@ module.exports = {
   approveTransferPayment,
   getReferralStats,
   applyReferralCode,
-  PROMOS,
+  getActivePromos,
+  get PROMOS() { return getActivePromos(); },
   POINTS_VALUE_CLP,
   getCheckoutSummary,
   applyCheckoutDiscounts,

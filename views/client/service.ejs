@@ -13,7 +13,10 @@
     titleClass: 'text-base font-semibold'
   }) %>
 
-  <main class="flex-1 px-5 py-5 pb-8">
+  <main class="flex-1 px-5 py-5 pb-28">
+    <%- include('../partials/checkout-progress', { checkoutStep: typeof tracking !== 'undefined' && tracking ? 3 : 1 }) %>
+    <%- include('../partials/trust-strip', { trustStats: typeof trustStats !== 'undefined' ? trustStats : {} }) %>
+
     <div class="text-center p-6 rounded-2xl zilo-card-premium mb-5 relative overflow-hidden zilo-page-enter-delay-1">
       <div class="absolute inset-0 bg-gradient-to-b from-zilo-accent/5 to-transparent pointer-events-none"></div>
       <div class="relative flex justify-center mb-4">
@@ -41,6 +44,16 @@
         <strong class="text-zilo-accent font-semibold" id="displayTotalPrice"><%= formatCLP(pricing.visitPrice + pricing.servicePrice) %></strong>
       </div>
       <p class="text-[11px] text-zilo-muted/70 mt-3">Pagas la visita ahora; el servicio se confirma en terreno. Puedes aplicar crédito y puntos en el checkout.</p>
+      <details class="mt-3 text-left">
+        <summary class="text-xs text-zilo-accent font-medium cursor-pointer select-none">¿Qué incluye y garantías?</summary>
+        <ul class="mt-2 space-y-1.5 text-[11px] text-zilo-muted leading-relaxed pl-1">
+          <li>✓ Visita técnica con diagnóstico en tu domicilio</li>
+          <li>✓ Técnicos con identidad verificada por Fundez</li>
+          <li>✓ Presupuesto en sitio antes de reparar — tú apruebas</li>
+          <li>✓ Garantía de 30 días en mano de obra</li>
+          <li>✓ Reembolso de visita si no hay técnico disponible</li>
+        </ul>
+      </details>
     </div>
 
     <% if (urgencyTiers && urgencyTiers.length) { %>
@@ -63,6 +76,25 @@
         <% }); %>
       </div>
     </div>
+    <% } %>
+
+    <% if (mod('client_aland')) { %>
+    <section class="p-4 rounded-2xl zilo-card-premium mb-5 zilo-page-enter-delay-1" id="alandChatSection">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <p class="text-sm font-semibold">Consultas con Aland IA</p>
+          <p class="text-[11px] text-zilo-muted">Asistente humano · te guía antes de solicitar visita</p>
+        </div>
+        <button type="button" id="alandChatToggle" class="text-xs px-3 py-1.5 rounded-lg bg-violet-500/15 text-violet-700 border border-violet-500/20">Abrir chat</button>
+      </div>
+      <div id="alandChatPanel" class="hidden border border-zilo-border rounded-xl overflow-hidden">
+        <div id="alandChatMessages" class="h-56 overflow-y-auto p-3 space-y-2 bg-zilo-bg text-sm"></div>
+        <form id="alandChatForm" class="flex gap-2 p-2 border-t border-zilo-border bg-white">
+          <input type="text" id="alandChatInput" placeholder="Escribe tu consulta…" class="flex-1 px-3 py-2 rounded-lg border border-zilo-border text-sm" autocomplete="off">
+          <button type="submit" class="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium">Enviar</button>
+        </form>
+      </div>
+    </section>
     <% } %>
 
     <section id="requestForm" class="space-y-4 zilo-page-enter-delay-2">
@@ -122,7 +154,18 @@
       <% } %>
 
       <button type="button" id="btnRequest" class="zilo-btn-primary">Continuar al pago</button>
+      <p class="text-center text-[10px] text-zilo-muted">Pago seguro · Sin cargo si cancelas antes de asignar técnico</p>
     </section>
+
+    <div id="stickyOrderBar" class="sticky-order-bar" aria-hidden="true">
+      <div class="sticky-order-inner max-w-lg mx-auto">
+        <div class="min-w-0">
+          <p class="text-[10px] text-zilo-muted uppercase tracking-wide">Visita estimada</p>
+          <strong class="text-zilo-accent text-base" id="stickyTotal"><%= formatCLP(pricing.visitPrice + pricing.servicePrice) %></strong>
+        </div>
+        <button type="button" id="btnRequestSticky" class="sticky-order-btn">Continuar al pago</button>
+      </div>
+    </div>
 
     <div id="loaderOverlay" class="hidden fixed inset-0 z-[200] bg-zilo-bg/96 backdrop-blur-lg flex items-center justify-center">
       <div class="text-center px-6 max-w-xs">
@@ -207,4 +250,7 @@
 </div>
 
 <%- include('../partials/footer', { pageScript: '/js/client.js' }) %>
+<% if (typeof mod === 'function' && mod('client_aland')) { %>
+<script src="/js/aland-chat.js"></script>
+<% } %>
 <script src="/js/map.js"></script>

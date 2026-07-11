@@ -22,7 +22,7 @@
         card.querySelector('[data-role="assign-area"]').innerHTML =
           `<p class="text-xs">Técnico: <strong>${name}</strong></p>`;
         const statusEl = card.querySelector('[data-role="status"]');
-        if (statusEl) statusEl.textContent = 'asignado';
+        if (statusEl) statusEl.textContent = 'Técnico asignado';
         notify(`Asignado a ${name}`, 'success');
       } catch (err) {
         btn.disabled = false;
@@ -30,4 +30,29 @@
       }
     });
   });
+
+  if (typeof io !== 'undefined') {
+    const socket = io();
+    socket.on('connect', () => {
+      document.querySelectorAll('[data-request-id]').forEach(card => {
+        socket.emit('register_client', card.dataset.requestId);
+      });
+    });
+    document.querySelectorAll('[data-request-id]').forEach(card => {
+      const requestId = card.dataset.requestId;
+      socket.on(`request_update_${requestId}`, (payload) => {
+        if (!payload?.request) return;
+        const statusEl = card.querySelector('[data-role="status"]');
+        const ts = payload.request.techStatus;
+        const labels = {
+          en_camino: 'En camino',
+          en_sitio: 'En sitio',
+          diagnostico: 'Diagnóstico',
+          reparando: 'Reparando',
+          completado: 'Completado'
+        };
+        if (statusEl && labels[ts]) statusEl.textContent = labels[ts];
+      });
+    });
+  }
 })();

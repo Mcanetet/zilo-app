@@ -10,11 +10,13 @@
   const statusText = document.getElementById('statusText');
   const statusSub = document.getElementById('statusSub');
   const requestModal = document.getElementById('requestModal');
-  const activeJob = document.getElementById('activeJob');
   const workWall = document.getElementById('workWall');
   const workWallList = document.getElementById('workWallList');
   const workWallEmpty = document.getElementById('workWallEmpty');
   const workWallCount = document.getElementById('workWallCount');
+  const stickyBar = document.getElementById('providerStickyBar');
+  const stickyPendingCount = document.getElementById('stickyPendingCount');
+  const stickyOnlineDot = document.getElementById('stickyOnlineDot');
 
   let currentRequest = null;
   let alertInterval = null;
@@ -81,26 +83,48 @@
     }
   }
 
+  function syncStickyBar() {
+    if (!stickyBar) return;
+    const online = onlineToggle?.checked;
+    stickyBar.classList.toggle('is-visible', online);
+    stickyBar.setAttribute('aria-hidden', online ? 'false' : 'true');
+    if (stickyPendingCount) {
+      stickyPendingCount.textContent = `${wallItems.size} disponibles`;
+    }
+    if (stickyOnlineDot) {
+      stickyOnlineDot.className = `w-2.5 h-2.5 rounded-full shrink-0 ${online ? 'bg-zilo-success animate-pulse' : 'bg-zilo-muted/40'}`;
+    }
+  }
+
   function renderWorkWall() {
     if (!workWallList) return;
     const items = [...wallItems.values()];
     if (workWallCount) workWallCount.textContent = String(items.length);
     if (workWallEmpty) workWallEmpty.classList.toggle('hidden', items.length > 0);
     workWallList.innerHTML = '';
+    syncStickyBar();
 
     items.forEach(data => {
+      const urgency = data.request.urgencyTierLabel
+        ? `<p class="text-[10px] text-orange-600 mb-1">Urgencia: ${data.request.urgencyTierLabel}</p>`
+        : '';
+      const gift = data.request.isGift
+        ? `<span class="text-[10px] text-zilo-accent block mb-1">Regalo · ${data.request.beneficiaryName || 'beneficiario'}</span>`
+        : '';
       const card = document.createElement('article');
-      card.className = 'p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15';
+      card.className = 'p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15 provider-wall-card';
       card.dataset.requestId = data.request.id;
       card.innerHTML = `
         <div class="flex items-start justify-between gap-3 mb-2">
           <div class="min-w-0">
             <strong class="text-sm block">${data.service.name}</strong>
             <span class="text-xs text-zilo-muted block truncate">${data.client.name}</span>
+            ${gift}
           </div>
           <span class="zilo-badge zilo-badge-success shrink-0">Disponible</span>
         </div>
-        <p class="text-xs text-zilo-muted mb-2 truncate">${data.request.address}</p>
+        <p class="text-xs text-zilo-muted mb-1 truncate">${data.request.address}</p>
+        ${urgency}
         <p class="text-xs font-semibold text-zilo-accent mb-3">Visita: ${fmt(data.request.estimatedVisit)}</p>
         <button type="button" class="w-full py-2.5 rounded-xl zilo-modal-accept !text-sm" data-take="${data.request.id}">Tomar trabajo</button>
       `;
@@ -159,6 +183,21 @@
     document.getElementById('modalPrice').textContent = `Visita estimada: ${fmt(data.request.estimatedVisit)}`;
     document.getElementById('modalNotes').textContent = data.request.notes || 'Sin detalles adicionales';
 
+    let urgencyEl = document.getElementById('modalUrgency');
+    if (!urgencyEl) {
+      const notesEl = document.getElementById('modalNotes');
+      urgencyEl = document.createElement('p');
+      urgencyEl.id = 'modalUrgency';
+      urgencyEl.className = 'text-[11px] text-orange-600 mb-2 hidden';
+      notesEl.parentNode.insertBefore(urgencyEl, notesEl);
+    }
+    if (data.request.urgencyTierLabel) {
+      urgencyEl.textContent = `Urgencia: ${data.request.urgencyTierLabel}`;
+      urgencyEl.classList.remove('hidden');
+    } else {
+      urgencyEl.classList.add('hidden');
+    }
+
     const giftBadge = document.getElementById('modalGiftBadge');
     if (data.request.isGift) {
       giftBadge.classList.remove('hidden');
@@ -201,8 +240,16 @@
 
     removeWallItem(requestId);
     closeModal();
-    showActiveJob(data.request);
+    activeRequestId = requestId;
+    startLocationWatch();
     FundezNotify.show('¡Trabajo tomado!', 'success');
+    if (document.querySelector('#activeJobsList') || window.location.pathname.includes('/proveedor/mando')) {
+      setTimeout(() => {
+        window.location.href = '/proveedor/mando';
+      }, 600);
+    } else {
+      setTimeout(() => location.reload(), 800);
+    }
   }
 
   socket.on('connect', () => {
@@ -300,6 +347,7 @@
       FundezNotify.show(data.dispatched > 0 ? FundezI18n.t('js.requests_on_wall', { count: data.dispatched }) : FundezI18n.t('js.online_activated'), 'success');
       startLocationWatch();
       loadWorkWall();
+      syncStickyBar();
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         Notification.requestPermission();
       }
@@ -311,8 +359,15 @@
       renderWorkWall();
       closeModal();
       stopLocationWatch();
+      syncStickyBar();
       FundezNotify.show(FundezI18n.t('js.offline_mode'), 'info');
     }
+  });
+
+  document.getElementById('btnRefreshWall')?.addEventListener('click', () => {
+    loadWorkWall();
+    workWall?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    FundezNotify.show('Muro actualizado', 'info');
   });
 
   document.getElementById('btnAccept')?.addEventListener('click', () => {
@@ -321,41 +376,8 @@
 
   document.getElementById('btnDecline')?.addEventListener('click', () => {
     closeModal();
+    workWall?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     FundezNotify.show(FundezI18n.t('js.still_on_wall'), 'info');
-  });
-
-  function showActiveJob(request) {
-    document.getElementById('jobService').textContent = request.serviceName;
-    document.getElementById('jobClient').textContent = request.clientName;
-    document.getElementById('jobAddress').textContent = request.address;
-    activeJob.classList.remove('hidden');
-    activeJob.dataset.requestId = request.id;
-    activeRequestId = request.id;
-    startLocationWatch();
-  }
-
-  document.querySelectorAll('#activeJob button[data-status]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const requestId = activeJob.dataset.requestId;
-      const status = btn.dataset.status;
-
-      await fetch(`/proveedor/status/${requestId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-
-      const statusEl = document.getElementById('jobStatus');
-      statusEl.textContent = status === 'completed' ? 'Completado' : 'En camino';
-      statusEl.className = status === 'completed'
-        ? 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-600'
-        : 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-500/15 text-blue-600';
-
-      if (status === 'completed') {
-        FundezNotify.show('Servicio completado', 'success');
-        setTimeout(() => activeJob.classList.add('hidden'), 2000);
-      }
-    });
   });
 
   socket.on('modules_updated', () => {

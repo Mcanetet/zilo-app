@@ -64,7 +64,8 @@ router.get('/checkout', requireRole('client'), (req, res) => {
     enabledCardGateways,
     gatewayStatus,
     company,
-    pricing
+    pricing,
+    trustStats: store.getClientTrustStats()
   });
 });
 
@@ -343,7 +344,9 @@ router.post('/demo/confirmar', requireRole('client'), (req, res) => {
 
 router.get('/exito', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
-  if (!request) return res.redirect('/cliente');
+  if (!request || request.clientId !== req.session.user.id) {
+    return res.redirect('/cliente');
+  }
 
   if (req.query.payment_id && request.paymentStatus !== 'approved') {
     store.markPaymentApproved(request.id, req.query.payment_id);
@@ -360,17 +363,24 @@ router.get('/exito', requireRole('client'), (req, res) => {
     formatCLP: store.formatCLP,
     beneficiaryWhatsapp,
     guardianUrl,
-    company
+    company,
+    checkoutStep: 3
   });
 });
 
 router.get('/error', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
+  if (request && request.clientId !== req.session.user.id) {
+    return res.redirect('/cliente');
+  }
   res.render('payments/failure', { title: 'Pago fallido — Fundez', request, query: req.query });
 });
 
 router.get('/pendiente', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
+  if (request && request.clientId !== req.session.user.id) {
+    return res.redirect('/cliente');
+  }
   res.render('payments/pending', { title: 'Pago pendiente — Fundez', request });
 });
 

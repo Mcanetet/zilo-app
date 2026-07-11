@@ -26,7 +26,9 @@ router.get('/', requireRole('client'), (req, res) => {
     referralBonus,
     formatCLP: store.formatCLP,
     navActive: 'inicio',
-    activeRequests: store.getRequestsByClient(req.session.user.id).slice(0, 3),
+    activeRequests: store.getActiveRequestsForClient(req.session.user.id),
+    lastCompleted: store.getLastCompletedRequest(req.session.user.id),
+    trustStats: store.getClientTrustStats(),
     showOnboarding: store.needsOnboarding(profile),
     onboardingSteps: getClientOnboardingSteps(),
     onboardingCompleteUrl: '/cliente/onboarding/complete'
@@ -78,7 +80,9 @@ router.get('/hogar', requireRole('client'), requireModule('client_pasaporte'), (
 });
 
 router.get('/historial', requireRole('client'), requireModule('client_historial'), (req, res) => {
-  const requests = store.getRequestsByClient(req.session.user.id);
+  const requests = store.getRequestsByClient(req.session.user.id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(store.enrichRequestForClient);
   res.render('client/historial', {
     title: 'Historial — Fundez',
     user: req.session.user,
@@ -128,6 +132,7 @@ router.get('/servicio/:id', requireRole('client'), requireModule('client_solicit
     service,
     pricing,
     urgencyTiers,
+    trustStats: store.getClientTrustStats(),
     formatCLP: store.formatCLP,
     tracking: req.query.tracking || null
   });
@@ -244,6 +249,15 @@ router.post('/presupuesto/:id/responder', requireRole('client'), (req, res) => {
       siteReport: result.request.siteReport
     }
   });
+});
+
+router.post('/resena/:id', requireRole('client'), (req, res) => {
+  const result = store.submitClientReview(req.params.id, req.session.user.id, {
+    rating: req.body.rating,
+    text: req.body.text
+  });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, review: result.review });
 });
 
 module.exports = router;

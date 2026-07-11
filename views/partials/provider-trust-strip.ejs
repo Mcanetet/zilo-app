@@ -1,0 +1,24 @@
+<% const stats = typeof providerStats !== 'undefined' ? providerStats : {}; %>
+<div class="trust-strip provider-trust-strip" role="region" aria-label="Tu rendimiento Fundez">
+  <div class="trust-strip-item">
+    <span class="trust-strip-icon" aria-hidden="true">💰</span>
+    <div>
+      <strong><%= typeof formatCLP === 'function' ? formatCLP(stats.pendingPayout || 0) : '$0' %></strong>
+      <span>Por cobrar</span>
+    </div>
+  </div>
+  <div class="trust-strip-item">
+    <span class="trust-strip-icon" aria-hidden="true">✅</span>
+    <div>
+      <strong><%= stats.monthCompleted || 0 %></strong>
+      <span>Servicios este mes</span>
+    </div>
+  </div>
+  <div class="trust-strip-item">
+    <span class="trust-strip-icon" aria-hidden="true">⭐</span>
+    <div>
+      <strong><%= stats.rating || '—' %>★</strong>
+      <span><%= stats.reviewsCount || 0 %> reseñas</span>
+    </div>
+  </div>
+</div>

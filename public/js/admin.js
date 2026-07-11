@@ -15,6 +15,8 @@
     proveedores: 'Socios',
     reclamos: 'Reclamos',
     whatsapp: 'WhatsApp',
+    aland: 'Aland IA',
+    mensajes: 'Mensajes',
     datos: 'Datos',
     backups: 'Backups',
     equipo: 'Equipo y permisos',
@@ -710,6 +712,203 @@
       }
     });
   });
+
+  /* ——— Aland IA ——— */
+  const alandForm = document.getElementById('alandConfigForm');
+  const alandStatus = document.getElementById('alandConfigStatus');
+  const alandKbList = document.getElementById('alandKnowledgeList');
+  const alandKbForm = document.getElementById('alandKnowledgeForm');
+  const btnAlandSync = document.getElementById('btnAlandSyncKb');
+
+  function setAlandFormValues(config) {
+    if (!alandForm || !config) return;
+    const enabledEl = alandForm.querySelector('[name=enabled]');
+    if (enabledEl) enabledEl.checked = config.enabled !== false;
+    if (alandForm.openaiModel) alandForm.openaiModel.value = config.openaiModel || 'gpt-4o-mini';
+    if (alandForm.personality) alandForm.personality.value = config.personality || '';
+    if (alandForm.systemInstructions) alandForm.systemInstructions.value = config.systemInstructions || '';
+    if (alandForm.greetingMessage) alandForm.greetingMessage.value = config.greetingMessage || '';
+    if (alandForm.providerTimeoutMinutes) alandForm.providerTimeoutMinutes.value = config.providerTimeoutMinutes || 5;
+    if (alandForm.escalateKeywords) alandForm.escalateKeywords.value = (config.escalateKeywords || []).join('\n');
+  }
+
+  function renderAlandKb(items) {
+    if (!alandKbList) return;
+    if (!items?.length) {
+      alandKbList.innerHTML = '<p class="text-gray-500 p-2">Sin entradas. Usa sincronizar o agrega manualmente.</p>';
+      return;
+    }
+    alandKbList.innerHTML = items.map((k) => `
+      <div class="p-2 rounded-lg bg-zilo-bg border border-gray-200">
+        <strong class="text-violet-600 uppercase text-[10px]">${k.sourceType}</strong>
+        <p class="font-medium">${k.title}</p>
+        <p class="text-gray-500 line-clamp-2">${k.content}</p>
+      </div>
+    `).join('');
+  }
+
+  async function loadAlandAdmin() {
+    if (!alandForm && !alandStatus) return;
+    try {
+      const res = await fetch('/aland/admin/config', { headers: { Accept: 'application/json' } });
+      const data = await res.json();
+      if (alandStatus) {
+        alandStatus.innerHTML = data.openaiConfigured
+          ? '<strong class="text-emerald-600">OpenAI conectado</strong> · Agente: Aland IA'
+          : '<strong class="text-red-600">Falta OPENAI_API_KEY</strong> en variables de entorno Hostinger';
+      }
+      if (data.config) setAlandFormValues(data.config);
+      const kbRes = await fetch('/aland/admin/knowledge', { headers: { Accept: 'application/json' } });
+      const kbData = await kbRes.json();
+      renderAlandKb(kbData.knowledge);
+    } catch (_) {
+      if (alandStatus) alandStatus.textContent = 'Error cargando Aland IA';
+    }
+  }
+
+  alandForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(alandForm);
+    const body = {
+      enabled: fd.get('enabled') === 'on',
+      openaiModel: fd.get('openaiModel'),
+      personality: fd.get('personality'),
+      systemInstructions: fd.get('systemInstructions'),
+      greetingMessage: fd.get('greetingMessage'),
+      providerTimeoutMinutes: parseInt(fd.get('providerTimeoutMinutes'), 10) || 5,
+      escalateKeywords: String(fd.get('escalateKeywords') || '').split('\n').map((s) => s.trim()).filter(Boolean)
+    };
+    const res = await fetch('/aland/admin/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) FundezNotify.show('Aland IA actualizado', 'success');
+    else FundezNotify.show(data.error || 'Error', 'error');
+  });
+
+  btnAlandSync?.addEventListener('click', async () => {
+    btnAlandSync.disabled = true;
+    const res = await fetch('/aland/admin/knowledge/sync', { method: 'POST' });
+    const data = await res.json();
+    btnAlandSync.disabled = false;
+    if (data.success) {
+      FundezNotify.show(`${data.synced} entradas sincronizadas`, 'success');
+      renderAlandKb(data.knowledge);
+    } else FundezNotify.show(data.error || 'Error', 'error');
+  });
+
+  alandKbForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(alandKbForm);
+    const res = await fetch('/aland/admin/knowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: fd.get('title'), content: fd.get('content'), sourceType: 'custom', active: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      FundezNotify.show('Conocimiento agregado', 'success');
+      alandKbForm.reset();
+      loadAlandAdmin();
+    }
+  });
+
+  /* ——— Mensajes ——— */
+  const mensajesList = document.getElementById('mensajesList');
+  const mensajesThread = document.getElementById('mensajesChatThread');
+  const mensajesTitle = document.getElementById('mensajesChatTitle');
+  const mensajesReplyForm = document.getElementById('mensajesReplyForm');
+  let mensajesActiveId = null;
+  let adminAlandSocket = null;
+
+  function mensajesStatusLabel(s) {
+    return { ai_active: 'Aland IA', awaiting_provider: 'Esperando socio', awaiting_admin: 'Admin', closed: 'Cerrada' }[s] || s;
+  }
+
+  function renderMensajeMsg(msg) {
+    const mine = msg.senderType === 'admin';
+    const align = mine ? 'text-right' : 'text-left';
+    const bg = mine ? 'bg-zilo-accent text-white' : 'bg-zilo-bg border border-gray-200';
+    return `<div class="${align}"><div class="inline-block max-w-[95%] px-2 py-1.5 rounded-lg ${bg}"><span class="block text-[9px] opacity-70">${msg.senderName || msg.senderType}</span>${msg.body.replace(/</g, '&lt;')}</div></div>`;
+  }
+
+  async function loadMensajesList() {
+    if (!mensajesList) return;
+    const res = await fetch('/aland/admin/conversations', { headers: { Accept: 'application/json' } });
+    const data = await res.json();
+    const items = (data.conversations || []).filter((c) => c.status !== 'closed');
+    if (!items.length) {
+      mensajesList.innerHTML = '<p class="text-xs text-gray-500 p-3 rounded-xl bg-zilo-bg border">Sin conversaciones activas.</p>';
+      return;
+    }
+    mensajesList.innerHTML = items.map((c) => `
+      <button type="button" class="w-full text-left p-3 rounded-xl bg-zilo-bg border border-gray-200 hover:border-violet-400 mensajes-item" data-id="${c.id}">
+        <div class="flex justify-between"><strong class="text-sm">${c.clientName}</strong><span class="text-[10px] text-violet-600">${mensajesStatusLabel(c.status)}</span></div>
+        <p class="text-gray-500 mt-1">${c.serviceName} · ${c.providerName ? c.providerName : 'Sin socio'}</p>
+      </button>
+    `).join('');
+    mensajesList.querySelectorAll('.mensajes-item').forEach((btn) => {
+      btn.addEventListener('click', () => openMensajesChat(btn.dataset.id));
+    });
+  }
+
+  async function openMensajesChat(id) {
+    mensajesActiveId = id;
+    if (mensajesReplyForm) {
+      mensajesReplyForm.classList.remove('hidden');
+      mensajesReplyForm.conversationId.value = id;
+    }
+    const res = await fetch(`/aland/admin/conversations/${id}/messages`, { headers: { Accept: 'application/json' } });
+    const data = await res.json();
+    if (!data.success) return;
+    if (mensajesTitle) mensajesTitle.textContent = `${data.conversation.clientName} · ${data.conversation.serviceName}`;
+    if (mensajesThread) {
+      mensajesThread.innerHTML = (data.messages || []).map(renderMensajeMsg).join('');
+      mensajesThread.scrollTop = mensajesThread.scrollHeight;
+    }
+    if (window.io) {
+      if (!adminAlandSocket) {
+        adminAlandSocket = io();
+        adminAlandSocket.emit('aland_join', { admin: true });
+        adminAlandSocket.on('aland_message', (payload) => {
+          if (payload.conversationId === mensajesActiveId && mensajesThread) {
+            mensajesThread.insertAdjacentHTML('beforeend', renderMensajeMsg(payload.message));
+            mensajesThread.scrollTop = mensajesThread.scrollHeight;
+          }
+        });
+        adminAlandSocket.on('aland_escalated', () => loadMensajesList());
+      }
+      adminAlandSocket.emit('aland_join', { conversationId: id, admin: true });
+    }
+  }
+
+  mensajesReplyForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(mensajesReplyForm);
+    const id = fd.get('conversationId');
+    const text = fd.get('message');
+    const res = await fetch(`/aland/admin/conversations/${id}/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    if (data.success) {
+      mensajesReplyForm.message.value = '';
+      if (data.message && mensajesThread) {
+        mensajesThread.insertAdjacentHTML('beforeend', renderMensajeMsg(data.message));
+        mensajesThread.scrollTop = mensajesThread.scrollHeight;
+      }
+    } else FundezNotify.show(data.error || 'Error', 'error');
+  });
+
+  if (document.getElementById('alandConfigForm') || document.getElementById('mensajesList')) {
+    loadAlandAdmin();
+    loadMensajesList();
+    setInterval(loadMensajesList, 45000);
+  }
 
   document.querySelectorAll('.btn-retry-dte').forEach((btn) => {
     btn.addEventListener('click', async () => {

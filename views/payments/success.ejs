@@ -1,6 +1,9 @@
 <%- include('../partials/head', { useMap: true }) %>
 
 <div class="max-w-lg mx-auto min-h-screen flex flex-col items-center justify-center p-6 text-center" id="successPage">
+  <div class="w-full max-w-lg px-2 mb-4">
+    <%- include('../partials/checkout-progress', { checkoutStep: typeof checkoutStep !== 'undefined' ? checkoutStep : 3 }) %>
+  </div>
   <div class="w-20 h-20 rounded-full bg-zilo-success/15 flex items-center justify-center mb-6 animate-bounce-in border border-zilo-success/30">
     <svg class="w-10 h-10 text-zilo-success" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
   </div>
@@ -31,6 +34,7 @@
     <% } %>
 
     <!-- Modo Guardián — feature única -->
+    <% if (typeof mod === 'function' && mod('client_guardian')) { %>
     <div class="w-full zilo-card-premium rounded-2xl p-5 mb-4 text-left">
       <div class="flex items-start gap-3">
         <div class="w-10 h-10 rounded-xl bg-zilo-accent/15 flex items-center justify-center shrink-0 guardian-pulse">
@@ -46,6 +50,7 @@
         </div>
       </div>
     </div>
+    <% } %>
 
     <% if (request.isGift && beneficiaryWhatsapp) { %>
     <a href="<%= beneficiaryWhatsapp %>" target="_blank" rel="noopener"

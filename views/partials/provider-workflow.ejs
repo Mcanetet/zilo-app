@@ -1,0 +1,22 @@
+<% 
+  const current = typeof workflowStep !== 'undefined' ? workflowStep : 1;
+  const steps = [
+    { id: 1, label: 'En línea', short: '1' },
+    { id: 2, label: 'Tomar', short: '2' },
+    { id: 3, label: 'Ejecutar', short: '3' },
+    { id: 4, label: 'Cobrar', short: '4' }
+  ];
+%>
+<nav class="checkout-progress provider-workflow" aria-label="Flujo de trabajo">
+  <div class="checkout-progress-track">
+    <% steps.forEach((step, i) => { %>
+      <div class="checkout-progress-step <%= current > step.id ? 'is-done' : (current === step.id ? 'is-active' : '') %>">
+        <span class="checkout-progress-dot"><%= current > step.id ? '✓' : step.short %></span>
+        <span class="checkout-progress-label"><%= step.label %></span>
+      </div>
+      <% if (i < steps.length - 1) { %>
+        <div class="checkout-progress-line <%= current > step.id ? 'is-done' : '' %>"></div>
+      <% } %>
+    <% }); %>
+  </div>
+</nav>

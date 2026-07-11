@@ -208,6 +208,16 @@ router.post('/mfa/disable', requireRole('admin'), async (req, res) => {
 
 router.get('/', requireRole('admin'), async (req, res) => {
   try {
+  if (!store.isReady()) {
+    return res.status(503).render('error', {
+      title: 'Base de datos',
+      message: 'La base de datos aún no está lista. Espera unos segundos y recarga.',
+      code: 503
+    });
+  }
+
+  await store.reloadFromDatabase();
+
   const allRequests = store.getAllRequests();
   const providers = store.USERS.filter(u => u.role === 'provider');
   const clients = store.USERS.filter(u => u.role === 'client');
@@ -253,7 +263,7 @@ router.get('/', requireRole('admin'), async (req, res) => {
     company,
     pricing,
     formatCLP: store.formatCLP,
-    backupConfig: backup.loadConfig(),
+    backupConfig: await backup.loadConfigAsync(),
     backups: await backup.listBackups(),
     backupRetention: backup.getRetentionSummary(),
     formatBytes: backup.formatBytes,
@@ -481,7 +491,7 @@ router.get('/backups/config', requireRole('admin'), async (req, res) => {
   });
 });
 
-router.post('/backups/config', requireRole('admin'), requireAdminPermission('backups.manage'), (req, res) => {
+router.post('/backups/config', requireRole('admin'), requireAdminPermission('backups.manage'), async (req, res) => {
   const allowed = [
     'enabled', 'autoBackup', 'autoRetention', 'scheduleHour', 'scheduleMinute',
     'dailyRetentionDays', 'weeklyRetentionWeeks', 'monthlyRetentionMonths',
@@ -502,7 +512,7 @@ router.post('/backups/config', requireRole('admin'), requireAdminPermission('bac
   if (updates.weeklyRetentionWeeks != null) updates.weeklyRetentionWeeks = Math.min(52, Math.max(1, parseInt(updates.weeklyRetentionWeeks, 10)));
   if (updates.monthlyRetentionMonths != null) updates.monthlyRetentionMonths = Math.min(84, Math.max(1, parseInt(updates.monthlyRetentionMonths, 10)));
 
-  const config = backup.saveConfig(updates);
+  const config = await backup.saveConfig(updates);
   store.logSecurityEvent('backup_config_update', JSON.stringify(updates), req);
   res.json({ success: true, config, retention: backup.getRetentionSummary(config) });
 });
@@ -520,7 +530,7 @@ router.post('/backups/run', requireRole('admin'), requireAdminPermission('backup
       backups: await backup.listBackups()
     });
   } catch (err) {
-    backup.saveConfig({ lastBackupStatus: 'error', lastBackupError: err.message });
+    await backup.saveConfig({ lastBackupStatus: 'error', lastBackupError: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
 });

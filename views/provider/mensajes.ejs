@@ -1,0 +1,34 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" data-provider-id="<%= providerId %>">
+  <%- include('../partials/back-header', {
+    backUrl: '/proveedor',
+    title: 'Mensajes',
+    centerTitle: true,
+    titleClass: 'text-base font-semibold'
+  }) %>
+
+  <main class="flex-1 px-4 py-4 pb-8 flex flex-col gap-4">
+    <div class="p-3 rounded-xl border border-violet-500/20 bg-violet-500/5">
+      <p class="text-xs text-zilo-muted">Consultas derivadas por <strong class="text-violet-700">Aland IA</strong>. Responde en <strong>menos de 5 minutos</strong> para evitar escalamiento a administración.</p>
+      <div class="flex items-center gap-2 mt-2 text-[10px] text-zilo-muted">
+        <span class="w-2 h-2 rounded-full bg-zilo-success animate-pulse"></span>
+        SLA activo · respuesta rápida = mejor visibilidad
+      </div>
+    </div>
+
+    <div id="providerMensajesList" class="space-y-2"></div>
+
+    <div id="providerChatBox" class="hidden flex-1 flex flex-col p-4 rounded-2xl zilo-card-premium border border-zilo-border min-h-[20rem]">
+      <p id="providerChatTitle" class="text-sm font-semibold mb-2"></p>
+      <div id="providerChatThread" class="flex-1 overflow-y-auto space-y-2 text-sm mb-3 max-h-72"></div>
+      <form id="providerChatForm" class="flex gap-2">
+        <input type="hidden" id="providerConversationId">
+        <input type="text" id="providerChatInput" placeholder="Tu respuesta al cliente…" class="flex-1 px-3 py-2 rounded-xl border border-zilo-border text-sm" required>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-zilo-accent text-white text-sm">Enviar</button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<%- include('../partials/footer', { pageScript: '/js/provider-mensajes.js' }) %>

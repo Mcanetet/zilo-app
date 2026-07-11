@@ -13,8 +13,15 @@
     </div>
   </header>
 
-  <main class="flex-1 px-5 py-5 pb-10">
-    <p class="text-xs text-zilo-muted mb-4">Asigna cada solicitud a un técnico de tu equipo y sigue su avance en terreno.</p>
+  <main class="flex-1 px-5 py-5 pb-28">
+    <%- include('../partials/provider-workflow', { workflowStep: typeof workflowStep !== 'undefined' ? workflowStep : 3 }) %>
+    <% if (typeof providerStats !== 'undefined') { %>
+    <div class="mb-4">
+      <%- include('../partials/provider-trust-strip', { providerStats, formatCLP }) %>
+    </div>
+    <% } %>
+
+    <p class="text-xs text-zilo-muted mb-4">Asigna cada solicitud a un técnico de tu equipo y sigue su avance en terreno en tiempo real.</p>
 
     <% if (technicians.length === 0) { %>
       <a href="/proveedor/equipo" class="block mb-4 p-4 rounded-2xl border border-zilo-warning/30 bg-zilo-warning/10">
@@ -37,12 +44,18 @@
                 <strong class="text-sm block truncate"><%= r.serviceName %></strong>
                 <span class="text-xs text-zilo-muted block truncate"><%= r.clientName %></span>
               </div>
-              <span class="zilo-badge zilo-badge-muted shrink-0" data-role="status"><%= r.techStatus || r.status %></span>
+              <span class="zilo-badge zilo-badge-muted shrink-0" data-role="status"><%= r.techStatusLabel || r.statusLabel || r.techStatus || r.status %></span>
             </div>
-            <p class="text-xs text-zilo-muted/90 mb-3 flex items-start gap-1">
+            <p class="text-xs text-zilo-muted/90 mb-2 flex items-start gap-1">
               <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               <span><%= r.address || 'Sin dirección' %></span>
             </p>
+            <% if (r.urgencyTierLabel) { %>
+              <p class="text-[10px] text-orange-600 mb-2">Urgencia: <%= r.urgencyTierLabel %></p>
+            <% } %>
+            <% if (r.notes) { %>
+              <p class="text-[11px] text-zilo-muted italic mb-3 p-2 rounded-lg bg-zilo-bg/80 border border-zilo-border line-clamp-2"><%= r.notes %></p>
+            <% } %>
 
             <div data-role="assign-area">
               <% if (r.technicianId) { %>

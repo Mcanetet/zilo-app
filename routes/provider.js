@@ -19,12 +19,25 @@ const {
 } = require('../lib/contracts');
 const company = require('../config/company');
 
+router.get('/mensajes', requireRole('provider'), requireModule('provider_mensajes'), (req, res) => {
+  res.render('provider/mensajes', {
+    title: 'Mensajes — Fundez',
+    user: req.session.user,
+    providerId: req.session.user.id
+  });
+});
+
 router.get('/', requireRole('provider'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
-  const myRequests = store.getRequestsByProvider(req.session.user.id);
+  const myRequests = store.getRequestsByProvider(req.session.user.id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 10)
+    .map(store.enrichRequestForProvider);
+  const activeJobs = store.getActiveRequestsForProvider(req.session.user.id);
   const pending = store.getPendingRequestsForProvider(req.session.user.id);
   const verificationCheck = store.canProviderGoOnline(provider);
   const contractSummary = getContractSummary(provider.providerContract);
+  const providerStats = store.getProviderDashboardStats(req.session.user.id);
 
   res.render('provider/dashboard', {
     title: 'Fundez — Panel Proveedor',
@@ -34,7 +47,10 @@ router.get('/', requireRole('provider'), (req, res) => {
     contractSummary,
     showContractBanner: !contractSummary.canOperate,
     services: store.SERVICES,
-    myRequests: myRequests.slice(0, 10),
+    myRequests,
+    activeJobs,
+    providerStats,
+    workflowStep: store.getProviderWorkflowStep(req.session.user.id),
     pendingCount: pending.length,
     formatCLP: store.formatCLP,
     showOnboarding: store.needsOnboarding(provider),
@@ -111,15 +127,21 @@ router.post('/accept/:requestId', requireRole('provider'), requireModule('provid
 
 router.post('/status/:requestId', requireRole('provider'), (req, res) => {
   const { status } = req.body;
-  const request = store.updateRequestStatus(req.params.requestId, status);
-  if (!request || request.providerId !== req.session.user.id) {
+  const existing = store.requests.find(r => r.id === req.params.requestId);
+  if (!existing || existing.providerId !== req.session.user.id) {
     return res.status(404).json({ error: 'Solicitud no encontrada' });
   }
+  const allowed = ['in_progress', 'completed'];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: 'Estado no válido' });
+  }
+  const request = store.updateRequestStatus(req.params.requestId, status);
+  if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
   const io = req.app.get('io');
   io.emit(`request_update_${request.id}`, { request });
 
-  res.json({ success: true, request });
+  res.json({ success: true, request: store.enrichRequestForProvider(request) });
 });
 
 router.get('/perfil', requireRole('provider'), requireModule('provider_perfil'), (req, res) => {
@@ -263,9 +285,7 @@ router.post('/equipo/:id/toggle', requireRole('provider'), requireModule('provid
 router.get('/mando', requireRole('provider'), requireModule('provider_mando'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const technicians = store.getTechniciansByProvider(provider.id).filter(t => t.active !== false);
-  const active = store.getRequestsByProvider(provider.id)
-    .filter(r => r.status !== 'completed' && r.status !== 'cancelled')
-    .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt));
+  const active = store.getActiveRequestsForProvider(provider.id);
 
   res.render('provider/mando', {
     title: 'Cuadro de mando — Fundez',
@@ -273,6 +293,8 @@ router.get('/mando', requireRole('provider'), requireModule('provider_mando'), (
     provider,
     technicians,
     requests: active,
+    providerStats: store.getProviderDashboardStats(provider.id),
+    workflowStep: 3,
     services: store.SERVICES,
     formatCLP: store.formatCLP
   });

@@ -72,7 +72,7 @@ app.use(securityHeaders);
 app.use(rateLimitSimple(150));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'zilo-dev-secret-change-me',

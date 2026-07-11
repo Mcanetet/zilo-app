@@ -506,6 +506,126 @@
     }
   });
 
+  let pendingImportSnapshot = null;
+  const importFileInput = document.getElementById('backupImportFile');
+  const importPreview = document.getElementById('backupImportPreview');
+  const btnImportHistory = document.getElementById('btnImportBackupHistory');
+  const btnImportRestore = document.getElementById('btnImportBackupRestore');
+
+  function setImportButtonsEnabled(enabled) {
+    if (btnImportHistory) btnImportHistory.disabled = !enabled;
+    if (btnImportRestore) btnImportRestore.disabled = !enabled;
+  }
+
+  function showImportPreview(snapshot) {
+    if (!importPreview) return;
+    const ver = snapshot.appVersion ? `v${snapshot.appVersion}` : 'sin versión';
+    const date = snapshot.exportedAt ? new Date(snapshot.exportedAt).toLocaleString('es-CL') : 'fecha desconocida';
+    importPreview.textContent = `${ver} · ${date} · ${snapshot.users?.length || 0} usuarios · ${snapshot.requests?.length || 0} solicitudes`;
+    importPreview.classList.remove('hidden');
+  }
+
+  importFileInput?.addEventListener('change', () => {
+    pendingImportSnapshot = null;
+    setImportButtonsEnabled(false);
+    if (importPreview) {
+      importPreview.textContent = '';
+      importPreview.classList.add('hidden');
+    }
+
+    const file = importFileInput.files?.[0];
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      FundezNotify.show('El archivo supera 25 MB', 'error');
+      importFileInput.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const snapshot = JSON.parse(String(reader.result || ''));
+        if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+          throw new Error('JSON inválido');
+        }
+        if (!Array.isArray(snapshot.users) && !Array.isArray(snapshot.services)) {
+          throw new Error('No parece un backup de Fundez');
+        }
+        pendingImportSnapshot = snapshot;
+        showImportPreview(snapshot);
+        setImportButtonsEnabled(true);
+      } catch (err) {
+        FundezNotify.show(err.message || 'No se pudo leer el JSON', 'error');
+        importFileInput.value = '';
+      }
+    };
+    reader.onerror = () => FundezNotify.show('No se pudo leer el archivo', 'error');
+    reader.readAsText(file);
+  });
+
+  btnImportHistory?.addEventListener('click', async () => {
+    if (!pendingImportSnapshot) return;
+    btnImportHistory.disabled = true;
+    btnImportHistory.textContent = 'Subiendo…';
+    try {
+      const res = await fetch('/admin/backups/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'history', snapshot: pendingImportSnapshot })
+      });
+      const data = await res.json();
+      if (data.success) {
+        FundezNotify.show('Backup importado al historial', 'success');
+        setTimeout(() => location.reload(), 900);
+      } else {
+        FundezNotify.show(data.error || 'Error al importar', 'error');
+        btnImportHistory.disabled = false;
+        btnImportHistory.textContent = 'Agregar al historial';
+      }
+    } catch (_) {
+      FundezNotify.show('Error de conexión', 'error');
+      btnImportHistory.disabled = false;
+      btnImportHistory.textContent = 'Agregar al historial';
+    }
+  });
+
+  btnImportRestore?.addEventListener('click', async () => {
+    if (!pendingImportSnapshot) return;
+    const ver = pendingImportSnapshot.appVersion ? `v${pendingImportSnapshot.appVersion}` : 'sin versión';
+    const msg = `¿Restaurar el backup JSON (${ver})?\n\nSe creará una copia de seguridad automática antes de restaurar.\nLos datos actuales serán reemplazados.`;
+    if (!confirm(msg)) return;
+
+    const confirmText = prompt('Escribe RESTAURAR para confirmar:');
+    if (confirmText !== 'RESTAURAR') {
+      FundezNotify.show('Restauración cancelada', 'info');
+      return;
+    }
+
+    btnImportRestore.disabled = true;
+    btnImportRestore.textContent = 'Restaurando…';
+    try {
+      const res = await fetch('/admin/backups/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'restore', confirm: 'RESTAURAR', snapshot: pendingImportSnapshot })
+      });
+      const data = await res.json();
+      if (data.success) {
+        FundezNotify.show(`Backup restaurado (copia previa: ${data.preRestoreBackupId?.slice(0, 8)}…)`, 'success');
+        setTimeout(() => location.reload(), 1200);
+      } else {
+        FundezNotify.show(data.error || 'Error al restaurar', 'error');
+        btnImportRestore.disabled = false;
+        btnImportRestore.textContent = 'Importar y restaurar';
+      }
+    } catch (_) {
+      FundezNotify.show('Error de conexión al restaurar', 'error');
+      btnImportRestore.disabled = false;
+      btnImportRestore.textContent = 'Importar y restaurar';
+    }
+  });
+
   document.querySelectorAll('.btn-delete-backup').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('¿Eliminar este backup?')) return;

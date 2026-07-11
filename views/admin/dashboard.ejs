@@ -816,6 +816,21 @@ function hasPerm(key) {
         <p class="mt-2 text-gray-500">Por defecto Fundez conserva todo el historial. Activa la eliminación automática solo si necesitas liberar espacio en disco.</p>
       </div>
 
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4" id="backupImportPanel">
+        <p class="text-sm font-semibold mb-1">Subir backup JSON</p>
+        <p class="text-xs text-gray-500 mb-3">Selecciona el archivo <code class="font-mono text-[10px]">fundez-backup-v*.json</code> que descargaste. Puedes guardarlo en el historial o restaurarlo directamente.</p>
+        <input type="file" id="backupImportFile" accept=".json,application/json" class="block w-full text-xs text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:font-medium file:cursor-pointer">
+        <p id="backupImportPreview" class="text-xs text-gray-500 mt-2 hidden"></p>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <% if (hasPerm('backups.manage')) { %>
+          <button type="button" id="btnImportBackupHistory" class="flex-1 min-w-[10rem] py-2 rounded-xl bg-zilo-accent/15 border border-zilo-accent/25 text-sm font-medium text-zilo-accent" disabled>Agregar al historial</button>
+          <% } %>
+          <% if (hasPerm('backups.restore')) { %>
+          <button type="button" id="btnImportBackupRestore" class="flex-1 min-w-[10rem] py-2 rounded-xl bg-amber-500/15 border border-amber-500/25 text-sm font-medium text-amber-700" disabled>Importar y restaurar</button>
+          <% } %>
+        </div>
+      </div>
+
       <div class="flex gap-2 mb-4">
         <button type="button" id="btnRunBackup" class="flex-1 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-sm font-medium text-emerald-600">Generar backup ahora</button>
         <button type="button" id="btnApplyRetention" class="flex-1 py-2.5 rounded-xl bg-zilo-card border border-gray-200 text-sm text-gray-700 <%= backupConfig.autoRetention === false ? 'opacity-50' : '' %>" <%= backupConfig.autoRetention === false ? 'disabled title="Activa eliminación automática para usar esta opción"' : '' %>>Limpiar antiguos</button>

@@ -14,6 +14,7 @@ const {
   canAccessPanel,
   getFirstAccessiblePanel
 } = require('../middleware/adminAccess');
+const { hasPermission } = require('../lib/adminPermissions');
 const {
   getNavForAccess,
   getPermissionGroups,
@@ -537,6 +538,41 @@ router.post('/backups/retention', requireRole('admin'), requireAdminPermission('
   const removed = backup.applyRetention();
   store.logSecurityEvent('backup_retention_purge', `removed=${removed}`, req);
   res.json({ success: true, removed, backups: backup.listBackups() });
+});
+
+router.post('/backups/import', requireRole('admin'), requireAdminPermission('backups.manage'), async (req, res) => {
+  const mode = String(req.body.mode || 'history').toLowerCase();
+  const snapshot = req.body.snapshot;
+
+  if (!store.isReady()) {
+    return res.status(503).json({ error: 'La base de datos no está lista' });
+  }
+
+  try {
+    if (mode === 'restore') {
+      const access = req.adminAccess || req.session?.adminAccess;
+      if (!access?.isSuperAdmin && !hasPermission(access, 'backups.restore')) {
+        return res.status(403).json({ error: 'No tienes permiso para restaurar backups' });
+      }
+      const confirm = String(req.body.confirm || '').trim().toUpperCase();
+      if (confirm !== 'RESTAURAR') {
+        return res.status(400).json({ error: 'Escribe RESTAURAR para confirmar la restauración' });
+      }
+      const result = await backup.restoreFromSnapshotData(store, snapshot, {
+        triggeredBy: req.session.user.email,
+        saveImport: true
+      });
+      store.logSecurityEvent('backup_import_restore', result.importedBackupId || 'json', req);
+      return res.json({ success: true, mode: 'restore', ...result });
+    }
+
+    const result = backup.importSnapshotFile(snapshot, req.session.user.email);
+    store.logSecurityEvent('backup_import_history', result.manifest.id, req);
+    res.json({ success: true, mode: 'history', backup: result.manifest });
+  } catch (err) {
+    store.logSecurityEvent('backup_import_failed', err.message, req);
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.get('/backups/:id/download', requireRole('admin'), (req, res) => {

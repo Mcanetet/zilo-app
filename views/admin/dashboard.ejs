@@ -754,6 +754,14 @@ function hasPerm(key) {
           </label>
         </label>
         <label class="flex items-center justify-between text-sm">
+          <span>Eliminar backups antiguos automáticamente</span>
+          <label class="toggle-ios scale-90">
+            <input type="checkbox" name="autoRetention" <%= backupConfig.autoRetention !== false ? 'checked' : '' %>>
+            <span class="slider"></span>
+          </label>
+        </label>
+        <p class="text-[10px] text-gray-500 -mt-1">Desactivado por defecto: el historial de backups se conserva indefinidamente.</p>
+        <label class="flex items-center justify-between text-sm">
           <span>Incluir documentos KYC (uploads)</span>
           <label class="toggle-ios scale-90">
             <input type="checkbox" name="includeUploads" <%= backupConfig.includeUploads ? 'checked' : '' %>>
@@ -779,7 +787,7 @@ function hasPerm(key) {
           </div>
         </div>
 
-        <p class="text-xs font-semibold text-zilo-accent pt-1">Retención (referencia mercado)</p>
+        <p class="text-xs font-semibold text-zilo-accent pt-1">Retención (solo si eliminación automática está activa)</p>
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="text-[10px] text-gray-500 block mb-1">Diarios (7–30 d)</label>
@@ -805,16 +813,16 @@ function hasPerm(key) {
           <li><strong>Semanales:</strong> corrupción o fallos detectados tarde (4–12 semanas)</li>
           <li><strong>Mensuales:</strong> auditoría y cumplimiento legal (12–36 meses)</li>
         </ul>
-        <p class="mt-2 text-gray-500">Fundez usa por defecto 14 días / 8 semanas / 12 meses — adecuado para plataforma de servicios del hogar en Chile.</p>
+        <p class="mt-2 text-gray-500">Por defecto Fundez conserva todo el historial. Activa la eliminación automática solo si necesitas liberar espacio en disco.</p>
       </div>
 
       <div class="flex gap-2 mb-4">
         <button type="button" id="btnRunBackup" class="flex-1 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-sm font-medium text-emerald-600">Generar backup ahora</button>
-        <button type="button" id="btnApplyRetention" class="flex-1 py-2.5 rounded-xl bg-zilo-card border border-gray-200 text-sm text-gray-700">Limpiar antiguos</button>
+        <button type="button" id="btnApplyRetention" class="flex-1 py-2.5 rounded-xl bg-zilo-card border border-gray-200 text-sm text-gray-700 <%= backupConfig.autoRetention === false ? 'opacity-50' : '' %>" <%= backupConfig.autoRetention === false ? 'disabled title="Activa eliminación automática para usar esta opción"' : '' %>>Limpiar antiguos</button>
       </div>
 
       <h4 class="text-sm font-semibold mb-2">Historial de backups</h4>
-      <div id="backupList" class="space-y-2 max-h-72 overflow-y-auto">
+      <div id="backupList" class="space-y-2 max-h-[28rem] overflow-y-auto">
         <% if (!backups.length) { %>
           <p class="text-xs text-gray-500 p-3 rounded-xl bg-zilo-bg border border-gray-200">Aún no hay backups. Genera el primero con el botón superior.</p>
         <% } %>

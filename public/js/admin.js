@@ -457,6 +457,7 @@
       const body = {
         enabled: fd.get('enabled') === 'on',
         autoBackup: fd.get('autoBackup') === 'on',
+        autoRetention: fd.get('autoRetention') === 'on',
         includeUploads: fd.get('includeUploads') === 'on',
         includeSecurityLogs: fd.get('includeSecurityLogs') === 'on',
         scheduleHour: fd.get('scheduleHour'),
@@ -496,6 +497,10 @@
     const res = await fetch('/admin/backups/retention', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
+      if (data.skipped) {
+        FundezNotify.show(data.message || 'El historial se conserva', 'info');
+        return;
+      }
       FundezNotify.show(data.removed ? `${data.removed} backup(s) antiguo(s) eliminado(s)` : 'No había backups por eliminar', 'info');
       setTimeout(() => location.reload(), 900);
     }

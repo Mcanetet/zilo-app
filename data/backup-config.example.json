@@ -1,6 +1,7 @@
 {
   "enabled": true,
   "autoBackup": true,
+  "autoRetention": false,
   "scheduleHour": 3,
   "scheduleMinute": 0,
   "dailyRetentionDays": 14,

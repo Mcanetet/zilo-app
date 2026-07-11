@@ -253,7 +253,7 @@ router.get('/', requireRole('admin'), (req, res) => {
     pricing,
     formatCLP: store.formatCLP,
     backupConfig: backup.loadConfig(),
-    backups: backup.listBackups().slice(0, 20),
+    backups: backup.listBackups(),
     backupRetention: backup.getRetentionSummary(),
     formatBytes: backup.formatBytes,
     appVersion: getAppVersionInfo(),
@@ -482,13 +482,18 @@ router.get('/backups/config', requireRole('admin'), (req, res) => {
 
 router.post('/backups/config', requireRole('admin'), requireAdminPermission('backups.manage'), (req, res) => {
   const allowed = [
-    'enabled', 'autoBackup', 'scheduleHour', 'scheduleMinute',
+    'enabled', 'autoBackup', 'autoRetention', 'scheduleHour', 'scheduleMinute',
     'dailyRetentionDays', 'weeklyRetentionWeeks', 'monthlyRetentionMonths',
     'includeUploads', 'includeSecurityLogs'
   ];
   const updates = {};
   for (const key of allowed) {
-    if (req.body[key] !== undefined) updates[key] = req.body[key];
+    if (req.body[key] === undefined) continue;
+    if (key === 'enabled' || key === 'autoBackup' || key === 'autoRetention' || key === 'includeUploads' || key === 'includeSecurityLogs') {
+      updates[key] = req.body[key] === true || req.body[key] === 'on' || req.body[key] === 'true';
+    } else {
+      updates[key] = req.body[key];
+    }
   }
   if (updates.scheduleHour != null) updates.scheduleHour = Math.min(23, Math.max(0, parseInt(updates.scheduleHour, 10)));
   if (updates.scheduleMinute != null) updates.scheduleMinute = Math.min(59, Math.max(0, parseInt(updates.scheduleMinute, 10)));
@@ -519,6 +524,16 @@ router.post('/backups/run', requireRole('admin'), requireAdminPermission('backup
 });
 
 router.post('/backups/retention', requireRole('admin'), requireAdminPermission('backups.manage'), (req, res) => {
+  const config = backup.loadConfig();
+  if (config.autoRetention === false) {
+    return res.json({
+      success: true,
+      removed: 0,
+      skipped: true,
+      message: 'La limpieza automática está desactivada. El historial se conserva.',
+      backups: backup.listBackups()
+    });
+  }
   const removed = backup.applyRetention();
   store.logSecurityEvent('backup_retention_purge', `removed=${removed}`, req);
   res.json({ success: true, removed, backups: backup.listBackups() });

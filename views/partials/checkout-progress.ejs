@@ -1,12 +1,12 @@
 <% 
   const current = typeof checkoutStep !== 'undefined' ? checkoutStep : 1;
   const steps = [
-    { id: 1, label: 'Servicio', short: '1' },
-    { id: 2, label: 'Pago', short: '2' },
-    { id: 3, label: 'Seguimiento', short: '3' }
+    { id: 1, label: t('checkout.step_service'), short: '1' },
+    { id: 2, label: t('checkout.step_payment'), short: '2' },
+    { id: 3, label: t('checkout.step_tracking'), short: '3' }
   ];
 %>
-<nav class="checkout-progress" aria-label="Progreso de compra">
+<nav class="checkout-progress" aria-label="<%= t('checkout.progress_aria') %>">
   <div class="checkout-progress-track">
     <% steps.forEach((step, i) => { %>
       <div class="checkout-progress-step <%= current > step.id ? 'is-done' : (current === step.id ? 'is-active' : '') %>">

@@ -27,6 +27,11 @@
   const ADMIN_JS = (window.FundezAdminI18n && window.FundezAdminI18n.js) || {};
   const ADMIN_STATUS = (window.FundezAdminI18n && window.FundezAdminI18n.status) || { on: 'ON', off: 'OFF', active: 'ACTIVA', inactive: 'INACTIVA' };
 
+  function adminMsg(template, vars) {
+    if (!template) return '';
+    return String(template).replace(/\{\{(\w+)\}\}/g, (_, key) => (vars && vars[key] != null ? vars[key] : ''));
+  }
+
   const tabs = document.querySelectorAll('.admin-nav-item');
   const panels = document.querySelectorAll('.admin-panel');
   const panelTitle = document.getElementById('adminPanelTitle');
@@ -320,11 +325,11 @@
           item.classList.toggle('opacity-50', !enabled);
           statusLabel.textContent = enabled ? ADMIN_STATUS.on : ADMIN_STATUS.off;
           statusLabel.className = `service-status text-[10px] font-bold uppercase ${enabled ? 'text-emerald-600' : 'text-red-600'}`;
-          FundezNotify.show(`${data.service.name} ${enabled ? 'activado' : 'desactivado'}`, enabled ? 'success' : 'warning');
+          FundezNotify.show(adminMsg(enabled ? ADMIN_JS.serviceEnabled : ADMIN_JS.serviceDisabled, { name: data.service.name }), enabled ? 'success' : 'warning');
         }
       } catch (_) {
         toggle.checked = !enabled;
-        FundezNotify.show('Error al actualizar servicio', 'error');
+        FundezNotify.show(ADMIN_JS.updateError, 'error');
       }
     });
   });
@@ -347,7 +352,7 @@
           item.classList.toggle('opacity-50', !active);
           statusLabel.textContent = active ? ADMIN_STATUS.active : ADMIN_STATUS.inactive;
           statusLabel.className = `demo-status text-[10px] font-bold uppercase ${active ? 'text-emerald-600' : 'text-red-600'}`;
-          FundezNotify.show(`Cuenta demo ${active ? 'activada' : 'desactivada'}`, active ? 'success' : 'warning');
+          FundezNotify.show(active ? ADMIN_JS.demoEnabled : ADMIN_JS.demoDisabled, active ? 'success' : 'warning');
         } else {
           toggle.checked = !active;
           FundezNotify.show(data.error || 'No se pudo actualizar', 'error');
@@ -377,7 +382,7 @@
           item.classList.toggle('opacity-50', !enabled);
           statusLabel.textContent = enabled ? ADMIN_STATUS.on : ADMIN_STATUS.off;
           statusLabel.className = `module-status text-[10px] font-bold uppercase ${enabled ? 'text-emerald-600' : 'text-red-600'}`;
-          FundezNotify.show(`${data.module.name} ${enabled ? 'activado' : 'desactivado'}`, enabled ? 'success' : 'warning');
+          FundezNotify.show(adminMsg(enabled ? ADMIN_JS.moduleEnabled : ADMIN_JS.moduleDisabled, { name: data.module.name }), enabled ? 'success' : 'warning');
         } else {
           toggle.checked = !enabled;
           FundezNotify.show(data.error || 'No se pudo actualizar', 'error');
@@ -412,14 +417,14 @@
           item.classList.toggle('opacity-70', !enabled);
           updateCoverageRegionCount(regionEl);
           updateCoverageStatsLabel(data.stats);
-          FundezNotify.show(`${data.commune.communeName} ${enabled ? 'habilitada' : 'deshabilitada'}`, enabled ? 'success' : 'warning');
+          FundezNotify.show(adminMsg(enabled ? ADMIN_JS.communeEnabled : ADMIN_JS.communeDisabled, { name: data.commune.communeName }), enabled ? 'success' : 'warning');
         } else {
           toggle.checked = !enabled;
-          FundezNotify.show(data.error || 'No se pudo actualizar', 'error');
+          FundezNotify.show(data.error || ADMIN_JS.updateError, 'error');
         }
       } catch (_) {
         toggle.checked = !enabled;
-        FundezNotify.show('Error al actualizar cobertura', 'error');
+        FundezNotify.show(ADMIN_JS.coverageError, 'error');
       }
     });
   });
@@ -494,10 +499,10 @@
 
         updateCoverageRegionUi(regionEl, enabled);
         updateCoverageStatsLabel(data.stats);
-        FundezNotify.show(`${data.region.regionName} ${enabled ? 'activada' : 'desactivada'}`, enabled ? 'success' : 'warning');
+        FundezNotify.show(adminMsg(enabled ? ADMIN_JS.regionEnabled : ADMIN_JS.regionDisabled, { name: data.region.regionName }), enabled ? 'success' : 'warning');
       } catch (_) {
         toggle.checked = !enabled;
-        FundezNotify.show('Error al actualizar región', 'error');
+        FundezNotify.show(ADMIN_JS.regionError, 'error');
       }
     });
   });
@@ -511,7 +516,7 @@
       });
       const data = await res.json();
       if (data.success) {
-        FundezNotify.show('Reclamo actualizado', 'success');
+        FundezNotify.show(ADMIN_JS.complaintUpdated, 'success');
         setTimeout(() => location.reload(), 800);
       }
     });
@@ -522,7 +527,7 @@
       const res = await fetch(`/admin/payout/${btn.dataset.id}`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        FundezNotify.show('Pago a proveedor registrado', 'success');
+        FundezNotify.show(ADMIN_JS.payoutMarked, 'success');
         setTimeout(() => location.reload(), 800);
       }
     });
@@ -533,7 +538,7 @@
       const res = await fetch(`/admin/transfer/${btn.dataset.id}/aprobar`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        FundezNotify.show('Transferencia confirmada — servicio activado', 'success');
+        FundezNotify.show(ADMIN_JS.transferConfirmed, 'success');
         setTimeout(() => location.reload(), 800);
       } else {
         FundezNotify.show(data.error || 'No se pudo confirmar', 'error');

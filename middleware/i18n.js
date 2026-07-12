@@ -3,6 +3,7 @@ const {
   createTranslator,
   setLocaleCookie,
   getClientBundle,
+  formatDate,
   SUPPORTED,
   LOCALES
 } = require('../lib/i18n');
@@ -20,6 +21,7 @@ function i18nMiddleware(req, res, next) {
   res.locals.t = t;
   res.locals.locales = LOCALES;
   res.locals.clientI18n = getClientBundle(locale);
+  res.locals.formatDate = (date, options) => formatDate(date, locale, options);
 
   next();
 }

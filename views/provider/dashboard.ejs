@@ -20,7 +20,7 @@
         </a>
         <% } %>
         <% if (mod('provider_mensajes')) { %>
-        <a href="/proveedor/mensajes" class="zilo-icon-btn" title="Mensajes Aland IA">
+        <a href="/proveedor/mensajes" class="zilo-icon-btn" title="<%= t('provider.mensajes_title') %>">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         </a>
         <% } %>
@@ -59,8 +59,8 @@
     <% } %>
 
     <%- include('../partials/guide-card', {
-      summary: 'Activa el modo en línea y revisa el muro de trabajos. El primero que toma el servicio se lo queda — sin límite de 15 segundos.',
-      linkText: 'Abrir guía del socio'
+      summary: t('provider.guide.summary'),
+      linkText: t('provider.guide.link')
     }) %>
 
     <% if (typeof providerStats !== 'undefined') { %>
@@ -110,9 +110,9 @@
     <% if (typeof activeJobs !== 'undefined' && activeJobs.length > 0) { %>
     <section class="mb-6 zilo-page-enter-delay-2">
       <div class="flex items-center justify-between mb-3">
-        <p class="zilo-label">Servicios en curso</p>
+        <p class="zilo-label"><%= t('provider.dashboard.active_jobs') %></p>
         <% if (mod('provider_mando')) { %>
-        <a href="/proveedor/mando" class="text-xs text-zilo-accent font-medium">Cuadro de mando →</a>
+        <a href="/proveedor/mando" class="text-xs text-zilo-accent font-medium"><%= t('provider.dashboard.mando_link') %></a>
         <% } %>
       </div>
       <div class="space-y-2" id="activeJobsList">
@@ -148,11 +148,11 @@
     <% } %>
 
     <section data-tour="history" class="zilo-page-enter-delay-3">
-      <p class="zilo-label mb-3">Historial reciente</p>
+      <p class="zilo-label mb-3"><%= t('provider.dashboard.recent') %></p>
       <% if (myRequests.length === 0) { %>
         <div class="zilo-empty zilo-card-premium rounded-2xl">
-          <p class="zilo-display">Sin trabajos aún</p>
-          <p class="text-sm">Activa el modo en línea para recibir solicitudes</p>
+          <p class="zilo-display"><%= t('provider.dashboard.no_jobs') %></p>
+          <p class="text-sm"><%= t('provider.dashboard.go_online') %></p>
         </div>
       <% } else { %>
         <div class="space-y-2">
@@ -161,7 +161,7 @@
               <div class="min-w-0 flex-1">
                 <strong class="text-sm block"><%= req.serviceName %></strong>
                 <span class="text-xs text-zilo-muted block truncate"><%= req.clientName %></span>
-                <span class="text-[10px] text-zilo-muted"><%= new Date(req.createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'short' }) %></span>
+                <span class="text-[10px] text-zilo-muted"><%= formatDate(req.createdAt, { day: 'numeric', month: 'short' }) %></span>
               </div>
               <div class="text-right shrink-0 ml-3">
                 <span class="zilo-badge zilo-badge-muted block mb-1"><%= req.statusLabel || req.status %></span>
@@ -202,7 +202,7 @@
             <svg class="w-5 h-5 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           </div>
           <div class="flex-1">
-            <h2 class="zilo-display text-xl">Nueva solicitud</h2>
+            <h2 class="zilo-display text-xl"><%= t('provider.dashboard.new_request') %></h2>
             <p class="text-xs text-zilo-muted">También visible en el muro · el primero que toma gana</p>
           </div>
           <div class="w-11 h-11 rounded-full bg-zilo-accent/15 border border-zilo-accent/30 flex items-center justify-center shrink-0">
@@ -229,9 +229,9 @@
           <div id="modalGiftBadge" class="hidden p-3 rounded-xl zilo-gift-card">
             <div class="flex items-center gap-2 mb-1">
               <svg class="w-4 h-4 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>
-              <span class="text-xs font-semibold text-zilo-accent uppercase tracking-wider">Regalo</span>
+              <span class="text-xs font-semibold text-zilo-accent uppercase tracking-wider"><%= t('provider.dashboard.gift') %></span>
             </div>
-            <p class="text-sm">Beneficiario: <strong id="modalBeneficiary">—</strong></p>
+            <p class="text-sm"><%= t('provider.dashboard.beneficiary') %>: <strong id="modalBeneficiary">—</strong></p>
             <p id="modalGiftPhone" class="text-xs text-zilo-muted"></p>
             <p id="modalGiftMessage" class="text-xs text-zilo-muted italic mt-1"></p>
           </div>
@@ -246,8 +246,8 @@
         <p id="modalNotes" class="text-xs text-zilo-muted italic p-3 rounded-xl bg-zilo-bg/80 border border-zilo-border mb-5"></p>
 
         <div class="flex gap-3">
-          <button type="button" id="btnDecline" class="zilo-modal-decline">Ver en muro</button>
-          <button type="button" id="btnAccept" class="zilo-modal-accept">Tomar ahora</button>
+          <button type="button" id="btnDecline" class="zilo-modal-decline"><%= t('provider.dashboard.view_wall') %></button>
+          <button type="button" id="btnAccept" class="zilo-modal-accept"><%= t('provider.dashboard.take_now') %></button>
         </div>
       </div>
     </div>

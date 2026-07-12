@@ -5,6 +5,13 @@
   const providerId = dashboard.dataset.providerId;
   const socket = io();
 
+  function t(key, vars) {
+    return typeof FundezI18n !== 'undefined' ? FundezI18n.t(key, vars) : key;
+  }
+
+  const locale = document.documentElement.lang === 'en' ? 'en-US' : 'es-CL';
+  const fmt = n => new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
+
   const onlineToggle = document.getElementById('onlineToggle');
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
@@ -24,8 +31,6 @@
   let locationWatchId = null;
   let activeRequestId = null;
   let wallItems = new Map();
-
-  const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
 
   function playAlertSound() {
     try {
@@ -89,7 +94,7 @@
     stickyBar.classList.toggle('is-visible', online);
     stickyBar.setAttribute('aria-hidden', online ? 'false' : 'true');
     if (stickyPendingCount) {
-      stickyPendingCount.textContent = `${wallItems.size} disponibles`;
+      stickyPendingCount.textContent = t('provider.js.available_count', { count: wallItems.size });
     }
     if (stickyOnlineDot) {
       stickyOnlineDot.className = `w-2.5 h-2.5 rounded-full shrink-0 ${online ? 'bg-zilo-success animate-pulse' : 'bg-zilo-muted/40'}`;
@@ -106,10 +111,10 @@
 
     items.forEach(data => {
       const urgency = data.request.urgencyTierLabel
-        ? `<p class="text-[10px] text-orange-600 mb-1">Urgencia: ${data.request.urgencyTierLabel}</p>`
+        ? `<p class="text-[10px] text-orange-600 mb-1">${t('provider.js.urgency')}: ${data.request.urgencyTierLabel}</p>`
         : '';
       const gift = data.request.isGift
-        ? `<span class="text-[10px] text-zilo-accent block mb-1">Regalo · ${data.request.beneficiaryName || 'beneficiario'}</span>`
+        ? `<span class="text-[10px] text-zilo-accent block mb-1">${t('provider.js.gift')} · ${data.request.beneficiaryName || t('provider.js.beneficiary_fallback')}</span>`
         : '';
       const card = document.createElement('article');
       card.className = 'p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15 provider-wall-card';
@@ -121,12 +126,12 @@
             <span class="text-xs text-zilo-muted block truncate">${data.client.name}</span>
             ${gift}
           </div>
-          <span class="zilo-badge zilo-badge-success shrink-0">Disponible</span>
+          <span class="zilo-badge zilo-badge-success shrink-0">${t('provider.js.available')}</span>
         </div>
         <p class="text-xs text-zilo-muted mb-1 truncate">${data.request.address}</p>
         ${urgency}
-        <p class="text-xs font-semibold text-zilo-accent mb-3">Visita: ${fmt(data.request.estimatedVisit)}</p>
-        <button type="button" class="w-full py-2.5 rounded-xl zilo-modal-accept !text-sm" data-take="${data.request.id}">Tomar trabajo</button>
+        <p class="text-xs font-semibold text-zilo-accent mb-3">${t('provider.js.visit_label')}: ${fmt(data.request.estimatedVisit)}</p>
+        <button type="button" class="w-full py-2.5 rounded-xl zilo-modal-accept !text-sm" data-take="${data.request.id}">${t('provider.js.take_job')}</button>
       `;
       workWallList.appendChild(card);
     });
@@ -180,8 +185,8 @@
       }, 400);
     }
 
-    document.getElementById('modalPrice').textContent = `Visita estimada: ${fmt(data.request.estimatedVisit)}`;
-    document.getElementById('modalNotes').textContent = data.request.notes || 'Sin detalles adicionales';
+    document.getElementById('modalPrice').textContent = `${t('provider.js.visit_est')}: ${fmt(data.request.estimatedVisit)}`;
+    document.getElementById('modalNotes').textContent = data.request.notes || t('provider.js.no_details');
 
     let urgencyEl = document.getElementById('modalUrgency');
     if (!urgencyEl) {
@@ -192,7 +197,7 @@
       notesEl.parentNode.insertBefore(urgencyEl, notesEl);
     }
     if (data.request.urgencyTierLabel) {
-      urgencyEl.textContent = `Urgencia: ${data.request.urgencyTierLabel}`;
+      urgencyEl.textContent = `${t('provider.js.urgency')}: ${data.request.urgencyTierLabel}`;
       urgencyEl.classList.remove('hidden');
     } else {
       urgencyEl.classList.add('hidden');
@@ -204,7 +209,7 @@
       document.getElementById('modalBeneficiary').textContent = data.request.beneficiaryName;
       document.getElementById('modalGiftPhone').textContent = data.request.beneficiaryPhone ? `Tel: ${data.request.beneficiaryPhone}` : '';
       document.getElementById('modalGiftMessage').textContent = data.request.giftMessage ? `"${data.request.giftMessage}"` : '';
-      document.getElementById('modalClient').textContent = `${data.client.name} (quien paga)`;
+      document.getElementById('modalClient').textContent = t('provider.js.payer', { name: data.client.name });
     } else {
       giftBadge.classList.add('hidden');
       document.getElementById('modalClient').textContent = data.client.name;
@@ -217,7 +222,7 @@
     requestModal.classList.remove('hidden');
     playAlertSound();
     startRepeatingAlert();
-    pushBrowserNotification('Fundez — Nueva solicitud', `${data.service.name} · ${data.request.address}`);
+    pushBrowserNotification(t('provider.js.new_request_title'), `${data.service.name} · ${data.request.address}`);
   }
 
   function closeModal() {
@@ -233,7 +238,7 @@
 
     if (!data.success) {
       if (btn) btn.disabled = false;
-      FundezNotify.show(data.error || 'No se pudo tomar el trabajo', 'warning');
+      FundezNotify.show(data.error || t('provider.js.take_error'), 'warning');
       if (res.status === 409) removeWallItem(requestId);
       return;
     }
@@ -242,7 +247,7 @@
     closeModal();
     activeRequestId = requestId;
     startLocationWatch();
-    FundezNotify.show('¡Trabajo tomado!', 'success');
+    FundezNotify.show(t('provider.js.job_taken_exclaim'), 'success');
     if (document.querySelector('#activeJobsList') || window.location.pathname.includes('/proveedor/mando')) {
       setTimeout(() => {
         window.location.href = '/proveedor/mando';
@@ -367,7 +372,7 @@
   document.getElementById('btnRefreshWall')?.addEventListener('click', () => {
     loadWorkWall();
     workWall?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    FundezNotify.show('Muro actualizado', 'info');
+    FundezNotify.show(t('provider.js.wall_updated'), 'info');
   });
 
   document.getElementById('btnAccept')?.addEventListener('click', () => {

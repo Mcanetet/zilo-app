@@ -6,18 +6,20 @@ const { requireRole } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
 const { saveRequestFile } = require('../lib/uploads');
 
-const TECH_LABELS = {
-  asignado: 'Asignado',
-  aceptado: 'Aceptado',
-  en_camino: 'En camino',
-  en_sitio: 'En el sitio',
-  diagnostico: 'Diagnóstico',
-  reparando: 'Reparando',
-  comprando: 'Comprando materiales',
-  presupuesto_pendiente: 'Presupuesto enviado',
-  presupuesto_aprobado: 'Presupuesto aprobado',
-  completado: 'Completado'
-};
+function getTechLabels(t) {
+  return {
+    asignado: t('status.tech.asignado'),
+    aceptado: t('status.tech.aceptado'),
+    en_camino: t('status.tech.en_camino'),
+    en_sitio: t('status.tech.en_sitio'),
+    diagnostico: t('status.tech.diagnostico_label'),
+    reparando: t('status.tech.reparando'),
+    comprando: t('status.tech.comprando'),
+    presupuesto_pendiente: t('status.tech.presupuesto_pendiente'),
+    presupuesto_aprobado: t('status.tech.presupuesto_aprobado'),
+    completado: t('status.tech.completado')
+  };
+}
 
 function serializeJob(request) {
   const service = store.getServiceById(request.serviceId);
@@ -51,7 +53,7 @@ router.get('/', requireRole('tecnico'), (req, res) => {
     tecnico,
     socio,
     jobs,
-    techLabels: TECH_LABELS,
+    techLabels: getTechLabels(req.t),
     services: store.SERVICES,
     formatCLP: store.formatCLP
   });
@@ -69,7 +71,7 @@ router.get('/trabajo/:requestId', requireRole('tecnico'), (req, res) => {
     user: req.session.user,
     tecnico,
     request: serializeJob(request),
-    techLabels: TECH_LABELS,
+    techLabels: getTechLabels(req.t),
     formatCLP: store.formatCLP
   });
 });

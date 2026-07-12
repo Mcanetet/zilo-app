@@ -32,8 +32,8 @@ router.get('/', requireRole('provider'), (req, res) => {
   const myRequests = store.getRequestsByProvider(req.session.user.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 10)
-    .map(store.enrichRequestForProvider);
-  const activeJobs = store.getActiveRequestsForProvider(req.session.user.id);
+    .map(r => store.enrichRequestForProvider(r, req.locale));
+  const activeJobs = store.getActiveRequestsForProvider(req.session.user.id, req.locale);
   const pending = store.getPendingRequestsForProvider(req.session.user.id);
   const verificationCheck = store.canProviderGoOnline(provider);
   const contractSummary = getContractSummary(provider.providerContract);
@@ -141,7 +141,7 @@ router.post('/status/:requestId', requireRole('provider'), (req, res) => {
   const io = req.app.get('io');
   io.emit(`request_update_${request.id}`, { request });
 
-  res.json({ success: true, request: store.enrichRequestForProvider(request) });
+  res.json({ success: true, request: store.enrichRequestForProvider(request, req.locale) });
 });
 
 router.get('/perfil', requireRole('provider'), requireModule('provider_perfil'), (req, res) => {
@@ -285,7 +285,7 @@ router.post('/equipo/:id/toggle', requireRole('provider'), requireModule('provid
 router.get('/mando', requireRole('provider'), requireModule('provider_mando'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const technicians = store.getTechniciansByProvider(provider.id).filter(t => t.active !== false);
-  const active = store.getActiveRequestsForProvider(provider.id);
+  const active = store.getActiveRequestsForProvider(provider.id, req.locale);
 
   res.render('provider/mando', {
     title: 'Cuadro de mando — Fundez',

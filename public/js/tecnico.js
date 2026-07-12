@@ -4,6 +4,30 @@
 
   const tecnicoId = page.dataset.tecnicoId;
   const notify = (msg, type) => { if (window.FundezNotify) window.FundezNotify.show(msg, type); };
+
+  function t(key, vars) {
+    return typeof FundezI18n !== 'undefined' ? FundezI18n.t(key, vars) : key;
+  }
+
+  const locale = document.documentElement.lang === 'en' ? 'en-US' : 'es-CL';
+  const fmt = n => new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
+
+  function statusLabel(key) {
+    const map = {
+      asignado: 'status.tech.asignado',
+      aceptado: 'status.tech.aceptado',
+      en_camino: 'status.tech.en_camino',
+      en_sitio: 'status.tech.en_sitio',
+      diagnostico: 'status.tech.diagnostico_label',
+      reparando: 'status.tech.reparando',
+      comprando: 'status.tech.comprando',
+      presupuesto_pendiente: 'status.tech.presupuesto_pendiente',
+      presupuesto_aprobado: 'status.tech.presupuesto_aprobado',
+      completado: 'status.tech.completado'
+    };
+    return map[key] ? t(map[key]) : key;
+  }
+
   const watchers = {};
   const socket = typeof io !== 'undefined' ? io() : null;
 
@@ -19,22 +43,7 @@
   let alertInterval = null;
   let audioCtx = null;
 
-  const STATUS_LABELS = {
-    asignado: 'Asignado',
-    aceptado: 'Aceptado',
-    en_camino: 'En camino',
-    en_sitio: 'En el sitio',
-    diagnostico: 'Diagnóstico',
-    reparando: 'Reparando',
-    comprando: 'Comprando',
-    presupuesto_pendiente: 'Presupuesto',
-    presupuesto_aprobado: 'Aprobado',
-    completado: 'Completado'
-  };
-
   const WORK_STATUSES = ['en_sitio', 'diagnostico', 'reparando', 'comprando', 'presupuesto_pendiente', 'presupuesto_aprobado'];
-
-  const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
 
   function getAudioContext() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -103,11 +112,11 @@
             <strong class="text-sm block">${data.service.name}</strong>
             <span class="text-xs text-zilo-muted block truncate">${data.client.name}</span>
           </div>
-          <span class="zilo-badge zilo-badge-success shrink-0">Disponible</span>
+          <span class="zilo-badge zilo-badge-success shrink-0">${t('tecnico.js.wall_available')}</span>
         </div>
         <p class="text-xs text-zilo-muted mb-2 truncate">${data.request.address}</p>
-        <p class="text-xs font-semibold text-zilo-accent mb-3">Visita: ${fmt(data.request.estimatedVisit)}</p>
-        <button type="button" class="w-full py-2.5 rounded-xl zilo-btn-primary !text-sm" data-take="${data.request.id}">Tomar trabajo</button>
+        <p class="text-xs font-semibold text-zilo-accent mb-3">${t('provider.js.visit_label')}: ${fmt(data.request.estimatedVisit)}</p>
+        <button type="button" class="w-full py-2.5 rounded-xl zilo-btn-primary !text-sm" data-take="${data.request.id}">${t('tecnico.js.take_job')}</button>
       `;
       workWallList.appendChild(card);
     });
@@ -145,13 +154,13 @@
     const data = await res.json();
     if (!data.success) {
       if (btn) btn.disabled = false;
-      notify(data.error || 'No se pudo tomar el trabajo', 'warning');
+      notify(data.error || t('provider.js.take_error'), 'warning');
       if (res.status === 409) removeWallItem(requestId);
       return;
     }
     removeWallItem(requestId);
     stopRepeatingAlert();
-    notify('¡Trabajo tomado! Recargando…', 'success');
+    notify(t('tecnico.js.job_taken_reload'), 'success');
     setTimeout(() => location.reload(), 800);
   }
 
@@ -177,7 +186,7 @@
           body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, requestId: jobId })
         }).catch(() => {});
       },
-      () => notify('Activa el GPS para compartir tu ubicación', 'warning'),
+      () => notify(t('tecnico.js.enable_gps'), 'warning'),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
   }
@@ -193,7 +202,7 @@
     const status = card.dataset.techStatus;
     const actions = card.querySelector('[data-role="actions"]');
     const badge = card.querySelector('[data-role="status"]');
-    if (badge) badge.textContent = STATUS_LABELS[status] || status;
+    if (badge) badge.textContent = statusLabel(status);
     actions.innerHTML = '';
 
     const addBtn = (label, cls, handler) => {
@@ -215,7 +224,7 @@
 
     if (WORK_STATUSES.includes(status)) {
       if (status === 'en_camino') startSharing(card);
-      addLink(status === 'en_sitio' ? 'Registrar llegada' : 'Continuar visita', `/tecnico/trabajo/${card.dataset.jobId}`);
+      addLink(status === 'en_sitio' ? t('tecnico.js.arrived_link') : t('tecnico.js.continue_visit'), `/tecnico/trabajo/${card.dataset.jobId}`);
       return;
     }
 
@@ -234,21 +243,21 @@
         render(card);
       } catch (err) {
         btn.disabled = false;
-        notify(err.message || 'No se pudo actualizar', 'error');
+        notify(err.message || t('tecnico.js.update_error'), 'error');
       }
     };
 
     if (status === 'asignado') {
-      addBtn('Aceptar trabajo', 'flex-1 py-2.5 rounded-xl zilo-btn-primary !text-sm', (b) => transition(b, 'aceptado', 'Trabajo aceptado'));
+      addBtn(t('tecnico.js.accept_job'), 'flex-1 py-2.5 rounded-xl zilo-btn-primary !text-sm', (b) => transition(b, 'aceptado', t('tecnico.js.job_accepted')));
     } else if (status === 'aceptado') {
-      addBtn('Ir en camino', 'flex-1 py-2.5 rounded-xl zilo-btn-primary !text-sm', (b) => transition(b, 'en_camino', 'Compartiendo tu ubicación'));
+      addBtn(t('tecnico.js.head_out'), 'flex-1 py-2.5 rounded-xl zilo-btn-primary !text-sm', (b) => transition(b, 'en_camino', t('tecnico.js.sharing_location')));
     } else if (status === 'en_camino') {
       const info = document.createElement('span');
       info.className = 'flex-1 py-2.5 text-xs text-zilo-success flex items-center gap-1.5';
-      info.innerHTML = '<span class="w-2 h-2 rounded-full bg-zilo-success animate-pulse"></span> GPS activo';
+      info.innerHTML = `<span class="w-2 h-2 rounded-full bg-zilo-success animate-pulse"></span> ${t('tecnico.js.gps_active')}`;
       actions.appendChild(info);
-      addBtn('Llegué', 'py-2.5 px-4 rounded-xl zilo-btn-primary !text-sm', (b) =>
-        transition(b, 'en_sitio', 'Bienvenido al domicilio', `/tecnico/trabajo/${card.dataset.jobId}`)
+      addBtn(t('tecnico.js.arrived_btn'), 'py-2.5 px-4 rounded-xl zilo-btn-primary !text-sm', (b) =>
+        transition(b, 'en_sitio', t('tecnico.js.welcome_site'), `/tecnico/trabajo/${card.dataset.jobId}`)
       );
       startSharing(card);
     }
@@ -271,7 +280,7 @@
       upsertWallItem(data);
       playAlertSound();
       startRepeatingAlert();
-      pushBrowserNotification('Fundez — Nuevo trabajo', `${data.service.name} · ${data.request.address}`);
+      pushBrowserNotification(t('tecnico.js.push_title'), `${data.service.name} · ${data.request.address}`);
     });
 
     socket.on('request_taken', ({ requestId }) => {
@@ -293,25 +302,25 @@
     const data = await res.json();
     if (!data.success) {
       onlineToggle.checked = false;
-      notify(data.error || 'No se pudo cambiar el estado', 'error');
+      notify(data.error || t('tecnico.js.toggle_error'), 'error');
       return;
     }
 
     if (online) {
       statusDot.className = 'w-3 h-3 rounded-full bg-zilo-success shadow-lg shadow-zilo-success/40 animate-pulse';
-      statusText.textContent = 'En línea';
-      statusSub.textContent = 'Muro de trabajos activo';
+      statusText.textContent = t('tecnico.online');
+      statusSub.textContent = t('tecnico.online_sub');
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission();
       loadWorkWall();
-      notify(data.synced > 0 ? `¡${data.synced} solicitud(es) en el muro!` : 'Modo en línea activado', 'success');
+      notify(data.synced > 0 ? t('provider.js.new_on_wall', { count: data.synced }) : t('tecnico.js.online_activated'), 'success');
     } else {
       statusDot.className = 'w-3 h-3 rounded-full bg-zilo-muted/40';
-      statusText.textContent = 'Fuera de línea';
-      statusSub.textContent = 'Actívate para tomar servicios';
+      statusText.textContent = t('tecnico.offline');
+      statusSub.textContent = t('tecnico.offline_sub');
       wallItems.clear();
       renderWorkWall();
       stopRepeatingAlert();
-      notify('Modo fuera de línea', 'info');
+      notify(t('tecnico.js.offline_mode'), 'info');
     }
   });
 

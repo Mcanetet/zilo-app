@@ -2,6 +2,13 @@
   const page = document.getElementById('servicePage');
   if (!page) return;
 
+  function t(key, vars) {
+    return typeof FundezI18n !== 'undefined' ? FundezI18n.t(key, vars) : key;
+  }
+
+  const locale = document.documentElement.lang === 'en' ? 'en-US' : 'es-CL';
+  const fmtCLP = n => new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
+
   const serviceId = page.dataset.serviceId;
   const trackingId = page.dataset.tracking;
   const btnRequest = document.getElementById('btnRequest');
@@ -38,7 +45,7 @@
     if (new URLSearchParams(window.location.search).get('gift') === '1' && giftToggle) {
       giftToggle.checked = true;
       giftFields.classList.remove('hidden');
-      if (addressLabel) addressLabel.textContent = 'Dirección del beneficiario';
+      if (addressLabel) addressLabel.textContent = t('client.js.gift_address');
     }
 
     if (trackingId) {
@@ -58,9 +65,7 @@
       const isGift = giftToggle.checked;
       giftFields.classList.toggle('hidden', !isGift);
       if (addressLabel) {
-        addressLabel.textContent = isGift
-          ? 'Dirección del beneficiario'
-          : 'Dirección del servicio';
+        addressLabel.textContent = isGift ? t('client.js.gift_address') : t('client.js.service_address');
       }
     });
   }
@@ -101,7 +106,9 @@
           adjRow.classList.remove('hidden');
           adjRow.classList.add('flex');
           document.getElementById('urgencyAdjustmentLabel').textContent =
-            p.adjustmentPercent > 0 ? `Recargo (${p.tier.label})` : `Descuento (${p.tier.label})`;
+            p.adjustmentPercent > 0
+              ? t('client.js.surcharge_label', { label: p.tier.label })
+              : t('client.js.discount_label', { label: p.tier.label });
           const adjEl = document.getElementById('displayUrgencyAdj');
           adjEl.textContent = (p.adjustmentAmount > 0 ? '+' : '') + f.adjustment;
           adjEl.className = p.adjustmentAmount > 0 ? 'text-orange-600' : 'text-emerald-600';
@@ -133,7 +140,7 @@
       const file = input?.files?.[0];
       if (!file) return resolve(null);
       if (file.size > 6 * 1024 * 1024) {
-        FundezNotify.show('La foto no puede superar 6 MB', 'warning');
+        FundezNotify.show(t('client.js.photo_too_large'), 'warning');
         return resolve(null);
       }
       const reader = new FileReader();
@@ -158,7 +165,7 @@
 
     coverageAlert.classList.remove('hidden');
     coverageAlert.textContent = coverage.message
-      || `Estamos trabajando para llegar a ${coverage.communeName || 'tu comuna'}. Por ahora operamos en Providencia, Las Condes y Ñuñoa.`;
+      || t('client.js.coverage_msg', { name: coverage.communeName || '' });
     btnRequest.disabled = true;
     const stickyBtn = document.getElementById('btnRequestSticky');
     if (stickyBtn) stickyBtn.disabled = true;
@@ -168,7 +175,7 @@
     const address = addressInput.value.trim();
     if (address.length < 5) return;
 
-    mapStatus.textContent = 'Buscando ubicación...';
+    mapStatus.textContent = t('client.js.geocoding');
     if (coverageAlert) {
       coverageAlert.classList.add('hidden');
       coverageAlert.textContent = '';
@@ -185,24 +192,24 @@
         lngInput.value = data.coords.lng;
         FundezMap.update('addressMap', data.coords.lat, data.coords.lng, data.displayName || address);
         if (data.coverage?.covered) {
-          mapStatus.textContent = data.displayName || 'Ubicación encontrada';
+          mapStatus.textContent = data.displayName || t('client.js.location_found');
         } else {
           mapStatus.textContent = data.coverage?.communeName
-            ? `Comuna detectada: ${data.coverage.communeName}`
-            : (data.displayName || 'Ubicación encontrada');
+            ? t('client.js.commune_detected', { name: data.coverage.communeName })
+            : (data.displayName || t('client.js.location_found'));
         }
         setCoverageState(data.coverage);
       }
     } catch (_) {
-      mapStatus.textContent = 'No se pudo geocodificar';
+      mapStatus.textContent = t('client.js.geocode_fail');
       setCoverageState(null);
     }
   }
 
   const loaderSteps = [
-    { id: 'step1', text: 'Buscando proveedor cercano...', sub: 'Usando tu ubicación en Santiago' },
-    { id: 'step2', text: 'Encontramos técnicos disponibles', sub: 'Verificando especialidad y rating' },
-    { id: 'step3', text: 'Conectando con tu proveedor', sub: 'Casi listo...' }
+    { id: 'step1', text: t('client.js.loader_step1_text'), sub: t('client.js.loader_step1_sub') },
+    { id: 'step2', text: t('client.service.found'), sub: t('client.service.found_sub') },
+    { id: 'step3', text: t('client.service.connecting'), sub: t('client.service.connecting_sub') }
   ];
 
   function setStepActive(stepId) {
@@ -242,8 +249,8 @@
     if (current) { current.classList.add('active'); current.classList.remove('done'); }
     const etaEl = document.getElementById('tripEta');
     if (!etaEl) return;
-    if (step === 'enroute') etaEl.textContent = 'En camino a tu domicilio';
-    if (step === 'arrived') etaEl.textContent = '¡Ha llegado!';
+    if (step === 'enroute') etaEl.textContent = t('client.js.enroute_home');
+    if (step === 'arrived') etaEl.textContent = t('client.js.arrived');
   }
 
   function syncTripFromRequest(request) {
@@ -263,7 +270,7 @@
     if (!container) return;
     const v = provider.verification;
     if (!v?.badges?.length) {
-      container.innerHTML = '<span class="zilo-badge !text-[10px]">Verificación en proceso</span>';
+      container.innerHTML = `<span class="zilo-badge !text-[10px]">${t('client.js.verification_pending')}</span>`;
       return;
     }
     container.innerHTML = v.badges.map(b =>
@@ -271,7 +278,9 @@
     ).join('');
     const statusEl = document.getElementById('providerVerifiedStatus');
     if (statusEl && v.faceVerified) {
-      statusEl.textContent = v.faceScore ? `Identidad verificada · ${v.faceScore}%` : 'Identidad verificada por Fundez';
+      statusEl.textContent = v.faceScore
+        ? t('client.js.identity_score', { score: v.faceScore })
+        : t('client.js.identity_verified');
       statusEl.classList.remove('hidden');
     }
   }
@@ -284,9 +293,8 @@
       banner.classList.add('hidden');
       return;
     }
-    const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
     document.getElementById('budgetBannerText').textContent =
-      `El técnico envió un presupuesto de ${fmt(sr.budgetAmount)}: ${sr.budgetDescription || ''}`;
+      t('client.js.budget_sent', { amount: fmtCLP(sr.budgetAmount), desc: sr.budgetDescription || '' });
     banner.classList.remove('hidden');
   }
 
@@ -299,10 +307,13 @@
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
-      FundezNotify.show(data.error || 'Error al responder', 'error');
+      FundezNotify.show(data.error || t('client.js.respond_error'), 'error');
       return;
     }
-    FundezNotify.show(approved ? 'Presupuesto aprobado' : 'Presupuesto rechazado', approved ? 'success' : 'info');
+    FundezNotify.show(
+      approved ? t('client.js.budget_approved') : t('client.js.budget_rejected'),
+      approved ? 'success' : 'info'
+    );
     document.getElementById('budgetBanner')?.classList.add('hidden');
   }
 
@@ -315,22 +326,22 @@
     document.getElementById('providerAvatar').textContent = provider.avatar;
     document.getElementById('providerName').textContent = provider.name;
     document.getElementById('providerRating').textContent = provider.rating;
-    document.getElementById('providerReviews').textContent = `(${provider.reviewsCount} reseñas)`;
+    document.getElementById('providerReviews').textContent = t('client.js.reviews_count', { count: provider.reviewsCount });
     document.getElementById('providerStars').textContent = '★'.repeat(Math.round(provider.rating));
     document.getElementById('providerBio').textContent = provider.bio;
     document.getElementById('providerPhone').href = `tel:${provider.phone}`;
-    document.getElementById('providerPhone').textContent = `Llamar · ${provider.phone}`;
+    document.getElementById('providerPhone').textContent = t('client.js.call', { phone: provider.phone });
     const emailEl = document.getElementById('providerEmail');
     if (emailEl && provider.email) {
       emailEl.href = `mailto:${provider.email}`;
-      emailEl.textContent = `Correo · ${provider.email}`;
+      emailEl.textContent = t('client.js.email', { email: provider.email });
       emailEl.classList.remove('hidden');
     }
     renderVerificationBadges(provider);
     document.getElementById('tripProviderLabel').textContent = `${provider.name} · ${provider.rating}★`;
     if (request) showBudgetBanner(request);
     const waNum = page.dataset.whatsapp || '56912345678';
-    const waMsg = encodeURIComponent(`Hola Fundez, tengo un servicio en curso con ${provider.name}. Necesito ayuda.`);
+    const waMsg = encodeURIComponent(t('client.js.wa_help', { name: provider.name }));
     document.getElementById('whatsappSupport').href = `https://wa.me/${waNum.replace(/\D/g, '')}?text=${waMsg}`;
 
     if (request) syncTripFromRequest(request);
@@ -361,21 +372,21 @@
       const locStatus = document.getElementById('providerLocationStatus');
       if (locStatus) {
         locStatus.classList.toggle('hidden', !prov);
-        if (prov) locStatus.textContent = 'Ubicación del técnico en tiempo real';
+        if (prov) locStatus.textContent = t('client.js.tech_live_location');
       }
     }
 
     loaderOverlay.classList.add('hidden');
     providerCard.classList.remove('hidden');
     requestForm.classList.add('hidden');
-    FundezNotify.show('¡Proveedor asignado!', 'success');
+    FundezNotify.show(t('client.js.provider_found'), 'success');
   }
 
   function pollForProvider(requestId, attempts = 0) {
     if (attempts > 30) {
       loaderOverlay.classList.add('hidden');
       requestForm.classList.remove('hidden');
-      FundezNotify.show('No hay proveedores disponibles. Intenta más tarde.', 'warning');
+      FundezNotify.show(t('client.js.no_providers_later'), 'warning');
       return;
     }
 
@@ -408,7 +419,7 @@
       }
       const locStatus = document.getElementById('providerLocationStatus');
       if (locStatus) {
-        locStatus.textContent = 'Ubicación del técnico en tiempo real';
+        locStatus.textContent = t('client.js.tech_live_location');
         locStatus.classList.remove('hidden');
       }
       advanceTripStep('enroute');
@@ -420,7 +431,7 @@
     const address = addressInput.value.trim();
     if (!address) {
       addressInput.focus();
-      FundezNotify.show('Ingresa una dirección', 'warning');
+      FundezNotify.show(t('client.js.address_required'), 'warning');
       return;
     }
 
@@ -430,7 +441,7 @@
       const name = document.getElementById('giftName')?.value.trim();
       const phone = document.getElementById('giftPhone')?.value.trim();
       if (!name) {
-        FundezNotify.show('Ingresa el nombre del beneficiario', 'warning');
+        FundezNotify.show(t('client.js.beneficiary_required'), 'warning');
         return;
       }
       gift = {
@@ -441,7 +452,7 @@
     }
 
     btnRequest.disabled = true;
-    btnRequest.textContent = 'Procesando...';
+    btnRequest.textContent = t('client.js.processing');
     const stickyBtn = document.getElementById('btnRequestSticky');
     if (stickyBtn) stickyBtn.disabled = true;
 
@@ -450,8 +461,8 @@
       if (addressCovered === false) {
         btnRequest.disabled = true;
         if (stickyBtn) stickyBtn.disabled = true;
-        btnRequest.textContent = 'Continuar al pago';
-        FundezNotify.show('Tu comuna aún no tiene cobertura Fundez', 'warning');
+        btnRequest.textContent = t('client.js.continue_payment');
+        FundezNotify.show(t('client.js.coverage_blocked'), 'warning');
         return;
       }
 
@@ -473,14 +484,14 @@
       });
 
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Error');
+      if (!data.success) throw new Error(data.error || t('client.js.process_error'));
 
       window.location.href = `/pagos/checkout?ref=${data.request.id}`;
     } catch (err) {
       btnRequest.disabled = false;
-      btnRequest.textContent = 'Continuar al pago';
+      btnRequest.textContent = t('client.js.continue_payment');
       if (stickyBtn) stickyBtn.disabled = false;
-      FundezNotify.show(err.message || 'Error al procesar', 'error');
+      FundezNotify.show(err.message || t('client.js.process_error'), 'error');
     }
   }
 

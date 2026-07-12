@@ -3,6 +3,7 @@ const { geocodeAddress } = require('../lib/geocode');
 const db = require('../lib/db');
 const repository = require('./repository');
 const { getAppVersionInfo } = require('../lib/version');
+const { t: translate } = require('../lib/i18n');
 const { verifyPassword, hashPassword } = require('../lib/password');
 const {
   generateSecret,
@@ -1706,45 +1707,50 @@ function getRequestsByClient(clientId) {
 }
 
 const REQUEST_STATUS_LABELS = {
-  pending_payment: 'Pago pendiente',
-  pending: 'Pago pendiente',
-  pending_transfer: 'Transferencia pendiente',
-  searching: 'Buscando técnico',
-  assigned: 'Técnico asignado',
-  in_progress: 'En curso',
-  completed: 'Completado',
-  cancelled: 'Cancelado'
+  pending_payment: 'status.request.pending_payment',
+  pending: 'status.request.pending',
+  pending_transfer: 'status.request.pending_transfer',
+  searching: 'status.request.searching',
+  assigned: 'status.request.assigned',
+  in_progress: 'status.request.in_progress',
+  completed: 'status.request.completed',
+  cancelled: 'status.request.cancelled'
 };
 
-function getRequestStatusLabel(request) {
+function getRequestStatusLabel(request, locale = 'es') {
   if (!request) return '—';
-  if (request.techStatus === 'en_camino') return 'En camino';
-  if (request.techStatus === 'en_sitio' || request.techStatus === 'diagnostico') return 'En sitio';
-  if (request.techStatus === 'presupuesto_pendiente') return 'Presupuesto pendiente';
-  return REQUEST_STATUS_LABELS[request.status] || request.status;
+  if (request.techStatus === 'en_camino') return translate(locale, 'status.tech.en_camino');
+  if (request.techStatus === 'en_sitio' || request.techStatus === 'diagnostico') {
+    return translate(locale, 'status.tech.en_sitio');
+  }
+  if (request.techStatus === 'presupuesto_pendiente') {
+    return translate(locale, 'status.tech.presupuesto_pendiente');
+  }
+  const key = REQUEST_STATUS_LABELS[request.status];
+  return key ? translate(locale, key) : request.status;
 }
 
-function enrichRequestForClient(request) {
+function enrichRequestForClient(request, locale = 'es') {
   if (!request) return null;
   return {
     ...request,
-    statusLabel: getRequestStatusLabel(request)
+    statusLabel: getRequestStatusLabel(request, locale)
   };
 }
 
-function getActiveRequestsForClient(clientId) {
+function getActiveRequestsForClient(clientId, locale = 'es') {
   return requests
     .filter(r => r.clientId === clientId && ['searching', 'assigned', 'in_progress'].includes(r.status))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5)
-    .map(enrichRequestForClient);
+    .map(r => enrichRequestForClient(r, locale));
 }
 
-function getLastCompletedRequest(clientId) {
+function getLastCompletedRequest(clientId, locale = 'es') {
   const completed = requests
     .filter(r => r.clientId === clientId && r.status === 'completed')
     .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
-  return completed[0] ? enrichRequestForClient(completed[0]) : null;
+  return completed[0] ? enrichRequestForClient(completed[0], locale) : null;
 }
 
 function getClientTrustStats() {
@@ -1808,42 +1814,43 @@ function submitClientReview(requestId, clientId, { rating, text }) {
   return { success: true, review: request.clientReview };
 }
 
-function getTechStatusLabel(techStatus) {
+function getTechStatusLabel(techStatus, locale = 'es') {
   const map = {
-    aceptado: 'Aceptado',
-    asignado: 'Técnico asignado',
-    en_camino: 'En camino',
-    en_sitio: 'En sitio',
-    diagnostico: 'Diagnóstico',
-    reparando: 'Reparando',
-    comprando: 'Comprando materiales',
-    presupuesto_pendiente: 'Presupuesto pendiente',
-    presupuesto_aprobado: 'Presupuesto aprobado',
-    completado: 'Completado'
+    aceptado: 'status.tech.aceptado',
+    asignado: 'status.request.assigned',
+    en_camino: 'status.tech.en_camino',
+    en_sitio: 'status.tech.en_sitio',
+    diagnostico: 'status.tech.diagnostico_label',
+    reparando: 'status.tech.reparando',
+    comprando: 'status.tech.comprando',
+    presupuesto_pendiente: 'status.tech.presupuesto_pendiente',
+    presupuesto_aprobado: 'status.tech.presupuesto_aprobado',
+    completado: 'status.tech.completado'
   };
-  return map[techStatus] || null;
+  const key = map[techStatus];
+  return key ? translate(locale, key) : null;
 }
 
-function enrichRequestForProvider(request) {
+function enrichRequestForProvider(request, locale = 'es') {
   if (!request) return null;
   return {
     ...request,
-    statusLabel: getRequestStatusLabel(request),
-    techStatusLabel: getTechStatusLabel(request.techStatus) || getRequestStatusLabel(request)
+    statusLabel: getRequestStatusLabel(request, locale),
+    techStatusLabel: getTechStatusLabel(request.techStatus, locale) || getRequestStatusLabel(request, locale)
   };
+}
+
+function getActiveRequestsForProvider(providerId, locale = 'es') {
+  return requests
+    .filter(r => r.providerId === providerId && ['assigned', 'in_progress'].includes(r.status))
+    .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt))
+    .map(r => enrichRequestForProvider(r, locale));
 }
 
 function getProviderPayoutSummary(providerId) {
   const row = getProviderPayouts().find(p => p.provider.id === providerId);
   if (!row) return { pending: 0, paid: 0, jobs: 0, completed: 0 };
   return { pending: row.pending, paid: row.paid, jobs: row.jobs, completed: row.completed };
-}
-
-function getActiveRequestsForProvider(providerId) {
-  return requests
-    .filter(r => r.providerId === providerId && ['assigned', 'in_progress'].includes(r.status))
-    .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt))
-    .map(enrichRequestForProvider);
 }
 
 function getProviderDashboardStats(providerId) {

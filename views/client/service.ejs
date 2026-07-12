@@ -26,39 +26,39 @@
     </div>
 
     <div class="p-5 rounded-2xl zilo-card-premium mb-5 zilo-page-enter-delay-1" id="pricingBox">
-      <p class="zilo-label mb-4">Tarifas estimadas · Santiago</p>
+      <p class="zilo-label mb-4"><%= t('client.service.rates') %></p>
       <div class="flex justify-between py-3 border-b border-zilo-border">
-        <span class="text-zilo-muted text-sm">Visita técnica</span>
+        <span class="text-zilo-muted text-sm"><%= t('client.service.visit') %></span>
         <strong class="text-zilo-accent font-semibold" id="displayVisitPrice"><%= formatCLP(pricing.visitPrice) %></strong>
       </div>
       <div id="urgencyAdjustmentRow" class="hidden flex justify-between py-2 border-b border-zilo-border text-sm">
-        <span class="text-zilo-muted" id="urgencyAdjustmentLabel">Recargo urgencia</span>
+        <span class="text-zilo-muted" id="urgencyAdjustmentLabel"><%= t('client.service.urgency_surcharge') %></span>
         <strong id="displayUrgencyAdj" class="text-orange-600">—</strong>
       </div>
       <div class="flex justify-between py-3 border-b border-zilo-border">
-        <span class="text-zilo-muted text-sm">Servicio estimado</span>
+        <span class="text-zilo-muted text-sm"><%= t('client.service.service_est') %></span>
         <strong class="text-zilo-accent font-semibold" id="displayServicePrice"><%= formatCLP(pricing.servicePrice) %></strong>
       </div>
       <div class="flex justify-between py-3">
-        <span class="text-zilo-muted text-sm font-medium">Total estimado</span>
+        <span class="text-zilo-muted text-sm font-medium"><%= t('client.service.total_est') %></span>
         <strong class="text-zilo-accent font-semibold" id="displayTotalPrice"><%= formatCLP(pricing.visitPrice + pricing.servicePrice) %></strong>
       </div>
-      <p class="text-[11px] text-zilo-muted/70 mt-3">Pagas la visita ahora; el servicio se confirma en terreno. Puedes aplicar crédito y puntos en el checkout.</p>
+      <p class="text-[11px] text-zilo-muted/70 mt-3"><%= t('client.service.pay_hint') %></p>
       <details class="mt-3 text-left">
-        <summary class="text-xs text-zilo-accent font-medium cursor-pointer select-none">¿Qué incluye y garantías?</summary>
+        <summary class="text-xs text-zilo-accent font-medium cursor-pointer select-none"><%= t('client.service.guarantees') %></summary>
         <ul class="mt-2 space-y-1.5 text-[11px] text-zilo-muted leading-relaxed pl-1">
-          <li>✓ Visita técnica con diagnóstico en tu domicilio</li>
-          <li>✓ Técnicos con identidad verificada por Fundez</li>
-          <li>✓ Presupuesto en sitio antes de reparar — tú apruebas</li>
-          <li>✓ Garantía de 30 días en mano de obra</li>
-          <li>✓ Reembolso de visita si no hay técnico disponible</li>
+          <li>✓ <%= t('client.service.g1') %></li>
+          <li>✓ <%= t('client.service.g2') %></li>
+          <li>✓ <%= t('client.service.g3') %></li>
+          <li>✓ <%= t('client.service.g4') %></li>
+          <li>✓ <%= t('client.service.g5') %></li>
         </ul>
       </details>
     </div>
 
     <% if (urgencyTiers && urgencyTiers.length) { %>
     <div class="p-5 rounded-2xl zilo-card-premium mb-5 zilo-page-enter-delay-1">
-      <p class="zilo-label mb-3">¿Cuándo lo necesitas?</p>
+      <p class="zilo-label mb-3"><%= t('client.service.when') %></p>
       <div class="space-y-2" id="urgencyOptions">
         <% urgencyTiers.forEach((tier, i) => { %>
           <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer urgency-option <%= tier.id === 'tomorrow' ? 'border-zilo-accent bg-zilo-accent/5' : 'border-zilo-border' %>" data-tier="<%= tier.id %>">
@@ -67,7 +67,7 @@
               <div class="flex justify-between items-start gap-2">
                 <strong class="text-sm"><%= tier.label %></strong>
                 <span class="text-xs font-medium shrink-0 urgency-pct <%= tier.adjustmentPercent > 0 ? 'text-orange-600' : (tier.adjustmentPercent < 0 ? 'text-emerald-600' : 'text-zilo-muted') %>">
-                  <% if (tier.adjustmentPercent > 0) { %>+<%= tier.adjustmentPercent %>%<% } else if (tier.adjustmentPercent < 0) { %><%= tier.adjustmentPercent %>%<% } else { %>Normal<% } %>
+                  <% if (tier.adjustmentPercent > 0) { %>+<%= tier.adjustmentPercent %>%<% } else if (tier.adjustmentPercent < 0) { %><%= tier.adjustmentPercent %>%<% } else { %><%= t('client.service.urgency_normal') %><% } %>
                 </span>
               </div>
               <% if (tier.description) { %><p class="text-[11px] text-zilo-muted mt-0.5"><%= tier.description %></p><% } %>
@@ -82,16 +82,16 @@
     <section class="p-4 rounded-2xl zilo-card-premium mb-5 zilo-page-enter-delay-1" id="alandChatSection">
       <div class="flex items-center justify-between mb-3">
         <div>
-          <p class="text-sm font-semibold">Consultas con Aland IA</p>
-          <p class="text-[11px] text-zilo-muted">Asistente humano · te guía antes de solicitar visita</p>
+          <p class="text-sm font-semibold"><%= t('client.service.aland_title') %></p>
+          <p class="text-[11px] text-zilo-muted"><%= t('client.service.aland_sub') %></p>
         </div>
-        <button type="button" id="alandChatToggle" class="text-xs px-3 py-1.5 rounded-lg bg-violet-500/15 text-violet-700 border border-violet-500/20">Abrir chat</button>
+        <button type="button" id="alandChatToggle" class="text-xs px-3 py-1.5 rounded-lg bg-violet-500/15 text-violet-700 border border-violet-500/20"><%= t('client.service.aland_open') %></button>
       </div>
       <div id="alandChatPanel" class="hidden border border-zilo-border rounded-xl overflow-hidden">
         <div id="alandChatMessages" class="h-56 overflow-y-auto p-3 space-y-2 bg-zilo-bg text-sm"></div>
         <form id="alandChatForm" class="flex gap-2 p-2 border-t border-zilo-border bg-white">
-          <input type="text" id="alandChatInput" placeholder="Escribe tu consulta…" class="flex-1 px-3 py-2 rounded-lg border border-zilo-border text-sm" autocomplete="off">
-          <button type="submit" class="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium">Enviar</button>
+          <input type="text" id="alandChatInput" placeholder="<%= t('client.service.aland_placeholder') %>" class="flex-1 px-3 py-2 rounded-lg border border-zilo-border text-sm" autocomplete="off">
+          <button type="submit" class="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium"><%= t('client.service.aland_send') %></button>
         </form>
       </div>
     </section>
@@ -103,68 +103,68 @@
         <label class="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" id="giftToggle" class="w-5 h-5 rounded accent-[#2563EB]">
           <div>
-            <strong class="text-sm block">Regalar este servicio</strong>
-            <span class="text-xs text-zilo-muted"><%= mod('client_guardian') ? 'Incluye Modo Guardián para tu familia' : 'Otra persona recibirá la visita' %></span>
+            <strong class="text-sm block"><%= t('client.service.gift') %></strong>
+            <span class="text-xs text-zilo-muted"><%= mod('client_guardian') ? t('client.service.gift_guardian') : t('client.service.gift_other') %></span>
           </div>
         </label>
         <div id="giftFields" class="hidden mt-4 space-y-3 pt-3 border-t border-zilo-accent/15">
           <div>
-            <label class="zilo-label block mb-1">Beneficiario</label>
-            <input type="text" id="giftName" placeholder="Nombre completo" class="zilo-input">
+            <label class="zilo-label block mb-1"><%= t('client.service.beneficiary') %></label>
+            <input type="text" id="giftName" placeholder="<%= t('client.service.gift_name_ph') %>" class="zilo-input">
           </div>
           <div>
-            <label class="zilo-label block mb-1">Teléfono</label>
-            <input type="tel" id="giftPhone" placeholder="+56 9 XXXX XXXX" class="zilo-input">
+            <label class="zilo-label block mb-1"><%= t('client.service.gift_phone_label') %></label>
+            <input type="tel" id="giftPhone" placeholder="<%= t('client.service.gift_phone_ph') %>" class="zilo-input">
           </div>
           <div>
-            <label class="zilo-label block mb-1">Mensaje (opcional)</label>
-            <input type="text" id="giftMessage" placeholder="Un detalle especial..." class="zilo-input">
+            <label class="zilo-label block mb-1"><%= t('client.service.gift_message') %></label>
+            <input type="text" id="giftMessage" placeholder="..." class="zilo-input">
           </div>
         </div>
       </div>
       <% } %>
 
       <div>
-        <label for="address" class="zilo-label block mb-1.5" id="addressLabel">Dirección del servicio</label>
-        <input type="text" id="address" placeholder="Ej: Av. Providencia 1234, Providencia"
+        <label for="address" class="zilo-label block mb-1.5" id="addressLabel"><%= t('client.service.address') %></label>
+        <input type="text" id="address" placeholder="<%= t('client.service.address_ph') %>"
           value="<%= typeof profile !== 'undefined' ? profile.address : '' %>" class="zilo-input">
         <input type="hidden" id="lat"><input type="hidden" id="lng">
       </div>
 
       <div>
-        <label class="zilo-label block mb-1.5">Ubicación</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.service.location') %></label>
         <div id="addressMap" class="w-full h-44 rounded-2xl overflow-hidden border border-zilo-border bg-zilo-bg"></div>
-        <p id="mapStatus" class="text-[10px] text-zilo-muted mt-1.5">Escribe una dirección para ubicar en el mapa</p>
+        <p id="mapStatus" class="text-[10px] text-zilo-muted mt-1.5"><%= t('client.service.map_hint') %></p>
         <div id="coverageAlert" class="hidden mt-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs leading-relaxed" role="alert"></div>
       </div>
 
       <div>
-        <label for="notes" class="zilo-label block mb-1.5">Detalle del problema</label>
-        <textarea id="notes" rows="3" placeholder="Cuéntanos qué ocurre..." class="zilo-input resize-none"></textarea>
+        <label for="notes" class="zilo-label block mb-1.5"><%= t('client.service.detail') %></label>
+        <textarea id="notes" rows="3" placeholder="<%= t('client.service.detail_ph') %>" class="zilo-input resize-none"></textarea>
       </div>
 
       <% if (mod('client_foto')) { %>
       <div>
-        <label class="zilo-label block mb-1.5">Foto del problema <span class="text-zilo-muted normal-case font-normal">(opcional)</span></label>
-        <p class="text-[11px] text-zilo-muted mb-2">Ayuda al técnico a llevar repuestos o herramientas desde el inicio.</p>
+        <label class="zilo-label block mb-1.5"><%= t('client.service.photo') %> <span class="text-zilo-muted normal-case font-normal"><%= t('client.service.photo_opt') %></span></label>
+        <p class="text-[11px] text-zilo-muted mb-2"><%= t('client.service.photo_hint') %></p>
         <input type="file" id="clientPhoto" accept="image/*" class="block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
         <div id="clientPhotoPreview" class="hidden mt-2">
-          <img src="" alt="Vista previa" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+          <img src="" alt="<%= t('client.service.preview_alt') %>" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
         </div>
       </div>
       <% } %>
 
-      <button type="button" id="btnRequest" class="zilo-btn-primary">Continuar al pago</button>
-      <p class="text-center text-[10px] text-zilo-muted">Pago seguro · Sin cargo si cancelas antes de asignar técnico</p>
+      <button type="button" id="btnRequest" class="zilo-btn-primary"><%= t('client.service.continue') %></button>
+      <p class="text-center text-[10px] text-zilo-muted"><%= t('client.service.secure_pay') %></p>
     </section>
 
     <div id="stickyOrderBar" class="sticky-order-bar" aria-hidden="true">
       <div class="sticky-order-inner max-w-lg mx-auto">
         <div class="min-w-0">
-          <p class="text-[10px] text-zilo-muted uppercase tracking-wide">Visita estimada</p>
+          <p class="text-[10px] text-zilo-muted uppercase tracking-wide"><%= t('client.service.visit_est') %></p>
           <strong class="text-zilo-accent text-base" id="stickyTotal"><%= formatCLP(pricing.visitPrice + pricing.servicePrice) %></strong>
         </div>
-        <button type="button" id="btnRequestSticky" class="sticky-order-btn">Continuar al pago</button>
+        <button type="button" id="btnRequestSticky" class="sticky-order-btn"><%= t('client.service.continue') %></button>
       </div>
     </div>
 
@@ -178,20 +178,20 @@
             <div class="w-3 h-3 rounded-full animate-pulse zilo-radar-dot"></div>
           </div>
         </div>
-        <h3 id="loaderText" class="zilo-display text-xl mb-2">Buscando técnico</h3>
-        <p id="loaderSub" class="text-sm text-zilo-muted mb-6">Verificando disponibilidad en Santiago</p>
+        <h3 id="loaderText" class="zilo-display text-xl mb-2"><%= t('client.service.searching') %></h3>
+        <p id="loaderSub" class="text-sm text-zilo-muted mb-6"><%= t('client.service.searching_sub') %></p>
         <div class="space-y-2 text-left">
           <div id="step1" class="step-item is-active px-4 py-2.5 rounded-xl text-sm flex items-center gap-2">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            Localizando
+            <%= t('client.service.loader_locating') %>
           </div>
           <div id="step2" class="step-item px-4 py-2.5 rounded-xl zilo-card-premium text-sm text-zilo-muted flex items-center gap-2">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            Filtrando especialistas
+            <%= t('client.service.loader_filtering') %>
           </div>
           <div id="step3" class="step-item px-4 py-2.5 rounded-xl zilo-card-premium text-sm text-zilo-muted flex items-center gap-2">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-            Asignando proveedor
+            <%= t('client.service.loader_assigning') %>
           </div>
         </div>
       </div>
@@ -199,23 +199,23 @@
 
     <section id="providerCard" class="hidden mt-5 space-y-4 animate-slide-up">
       <div id="budgetBanner" class="hidden p-4 rounded-2xl border border-zilo-warning/30 bg-zilo-warning/10">
-        <p class="text-sm font-semibold text-zilo-warning mb-1">Presupuesto pendiente</p>
+        <p class="text-sm font-semibold text-zilo-warning mb-1"><%= t('client.service.budget_pending') %></p>
         <p id="budgetBannerText" class="text-xs text-zilo-muted mb-3"></p>
         <div class="flex gap-2">
-          <button type="button" id="btnApproveBudget" class="flex-1 py-2 rounded-xl zilo-btn-primary !text-sm">Aprobar</button>
-          <button type="button" id="btnRejectBudget" class="flex-1 py-2 rounded-xl zilo-btn-ghost !text-sm">Rechazar</button>
+          <button type="button" id="btnApproveBudget" class="flex-1 py-2 rounded-xl zilo-btn-primary !text-sm"><%= t('client.service.approve') %></button>
+          <button type="button" id="btnRejectBudget" class="flex-1 py-2 rounded-xl zilo-btn-ghost !text-sm"><%= t('client.service.reject') %></button>
         </div>
       </div>
       <div class="p-4 rounded-2xl zilo-card-premium">
         <div class="flex justify-between items-center mb-4">
-          <p class="zilo-label">Seguimiento</p>
-          <span id="tripEta" class="text-xs text-zilo-success font-medium">ETA ~18 min</span>
+          <p class="zilo-label"><%= t('client.service.tracking') %></p>
+          <span id="tripEta" class="text-xs text-zilo-success font-medium"><%= t('client.service.eta') %></span>
         </div>
         <div class="trip-timeline">
-          <div class="trip-step done" data-step="paid"><span class="trip-dot"></span><div><strong class="text-xs">Pago confirmado</strong><p class="text-[10px] text-zilo-muted">Visita abonada</p></div></div>
-          <div class="trip-step active" data-step="assigned"><span class="trip-dot"></span><div><strong class="text-xs">Técnico asignado</strong><p class="text-[10px] text-zilo-muted" id="tripProviderLabel">Conectando...</p></div></div>
-          <div class="trip-step" data-step="enroute"><span class="trip-dot"></span><div><strong class="text-xs">En camino</strong><p class="text-[10px] text-zilo-muted">Rumbo a tu domicilio</p></div></div>
-          <div class="trip-step" data-step="arrived"><span class="trip-dot"></span><div><strong class="text-xs">En sitio</strong><p class="text-[10px] text-zilo-muted">Servicio en ejecución</p></div></div>
+          <div class="trip-step done" data-step="paid"><span class="trip-dot"></span><div><strong class="text-xs"><%= t('client.service.timeline_paid') %></strong><p class="text-[10px] text-zilo-muted"><%= t('client.service.paid_sub') %></p></div></div>
+          <div class="trip-step active" data-step="assigned"><span class="trip-dot"></span><div><strong class="text-xs"><%= t('client.service.assigned') %></strong><p class="text-[10px] text-zilo-muted" id="tripProviderLabel"><%= t('client.service.connecting_dots') %></p></div></div>
+          <div class="trip-step" data-step="enroute"><span class="trip-dot"></span><div><strong class="text-xs"><%= t('client.service.timeline_way') %></strong><p class="text-[10px] text-zilo-muted"><%= t('client.service.enroute_sub') %></p></div></div>
+          <div class="trip-step" data-step="arrived"><span class="trip-dot"></span><div><strong class="text-xs"><%= t('client.service.timeline_site') %></strong><p class="text-[10px] text-zilo-muted"><%= t('client.service.onsite_sub') %></p></div></div>
         </div>
       </div>
 
@@ -223,7 +223,7 @@
         <div id="trackingMap" class="w-full h-40 rounded-xl overflow-hidden border border-zilo-border mb-2 hidden"></div>
         <p id="providerLocationStatus" class="hidden text-[10px] text-zilo-success mb-3 flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-zilo-success animate-pulse"></span>
-          Ubicación en tiempo real
+          <%= t('client.service.live_location') %>
         </p>
         <div class="flex items-center gap-3 mb-3">
           <div id="providerAvatar" class="w-14 h-14 rounded-xl zilo-card-premium flex items-center justify-center font-semibold text-zilo-accent border border-zilo-accent/20">—</div>
@@ -236,15 +236,15 @@
             </div>
             <p id="providerVerifiedStatus" class="hidden text-[10px] text-zilo-success mt-0.5"></p>
           </div>
-          <span class="zilo-badge">Asignado</span>
+          <span class="zilo-badge"><%= t('client.service.assigned_badge') %></span>
         </div>
         <div id="providerVerification" class="flex flex-wrap gap-1.5 mb-3"></div>
         <p id="providerBio" class="text-sm text-zilo-muted mb-4 leading-relaxed"></p>
-        <p class="zilo-label mb-3">Reseñas</p>
+        <p class="zilo-label mb-3"><%= t('client.service.reviews') %></p>
         <div id="reviewsList" class="space-y-2 mb-4"></div>
-        <a id="providerPhone" href="tel:" class="zilo-btn-ghost w-full mb-2">Llamar al técnico</a>
-        <a id="providerEmail" href="mailto:" class="hidden zilo-btn-ghost w-full mb-2 !text-xs">Correo del técnico</a>
-        <a id="whatsappSupport" href="#" target="_blank" rel="noopener" class="zilo-btn-ghost w-full text-zilo-success border-zilo-success/20">Soporte concierge</a>
+        <a id="providerPhone" href="tel:" class="zilo-btn-ghost w-full mb-2"><%= t('client.service.call_tech') %></a>
+        <a id="providerEmail" href="mailto:" class="hidden zilo-btn-ghost w-full mb-2 !text-xs"><%= t('client.service.email_tech') %></a>
+        <a id="whatsappSupport" href="#" target="_blank" rel="noopener" class="zilo-btn-ghost w-full text-zilo-success border-zilo-success/20"><%= t('client.service.concierge') %></a>
       </div>
     </section>
   </main>

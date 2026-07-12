@@ -1,14 +1,14 @@
 <%- include('../partials/head') %>
 
 <div class="max-w-lg mx-auto min-h-screen flex flex-col pb-24 zilo-page-enter" id="historialPage">
-  <%- include('../partials/back-header', { backUrl: '/cliente', label: 'Actividad', title: 'Historial' }) %>
+  <%- include('../partials/back-header', { backUrl: '/cliente', label: t('client.historial.activity'), title: t('client.historial.title') }) %>
 
   <main class="flex-1 px-5 py-5">
     <% if (requests.length === 0) { %>
       <div class="zilo-empty zilo-card-premium rounded-2xl mt-8">
-        <p class="zilo-display">Sin servicios aún</p>
-        <p class="text-sm mb-6">Tu historial aparecerá aquí después de tu primera visita</p>
-        <a href="/cliente" class="zilo-btn-primary !w-auto !inline-flex !px-8">Solicitar ahora</a>
+        <p class="zilo-display"><%= t('client.historial.empty') %></p>
+        <p class="text-sm mb-6"><%= t('client.historial.empty_desc') %></p>
+        <a href="/cliente" class="zilo-btn-primary !w-auto !inline-flex !px-8"><%= t('client.dashboard.request_now') %></a>
       </div>
     <% } else { %>
       <div class="space-y-3">
@@ -18,7 +18,7 @@
               <div class="min-w-0 flex-1">
                 <strong class="text-sm block"><%= req.serviceName %></strong>
                 <% if (req.isGift) { %>
-                  <span class="text-[10px] text-zilo-accent">Regalo · <%= req.beneficiaryName %></span>
+                  <span class="text-[10px] text-zilo-accent"><%= t('client.dashboard.gift_badge') %> · <%= req.beneficiaryName %></span>
                 <% } %>
                 <span class="text-xs text-zilo-muted block mt-1 line-clamp-1"><%= req.address %></span>
               </div>
@@ -26,21 +26,21 @@
             </div>
             <div class="zilo-divider mb-3"></div>
             <div class="flex justify-between items-center text-xs mb-3">
-              <span class="text-zilo-muted"><%= new Date(req.createdAt).toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' }) %></span>
+              <span class="text-zilo-muted"><%= formatDate(req.createdAt, { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
               <span class="text-zilo-accent font-medium"><%= formatCLP(req.amountDue ?? req.estimatedVisit ?? req.visitPricePaid) %></span>
             </div>
             <div class="flex flex-wrap gap-2">
               <% if (['searching','assigned','in_progress'].includes(req.status)) { %>
-                <a href="/cliente/servicio/<%= req.serviceId %>?tracking=<%= req.id %>" class="zilo-btn-ghost !py-2 !px-3 !text-xs flex-1 text-center">Ver seguimiento</a>
+                <a href="/cliente/servicio/<%= req.serviceId %>?tracking=<%= req.id %>" class="zilo-btn-ghost !py-2 !px-3 !text-xs flex-1 text-center"><%= t('client.historial.track') %></a>
               <% } %>
               <% if (req.status === 'completed' && mod('client_solicitar')) { %>
-                <a href="/cliente/servicio/<%= req.serviceId %>" class="zilo-btn-ghost !py-2 !px-3 !text-xs flex-1 text-center">Repetir servicio</a>
+                <a href="/cliente/servicio/<%= req.serviceId %>" class="zilo-btn-ghost !py-2 !px-3 !text-xs flex-1 text-center"><%= t('client.historial.repeat') %></a>
               <% } %>
               <% if (req.status === 'completed' && !req.clientReview) { %>
-                <button type="button" class="btn-rate zilo-btn-primary !py-2 !px-3 !text-xs flex-1" data-id="<%= req.id %>" data-service="<%= req.serviceName %>">Calificar</button>
+                <button type="button" class="btn-rate zilo-btn-primary !py-2 !px-3 !text-xs flex-1" data-id="<%= req.id %>" data-service="<%= req.serviceName %>"><%= t('client.historial.rate') %></button>
               <% } else if (req.clientReview) { %>
                 <span class="text-[10px] text-zilo-success flex items-center gap-1 px-2">
-                  ★ <%= req.clientReview.rating %>/5 · Calificado
+                  ★ <%= req.clientReview.rating %>/5 · <%= t('client.historial.rated') %>
                 </span>
               <% } %>
             </div>
@@ -53,17 +53,17 @@
   <div id="reviewModal" class="hidden fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" id="reviewModalBackdrop"></div>
     <div class="relative w-full max-w-sm zilo-card-premium rounded-2xl p-5 animate-slide-up">
-      <h3 class="font-semibold mb-1">Califica tu experiencia</h3>
+      <h3 class="font-semibold mb-1"><%= t('client.historial.rate_title') %></h3>
       <p class="text-xs text-zilo-muted mb-4" id="reviewServiceName">—</p>
       <div class="flex justify-center gap-2 mb-4" id="reviewStars">
         <% [1,2,3,4,5].forEach(n => { %>
           <button type="button" class="review-star text-2xl text-zilo-border hover:text-yellow-500 transition" data-rating="<%= n %>" aria-label="<%= n %> estrellas">★</button>
         <% }); %>
       </div>
-      <textarea id="reviewText" rows="3" placeholder="Cuéntanos cómo fue el servicio (opcional)" class="zilo-input resize-none text-sm mb-4"></textarea>
+      <textarea id="reviewText" rows="3" placeholder="<%= t('client.historial.review_ph') %>" class="zilo-input resize-none text-sm mb-4"></textarea>
       <div class="flex gap-2">
-        <button type="button" id="reviewCancel" class="zilo-btn-ghost flex-1 !text-sm">Cancelar</button>
-        <button type="button" id="reviewSubmit" class="zilo-btn-primary flex-1 !text-sm" disabled>Enviar</button>
+        <button type="button" id="reviewCancel" class="zilo-btn-ghost flex-1 !text-sm"><%= t('client.historial.cancel') %></button>
+        <button type="button" id="reviewSubmit" class="zilo-btn-primary flex-1 !text-sm" disabled><%= t('client.historial.submit') %></button>
       </div>
     </div>
   </div>
@@ -126,10 +126,10 @@
     const data = await res.json();
     submitBtn.disabled = false;
     if (!data.success) {
-      FundezNotify.show(data.error || 'Error al enviar', 'error');
+      FundezNotify.show(data.error || (typeof FundezI18n !== 'undefined' ? FundezI18n.t('client.historial.submit_error') : 'Error al enviar'), 'error');
       return;
     }
-    FundezNotify.show('¡Gracias por tu calificación! +25 puntos Fundez', 'success');
+    FundezNotify.show(typeof FundezI18n !== 'undefined' ? FundezI18n.t('client.historial.thanks') : '¡Gracias!', 'success');
     closeReview();
     setTimeout(() => location.reload(), 800);
   });

@@ -26,8 +26,8 @@
 
   <main class="flex-1 px-5 py-5 pb-24">
     <%- include('../partials/guide-card', {
-      summary: 'Elige un servicio, paga la visita y sigue al técnico en tiempo real. Puedes usar créditos, regalar visitas y compartir el Modo Guardián.',
-      linkText: 'Abrir guía del cliente'
+      summary: t('client.guide.summary'),
+      linkText: t('client.guide.link')
     }) %>
 
     <% if (typeof trustStats !== 'undefined') { %>
@@ -43,9 +43,9 @@
           <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="zilo-label mb-0.5">Repetir servicio</p>
+          <p class="zilo-label mb-0.5"><%= t('client.dashboard.repeat') %></p>
           <strong class="text-sm block truncate"><%= lastCompleted.serviceName %></strong>
-          <span class="text-xs text-zilo-muted">Un toque para solicitar de nuevo</span>
+          <span class="text-xs text-zilo-muted"><%= t('client.dashboard.repeat_sub') %></span>
         </div>
         <svg class="w-5 h-5 text-zilo-muted shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
       </div>
@@ -132,7 +132,7 @@
           <a href="/cliente/servicio/<%= req.serviceId %>?tracking=<%= req.id %>" class="flex justify-between items-center p-4 rounded-xl zilo-card-premium hover:border-zilo-accent/20 transition">
             <div>
               <strong class="text-sm block"><%= req.serviceName %></strong>
-              <% if (req.isGift) { %><span class="text-[10px] text-zilo-accent">Regalo · <%= req.beneficiaryName %></span><% } %>
+              <% if (req.isGift) { %><span class="text-[10px] text-zilo-accent"><%= t('client.dashboard.gift_badge') %> · <%= req.beneficiaryName %></span><% } %>
               <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-zilo-accent/10 text-zilo-accent inline-block mt-1"><%= req.statusLabel || req.status %></span>
             </div>
             <svg class="w-5 h-5 text-zilo-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
@@ -157,17 +157,17 @@
 
 <%- include('../partials/guide-modal', {
   role: 'client',
-  title: 'Cómo usar Fundez',
+  title: t('client.guide.title'),
   steps: [
-    { title: 'Solicitar un servicio', body: 'En el inicio elige el servicio que necesitas (gásfiter, eléctrico, cerrajero, etc.). Ingresa la dirección, confirma en el mapa y describe el problema.', tip: 'Puedes activar "Regalar servicio" si otra persona recibirá la visita en su domicilio.' },
-    { title: 'Pagar en el checkout', body: 'Revisa el total, aplica tu crédito Fundez, canjea puntos o usa el código BIENVENIDO en tu primer servicio. Luego confirma el pago con Mercado Pago.', tip: 'Si el total queda en $0, el servicio se confirma automáticamente.' },
-    { title: 'Seguimiento en vivo', body: 'Tras pagar verás el estado en tiempo real: búsqueda de técnico, asignación, en camino y llegada. Puedes llamar al proveedor desde la app.', tip: 'Comparte el enlace Modo Guardián con tu familia para que sigan el servicio sin crear cuenta.' },
-    { title: 'Pasaporte Hogar', body: 'Cada servicio completado suma a tu historial técnico del inmueble y mejora tu puntaje de salud del hogar.', tip: 'Revisa la pestaña Hogar en la barra inferior.' },
-    { title: 'Perfil y beneficios', body: 'Actualiza tu dirección en Perfil para agilizar futuras solicitudes. En Invitar ganas $5.000 por amigo y en Historial ves todos tus servicios.' }
+    { title: t('client.guide.step1_title'), body: t('client.guide.step1_body'), tip: t('client.guide.step1_tip') },
+    { title: t('client.guide.step2_title'), body: t('client.guide.step2_body'), tip: t('client.guide.step2_tip') },
+    { title: t('client.guide.step3_title'), body: t('client.guide.step3_body'), tip: t('client.guide.step3_tip') },
+    { title: t('client.guide.step4_title'), body: t('client.guide.step4_body'), tip: t('client.guide.step4_tip') },
+    { title: t('client.guide.step5_title'), body: t('client.guide.step5_body') }
   ],
   extras: [
-    { title: 'Soporte', body: 'Usa el botón de concierge WhatsApp si necesitas ayuda durante un servicio.' },
-    { title: 'Regalo + WhatsApp', body: 'Al pagar un regalo puedes avisar al beneficiario por WhatsApp con un mensaje y enlace de seguimiento listos.' }
+    { title: t('client.guide.extra_support_title'), body: t('client.guide.extra_support_body') },
+    { title: t('client.guide.extra_gift_title'), body: t('client.guide.extra_gift_body') }
   ]
 }) %>
 
@@ -177,7 +177,10 @@
   const socket = io();
   <% if (typeof referralBonus !== 'undefined' && referralBonus) { %>
   document.addEventListener('DOMContentLoaded', () => {
-    FundezNotify.show('¡$<%= referralBonus.toLocaleString('es-CL') %> de crédito por invitación!', 'success');
+    const bonusMsg = (typeof FundezI18n !== 'undefined')
+      ? FundezI18n.t('client.js.referral_bonus', { amount: '<%= referralBonus.toLocaleString(locale === "en" ? "en-US" : "es-CL") %>' })
+      : '¡$<%= referralBonus.toLocaleString("es-CL") %> de crédito por invitación!';
+    FundezNotify.show(bonusMsg, 'success');
   });
   <% } %>
   socket.on('modules_updated', ({ modules }) => {
@@ -186,16 +189,19 @@
   socket.on('services_updated', ({ services }) => {
     const grid = document.getElementById('servicesGrid');
     const active = services.filter(s => s.enabled);
+    const locale = document.documentElement.lang === 'en' ? 'en-US' : 'es-CL';
+    const fmt = n => new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
+    const fromLabel = (typeof FundezI18n !== 'undefined') ? FundezI18n.t('client.js.from_price') : 'desde';
+    const noServices = (typeof FundezI18n !== 'undefined') ? FundezI18n.t('client.js.no_services') : 'No hay servicios disponibles.';
     if (active.length === 0) {
-      grid.innerHTML = '<div class="col-span-2 text-center py-16 text-zilo-muted"><p class="text-sm">No hay servicios disponibles.</p></div>';
+      grid.innerHTML = `<div class="col-span-2 text-center py-16 text-zilo-muted"><p class="text-sm">${noServices}</p></div>`;
       return;
     }
-    const fmt = n => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
     grid.innerHTML = active.map(s => `
       <a href="/cliente/servicio/${s.id}" class="group flex flex-col items-center gap-3 p-5 rounded-2xl zilo-card-premium hover:border-zilo-accent/25 transition-all">
         ${FundezIcons.wrap(s.icon, null, 'w-14 h-14', 28)}
         <span class="font-medium text-sm text-center">${s.name}</span>
-        <span class="text-xs text-zilo-muted">desde ${fmt(s.visitPrice)}</span>
+        <span class="text-xs text-zilo-muted">${fromLabel} ${fmt(s.visitPrice)}</span>
       </a>
     `).join('');
   });

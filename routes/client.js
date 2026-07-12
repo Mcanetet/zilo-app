@@ -27,8 +27,8 @@ router.get('/', requireRole('client'), (req, res) => {
     referralBonus,
     formatCLP: store.formatCLP,
     navActive: 'inicio',
-    activeRequests: store.getActiveRequestsForClient(req.session.user.id),
-    lastCompleted: store.getLastCompletedRequest(req.session.user.id),
+    activeRequests: store.getActiveRequestsForClient(req.session.user.id, req.locale),
+    lastCompleted: store.getLastCompletedRequest(req.session.user.id, req.locale),
     trustStats: store.getClientTrustStats(),
     showOnboarding: store.needsOnboarding(profile),
     onboardingSteps: getClientOnboardingSteps(),
@@ -83,7 +83,7 @@ router.get('/hogar', requireRole('client'), requireModule('client_pasaporte'), (
 router.get('/historial', requireRole('client'), requireModule('client_historial'), (req, res) => {
   const requests = store.getRequestsByClient(req.session.user.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map(store.enrichRequestForClient);
+    .map(r => store.enrichRequestForClient(r, req.locale));
   res.render('client/historial', {
     title: 'Historial — Fundez',
     user: req.session.user,

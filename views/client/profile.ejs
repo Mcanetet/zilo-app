@@ -1,7 +1,7 @@
 <%- include('../partials/head') %>
 
 <div class="max-w-lg mx-auto min-h-screen flex flex-col pb-24 zilo-page-enter">
-  <%- include('../partials/back-header', { backUrl: '/cliente', label: 'Cuenta', title: 'Mi perfil' }) %>
+  <%- include('../partials/back-header', { backUrl: '/cliente', label: t('client.profile.account'), title: t('client.profile.title') }) %>
 
   <main class="flex-1 px-5 py-5 space-y-5">
     <div class="text-center py-6 zilo-page-enter-delay-1">
@@ -13,72 +13,72 @@
       <div class="flex justify-center gap-6 mt-6">
         <div class="text-center">
           <strong class="zilo-display text-xl text-zilo-accent block"><%= referral.points %></strong>
-          <span class="zilo-label !text-[9px]">Puntos</span>
+          <span class="zilo-label !text-[9px]"><%= t('client.profile.points_label') %></span>
         </div>
         <div class="w-px bg-zilo-border"></div>
         <div class="text-center">
           <strong class="zilo-display text-xl text-zilo-success block"><%= formatCLP(referral.creditsCLP) %></strong>
-          <span class="zilo-label !text-[9px]">Crédito</span>
+          <span class="zilo-label !text-[9px]"><%= t('client.profile.credit_label') %></span>
         </div>
         <div class="w-px bg-zilo-border"></div>
         <div class="text-center">
           <strong class="zilo-display text-xl block"><%= referral.servicesCount %></strong>
-          <span class="zilo-label !text-[9px]">Servicios</span>
+          <span class="zilo-label !text-[9px]"><%= t('client.profile.services_label') %></span>
         </div>
       </div>
     </div>
 
     <form id="profileForm" class="space-y-4 p-5 rounded-2xl zilo-card-premium zilo-page-enter-delay-2">
-      <p class="zilo-label">Datos personales</p>
+      <p class="zilo-label"><%= t('client.profile.personal') %></p>
       <div>
-        <label class="zilo-label block mb-1.5">Nombre</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.name') %></label>
         <input type="text" name="name" value="<%= profile.name %>" required class="zilo-input">
       </div>
       <div>
-        <label class="zilo-label block mb-1.5">Teléfono</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.phone') %></label>
         <input type="tel" name="phone" value="<%= profile.phone %>" required class="zilo-input">
       </div>
       <div>
-        <label class="zilo-label block mb-1.5">Dirección predeterminada</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.default_address') %></label>
         <input type="text" name="address" value="<%= profile.address %>" class="zilo-input">
       </div>
-      <button type="submit" class="zilo-btn-primary !py-3">Guardar cambios</button>
+      <button type="submit" class="zilo-btn-primary !py-3"><%= t('client.profile.save') %></button>
     </form>
 
     <% const billing = profile.billing || { type: 'natural', rut: '', legalName: profile.name, giro: '', fiscalAddress: profile.address || '', invoiceEmail: profile.email }; %>
     <form id="billingForm" class="space-y-4 p-5 rounded-2xl zilo-card-premium zilo-page-enter-delay-2">
-      <p class="zilo-label">Datos de facturación</p>
-      <p class="text-xs text-zilo-muted mb-2">Necesarios para emitir boleta o factura al pagar un servicio.</p>
+      <p class="zilo-label"><%= t('client.profile.billing') %></p>
+      <p class="text-xs text-zilo-muted mb-2"><%= t('client.profile.billing_hint') %></p>
 
       <div class="grid grid-cols-2 gap-2">
         <label class="flex items-center gap-2 p-3 rounded-xl border cursor-pointer billing-type-option <%= billing.type !== 'empresa' ? 'border-zilo-accent bg-zilo-accent/5' : 'border-zilo-border' %>">
           <input type="radio" name="billingType" value="natural" <%= billing.type !== 'empresa' ? 'checked' : '' %> class="accent-[#2563EB]">
-          <span class="text-sm">Persona natural</span>
+          <span class="text-sm"><%= t('client.profile.natural') %></span>
         </label>
         <label class="flex items-center gap-2 p-3 rounded-xl border cursor-pointer billing-type-option <%= billing.type === 'empresa' ? 'border-zilo-accent bg-zilo-accent/5' : 'border-zilo-border' %>">
           <input type="radio" name="billingType" value="empresa" <%= billing.type === 'empresa' ? 'checked' : '' %> class="accent-[#2563EB]">
-          <span class="text-sm">Empresa</span>
+          <span class="text-sm"><%= t('client.profile.company') %></span>
         </label>
       </div>
 
       <div>
-        <label class="zilo-label block mb-1.5">RUT</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.rut') %></label>
         <input type="text" name="rut" value="<%= billing.rut %>" placeholder="12.345.678-9" class="zilo-input" required>
       </div>
       <div>
-        <label class="zilo-label block mb-1.5" id="billingNameLabel"><%= billing.type === 'empresa' ? 'Razón social' : 'Nombre completo' %></label>
+        <label class="zilo-label block mb-1.5" id="billingNameLabel"><%= billing.type === 'empresa' ? t('client.profile.company_name') : t('client.profile.legal_name') %></label>
         <input type="text" name="legalName" value="<%= billing.legalName %>" class="zilo-input" required>
       </div>
       <div id="giroField" class="<%= billing.type === 'empresa' ? '' : 'hidden' %>">
-        <label class="zilo-label block mb-1.5">Giro comercial</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.giro') %></label>
         <input type="text" name="giro" value="<%= billing.giro %>" class="zilo-input">
       </div>
       <div>
-        <label class="zilo-label block mb-1.5">Dirección fiscal</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.fiscal_address') %></label>
         <input type="text" name="fiscalAddress" value="<%= billing.fiscalAddress %>" class="zilo-input" required>
       </div>
       <div>
-        <label class="zilo-label block mb-1.5">Email de facturación</label>
+        <label class="zilo-label block mb-1.5"><%= t('client.profile.invoice_email') %></label>
         <input type="email" name="invoiceEmail" value="<%= billing.invoiceEmail %>" class="zilo-input" required>
       </div>
       <button type="submit" class="zilo-btn-ghost w-full !py-3">Guardar facturación</button>

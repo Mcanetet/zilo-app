@@ -104,6 +104,30 @@ router.post('/registro', async (req, res) => {
   const result = await store.registerUser({ name, email, password, phone, role, address, specialties });
 
   if (result.error) {
+    if (result.code === 'email_exists') {
+      const login = await store.authenticateUser(email, password, { allowedRoles: PUBLIC_ROLES });
+      if (!login.error) {
+        const existingUser = login.user;
+        setSessionUser(req, existingUser);
+        store.logSecurityEvent('registro_existing_login_ok', email, req);
+
+        if (existingUser.role === 'client' && req.session.pendingReferral) {
+          const referral = store.applyReferralCode(existingUser.id, req.session.pendingReferral);
+          if (referral.success) req.session.referralBonus = referral.bonus;
+          delete req.session.pendingReferral;
+        }
+
+        return res.redirect(getDashboardPath(existingUser.role));
+      }
+
+      return res.status(409).render('login', {
+        title: 'Iniciar sesión',
+        error: 'Ya existe una cuenta con ese correo. Ingresa con tu contraseña o usa otro correo para crear una cuenta nueva.',
+        demoAccounts: store.getDemoAccounts(),
+        referralCode: req.session.pendingReferral || null
+      });
+    }
+
     return res.status(400).render('registro', {
       title: 'Crear cuenta',
       error: result.error,

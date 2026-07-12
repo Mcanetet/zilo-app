@@ -1054,7 +1054,9 @@ async function registerUser({ name, email, password, phone, role, address, speci
   if (!name || !email || !password) return { error: 'Completa nombre, correo y contraseña.' };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Ingresa un correo válido.' };
   if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres.' };
-  if (getUserByEmail(email)) return { error: 'Ya existe una cuenta con ese correo.' };
+  if (getUserByEmail(email)) {
+    return { error: 'Ya existe una cuenta con ese correo.', code: 'email_exists' };
+  }
 
   let cleanSpecialties = [];
   if (role === 'provider') {

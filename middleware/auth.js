@@ -1,3 +1,5 @@
+const store = require('../models/store');
+
 function requireAuth(req, res, next) {
   if (!req.session.user) {
     return res.redirect('/login');
@@ -22,7 +24,6 @@ function requireRole(...roles) {
     }
     if (roles.includes('admin') && req.session.user.role === 'admin') {
       try {
-        const store = require('../models/store');
         if (store.isMfaEnabled(req.session.user.id) && !req.session.adminMfaVerified) {
           req.session.pendingAdminMfa = {
             userId: req.session.user.id,
@@ -38,4 +39,12 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+function requireVerifiedEmail(req, res, next) {
+  if (!req.session?.user) return res.redirect('/login');
+  const user = store.getUserById(req.session.user.id);
+  if (!user || store.isEmailVerified(user)) return next();
+  if (user.role === 'admin') return next();
+  return res.redirect('/verificar-email');
+}
+
+module.exports = { requireAuth, requireRole, requireVerifiedEmail };

@@ -13,8 +13,17 @@
     });
   }
 
+  function kycConsentOk() {
+    const cb = document.getElementById('consentKyc');
+    if (!cb) return true;
+    if (cb.checked || cb.disabled) return true;
+    FundezNotify.show('Debes autorizar el tratamiento de datos sensibles (KYC) antes de subir documentos.', 'warning');
+    return false;
+  }
+
   async function uploadDocument(type, file, label) {
     if (!file) return;
+    if (['idFront', 'idBack'].includes(type) && !kycConsentOk()) return;
     if (file.size > 6 * 1024 * 1024) {
       FundezNotify.show('El archivo no puede superar 6 MB', 'warning');
       return;
@@ -23,7 +32,12 @@
     const res = await fetch('/proveedor/verificacion/documento', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, data, label })
+      body: JSON.stringify({
+        type,
+        data,
+        label,
+        consent_kyc: document.getElementById('consentKyc')?.checked || false
+      })
     });
     const json = await res.json();
     if (json.success) {
@@ -161,12 +175,16 @@
   });
 
   async function submitSelfie(data) {
+    if (!kycConsentOk()) return;
     const btn = document.getElementById('btnCaptureFace');
     if (btn) btn.disabled = true;
     const res = await fetch('/proveedor/verificacion/selfie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data })
+      body: JSON.stringify({
+        data,
+        consent_kyc: document.getElementById('consentKyc')?.checked || false
+      })
     });
     const json = await res.json();
     if (btn) btn.disabled = false;

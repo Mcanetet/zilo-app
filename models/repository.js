@@ -279,7 +279,13 @@ function rowToUser(row) {
     memberSince: row.member_since ? String(row.member_since).slice(0, 10) : null,
     onboardingCompleted: Boolean(row.onboarding_completed),
     onboardingCompletedAt: row.onboarding_completed_at ? new Date(row.onboarding_completed_at).toISOString() : null,
-    active: row.active == null ? true : Boolean(row.active)
+    active: row.active == null ? true : Boolean(row.active),
+    emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : null,
+    emailVerificationCodeHash: row.email_verification_code_hash || null,
+    emailVerificationExpiresAt: row.email_verification_expires_at
+      ? new Date(row.email_verification_expires_at).toISOString() : null,
+    emailVerificationSentAt: row.email_verification_sent_at
+      ? new Date(row.email_verification_sent_at).toISOString() : null
   };
 
   if (row.role === 'client') {
@@ -342,7 +348,11 @@ function userToRow(user) {
     mfa: user.mfa ? JSON.stringify(user.mfa) : null,
     admin_access: user.adminAccess ? JSON.stringify(user.adminAccess) : null,
     provider_contract: user.providerContract ? JSON.stringify(user.providerContract) : null,
-    active: user.active === false ? 0 : 1
+    active: user.active === false ? 0 : 1,
+    email_verified_at: user.emailVerifiedAt || null,
+    email_verification_code_hash: user.emailVerificationCodeHash || null,
+    email_verification_expires_at: user.emailVerificationExpiresAt || null,
+    email_verification_sent_at: user.emailVerificationSentAt || null
   };
 }
 
@@ -751,6 +761,11 @@ function mapLoadedRows({
       granted: Boolean(row.granted),
       version: row.version,
       userAgent: row.user_agent,
+      purpose: row.purpose || null,
+      legalBasis: row.legal_basis || null,
+      source: row.source || null,
+      withdrawnAt: row.withdrawn_at ? new Date(row.withdrawn_at).toISOString() : null,
+      meta: parseJson(row.meta, null),
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : null
     })),
     securityLogs: (logsRes.rows || []).map((row) => ({
@@ -844,8 +859,9 @@ async function saveUser(user) {
       zilo_points, credits_clp, referrals_count, services_count,
       used_welcome_promo, used_referral, member_since,
       onboarding_completed, onboarding_completed_at,
-      specialties, rating, reviews_count, online, avatar, bio, reviews, verification, location_share, billing, mfa, admin_access, provider_contract, active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      specialties, rating, reviews_count, online, avatar, bio, reviews, verification, location_share, billing, mfa, admin_access, provider_contract, active,
+      email_verified_at, email_verification_code_hash, email_verification_expires_at, email_verification_sent_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
       email = VALUES(email),
       password = VALUES(password),
@@ -877,13 +893,18 @@ async function saveUser(user) {
       mfa = VALUES(mfa),
       admin_access = VALUES(admin_access),
       provider_contract = VALUES(provider_contract),
-      active = VALUES(active)`,
+      active = VALUES(active),
+      email_verified_at = VALUES(email_verified_at),
+      email_verification_code_hash = VALUES(email_verification_code_hash),
+      email_verification_expires_at = VALUES(email_verification_expires_at),
+      email_verification_sent_at = VALUES(email_verification_sent_at)`,
     [
       row.id, row.email, row.password, row.name, row.role, row.parent_id, row.phone, row.address, row.referral_code,
       row.zilo_points, row.credits_clp, row.referrals_count, row.services_count,
       row.used_welcome_promo ? 1 : 0, row.used_referral ? 1 : 0, row.member_since,
       row.onboarding_completed ? 1 : 0, row.onboarding_completed_at,
-      row.specialties, row.rating, row.reviews_count, row.online ? 1 : 0, row.avatar, row.bio, row.reviews, row.verification, row.location_share, row.billing, row.mfa, row.admin_access, row.provider_contract, row.active
+      row.specialties, row.rating, row.reviews_count, row.online ? 1 : 0, row.avatar, row.bio, row.reviews, row.verification, row.location_share, row.billing, row.mfa, row.admin_access, row.provider_contract, row.active,
+      row.email_verified_at, row.email_verification_code_hash, row.email_verification_expires_at, row.email_verification_sent_at
     ]
   );
 }
@@ -1021,11 +1042,23 @@ async function saveComplaint(complaint) {
 
 async function saveConsent(record) {
   await db.query(
-    `INSERT IGNORE INTO consent_records (id, user_id, ip, type, granted, version, user_agent, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO consent_records (id, user_id, ip, type, granted, version, user_agent, purpose, legal_basis, source, withdrawn_at, meta, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       granted = VALUES(granted),
+       version = VALUES(version),
+       purpose = VALUES(purpose),
+       legal_basis = VALUES(legal_basis),
+       source = VALUES(source),
+       withdrawn_at = VALUES(withdrawn_at),
+       meta = VALUES(meta)`,
     [
       record.id, record.userId, record.ip || null, record.type, record.granted ? 1 : 0,
-      record.version, record.userAgent || null, record.createdAt
+      record.version, record.userAgent || null,
+      record.purpose || null, record.legalBasis || null, record.source || null,
+      record.withdrawnAt || null,
+      record.meta ? JSON.stringify(record.meta) : null,
+      record.createdAt
     ]
   );
 }

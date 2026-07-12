@@ -270,3 +270,14 @@ CREATE TABLE IF NOT EXISTS coverage_regions (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_coverage_regions_enabled (enabled)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE users ADD COLUMN email_verified_at DATETIME NULL;
+ALTER TABLE users ADD COLUMN email_verification_code_hash VARCHAR(128) NULL;
+ALTER TABLE users ADD COLUMN email_verification_expires_at DATETIME NULL;
+ALTER TABLE users ADD COLUMN email_verification_sent_at DATETIME NULL;
+
+ALTER TABLE consent_records ADD COLUMN purpose VARCHAR(255) NULL;
+ALTER TABLE consent_records ADD COLUMN legal_basis VARCHAR(64) NULL;
+ALTER TABLE consent_records ADD COLUMN source VARCHAR(64) NULL;
+ALTER TABLE consent_records ADD COLUMN withdrawn_at DATETIME NULL;
+ALTER TABLE consent_records ADD COLUMN meta JSON NULL;

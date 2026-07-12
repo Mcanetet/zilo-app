@@ -5,8 +5,10 @@ const { saveRequestFile } = require('../lib/uploads');
 const company = require('../config/company');
 const { getClientOnboardingSteps } = require('../lib/onboarding');
 const { localizeServices } = require('../lib/i18n-admin');
-const { requireRole } = require('../middleware/auth');
+const { requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
+
+router.use(requireRole('client'), requireVerifiedEmail);
 
 function syncSessionUser(req, user) {
   req.session.user.name = user.name;

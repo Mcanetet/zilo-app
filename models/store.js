@@ -43,6 +43,13 @@ const {
 } = require('../lib/adminPermissions');
 const { checkAddressCoverage, groupCoverageForAdmin, formatCoverageMessage } = require('../lib/coverage');
 const { getCommuneKey } = require('../lib/chile-geo');
+const {
+  POLICY_VERSION,
+  CONSENT_DEFINITIONS,
+  validateRegistrationConsents,
+  getRegistrationConsentPayload
+} = require('../lib/consent-policy');
+const emailVerification = require('../lib/emailVerification');
 
 let SERVICES = [];
 let MODULES = [];
@@ -1075,7 +1082,11 @@ async function registerUser({ name, email, password, phone, role, address, speci
     role,
     phone: (phone || '').trim() || null,
     onboardingCompleted: false,
-    memberSince: new Date().toISOString().slice(0, 10)
+    memberSince: new Date().toISOString().slice(0, 10),
+    emailVerifiedAt: null,
+    emailVerificationCodeHash: null,
+    emailVerificationExpiresAt: null,
+    emailVerificationSentAt: null
   };
 
   let user;
@@ -1151,7 +1162,11 @@ async function createTechnician(socioId, { name, email, password, phone } = {}) 
     reviews: [],
     locationShare: defaultLocationShare(),
     active: true,
-    memberSince: new Date().toISOString().slice(0, 10)
+    memberSince: new Date().toISOString().slice(0, 10),
+    emailVerifiedAt: null,
+    emailVerificationCodeHash: null,
+    emailVerificationExpiresAt: null,
+    emailVerificationSentAt: null
   };
 
   USERS.push(tecnico);
@@ -1909,20 +1924,147 @@ function getPendingRequestsForProvider(providerId) {
   );
 }
 
-function recordConsent({ userId, ip, type, granted, version, userAgent }) {
+function isEmailVerified(user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  return Boolean(user.emailVerifiedAt);
+}
+
+async function issueEmailVerification(userId, { locale = 'es' } = {}) {
+  const user = getUserById(userId);
+  if (!user || isEmailVerified(user)) return { skipped: true };
+
+  const sent = await emailVerification.sendVerificationEmail(user, { locale });
+  user.emailVerificationCodeHash = sent.codeHash;
+  user.emailVerificationExpiresAt = sent.expiresAt;
+  user.emailVerificationSentAt = sent.sentAt;
+
+  try {
+    await repository.saveUser(user);
+  } catch (err) {
+    console.error('Error guardando código de verificación:', err.message);
+    return { error: 'No se pudo enviar el código. Intenta más tarde.' };
+  }
+  return { success: true, sentAt: sent.sentAt, demo: sent.mailResult?.demo };
+}
+
+async function verifyEmailCode(userId, code) {
+  const user = getUserById(userId);
+  if (!user) return { error: 'Usuario no encontrado.' };
+  if (isEmailVerified(user)) return { success: true, already: true };
+
+  const check = emailVerification.verifyCode(user, code);
+  if (check.error) return check;
+
+  user.emailVerifiedAt = new Date().toISOString();
+  user.emailVerificationCodeHash = null;
+  user.emailVerificationExpiresAt = null;
+
+  try {
+    await repository.saveUser(user);
+  } catch (err) {
+    console.error('Error verificando correo:', err.message);
+    return { error: 'No se pudo confirmar la verificación.' };
+  }
+  return { success: true };
+}
+
+async function resendEmailVerification(userId, { locale = 'es' } = {}) {
+  const user = getUserById(userId);
+  if (!user) return { error: 'Usuario no encontrado.' };
+  if (isEmailVerified(user)) return { error: 'Tu correo ya está verificado.' };
+  if (!emailVerification.canResend(user)) {
+    return {
+      error: 'Espera un momento antes de solicitar otro código.',
+      cooldown: emailVerification.resendCooldownSeconds(user)
+    };
+  }
+  return issueEmailVerification(userId, { locale });
+}
+
+function recordConsent({
+  userId, ip, type, granted, version, userAgent,
+  purpose, legalBasis, source, meta, withdrawnAt
+}) {
+  const def = CONSENT_DEFINITIONS[type] || {};
   const record = {
-    id: `c-${Date.now()}`,
+    id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     userId,
     ip,
     type,
-    granted,
-    version,
+    granted: Boolean(granted),
+    version: version || POLICY_VERSION,
     userAgent: userAgent?.slice(0, 120),
+    purpose: purpose || def.purpose || null,
+    legalBasis: legalBasis || def.legalBasis || null,
+    source: source || null,
+    meta: meta || null,
+    withdrawnAt: withdrawnAt || null,
     createdAt: new Date().toISOString()
   };
   consentRecords.unshift(record);
   repository.persist(() => repository.saveConsent(record), `consentimiento ${record.id}`);
   return record;
+}
+
+function recordRegistrationConsents(req, userId, body) {
+  const items = getRegistrationConsentPayload(body);
+  const ua = req.get('user-agent');
+  const ip = req.ip;
+  return items.map((item) => recordConsent({
+    userId,
+    ip,
+    type: item.type,
+    granted: item.granted,
+    version: POLICY_VERSION,
+    userAgent: ua,
+    purpose: item.purpose,
+    legalBasis: item.legalBasis,
+    source: 'registro'
+  }));
+}
+
+function getUserConsents(userId) {
+  return consentRecords
+    .filter((c) => c.userId === userId && !c.withdrawnAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function getUserConsentStatus(userId) {
+  const rows = getUserConsents(userId);
+  const latestByType = {};
+  rows.forEach((r) => {
+    if (!latestByType[r.type]) latestByType[r.type] = r;
+  });
+  return Object.values(latestByType);
+}
+
+function revokeUserConsent(userId, type, req) {
+  const def = CONSENT_DEFINITIONS[type];
+  if (!def) return { error: 'Tipo de consentimiento no válido.' };
+  if (!def.revocable) return { error: 'Este consentimiento no puede revocarse desde la app.' };
+
+  const active = getUserConsents(userId).find((c) => c.type === type && c.granted);
+  if (!active) return { error: 'No hay un consentimiento activo para revocar.' };
+
+  const withdrawnAt = new Date().toISOString();
+  active.withdrawnAt = withdrawnAt;
+  repository.persist(() => repository.saveConsent(active), `revocar ${type}`);
+
+  recordConsent({
+    userId,
+    ip: req?.ip,
+    type,
+    granted: false,
+    version: POLICY_VERSION,
+    userAgent: req?.get?.('user-agent'),
+    purpose: def.purpose,
+    legalBasis: def.legalBasis,
+    source: 'revocacion',
+    withdrawnAt
+  });
+
+  return { success: true, type, withdrawnAt };
 }
 
 function getConsentsSummary() {
@@ -2325,6 +2467,15 @@ module.exports = {
   getFinancialReport,
   getConsentsSummary,
   recordConsent,
+  recordRegistrationConsents,
+  validateRegistrationConsents,
+  getUserConsentStatus,
+  revokeUserConsent,
+  isEmailVerified,
+  issueEmailVerification,
+  verifyEmailCode,
+  resendEmailVerification,
+  POLICY_VERSION,
   get consentRecords() { return consentRecords; },
   get securityLogs() { return securityLogs; },
   logSecurityEvent,

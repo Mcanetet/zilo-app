@@ -2,42 +2,106 @@
 
 <article class="max-w-2xl mx-auto px-5 py-8 pb-16 legal-page">
   <a href="/" class="text-sm text-blue-600 hover:underline mb-6 inline-block">← Volver a Fundez</a>
-  <h1 class="text-3xl font-extrabold mb-2">Política de Privacidad</h1>
-  <p class="text-gray-500 text-sm mb-8">Última actualización: <%= lastUpdated %></p>
+  <h1 class="text-3xl font-extrabold mb-2">Política de Privacidad y Protección de Datos</h1>
+  <p class="text-gray-500 text-sm mb-2">Última actualización: <%= lastUpdated %></p>
+  <p class="text-xs text-gray-500 mb-8">Conforme a la Ley N° 21.719 sobre Protección de Datos Personales (Chile) y normativa complementaria.</p>
 
   <div class="prose-legal space-y-6 text-sm text-gray-700 leading-relaxed">
     <section>
       <h2 class="text-lg font-semibold text-zilo-text mb-2">1. Responsable del tratamiento</h2>
-      <p><%= company.name %>, RUT <%= company.rut %>, con domicilio en <%= company.address %>. Contacto: <a href="mailto:<%= company.dpoEmail %>" class="text-blue-600"><%= company.dpoEmail %></a></p>
+      <p><strong><%= company.name %></strong>, RUT <%= company.rut %>, domicilio en <%= company.address %>.</p>
+      <p class="mt-2">Correo general: <a href="mailto:<%= company.email %>" class="text-blue-600"><%= company.email %></a></p>
     </section>
+
     <section>
-      <h2 class="text-lg font-semibold text-zilo-text mb-2">2. Datos que recopilamos</h2>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">2. Delegado de Protección de Datos (DPD)</h2>
+      <p>Fundez ha designado un Delegado de Protección de Datos para atender consultas y solicitudes relacionadas con el tratamiento de datos personales.</p>
+      <p class="mt-2">Contacto DPD: <a href="mailto:<%= company.dpoEmail %>" class="text-blue-600"><%= company.dpoEmail %></a></p>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">3. Datos que recopilamos</h2>
       <ul class="list-disc list-inside space-y-1">
-        <li>Datos de identificación: nombre, correo, teléfono, dirección de servicio</li>
-        <li>Datos de geolocalización: coordenadas para asignar proveedores cercanos</li>
-        <li>Datos de pago: procesados por Mercado Pago (no almacenamos datos de tarjetas)</li>
-        <li>Datos de uso: logs de sesión, IP, eventos de seguridad</li>
+        <li><strong>Identificación y contacto:</strong> nombre, correo, teléfono, dirección de servicio o fiscal.</li>
+        <li><strong>Cuenta y autenticación:</strong> credenciales cifradas, verificación de correo, logs de sesión.</li>
+        <li><strong>Datos de servicio:</strong> solicitudes, historial, fotos de trabajo, mensajes y evaluaciones.</li>
+        <li><strong>Geolocalización:</strong> solo si el socio activa el permiso durante servicios en curso.</li>
+        <li><strong>Datos sensibles (socios):</strong> documento de identidad y verificación biométrica facial, con consentimiento expreso.</li>
+        <li><strong>Pagos:</strong> procesados por Mercado Pago; Fundez no almacena datos completos de tarjetas.</li>
+        <li><strong>Técnicos:</strong> uso, IP, cookies esenciales y, si aceptas, cookies analíticas.</li>
       </ul>
     </section>
+
     <section>
-      <h2 class="text-lg font-semibold text-zilo-text mb-2">3. Finalidad del tratamiento</h2>
-      <p>Conectar clientes con proveedores de servicios del hogar, procesar pagos, brindar soporte vía WhatsApp, cumplir obligaciones legales y mejorar la plataforma.</p>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">4. Finalidades y bases legales (Ley 21.719)</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border border-gray-200 mt-2">
+          <thead class="bg-gray-50">
+            <tr><th class="p-2 text-left border-b">Finalidad</th><th class="p-2 text-left border-b">Base legal</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="p-2 border-b">Crear y administrar tu cuenta</td><td class="p-2 border-b">Consentimiento / contrato</td></tr>
+            <tr><td class="p-2 border-b">Conectar clientes con socios y técnicos</td><td class="p-2 border-b">Ejecución del contrato</td></tr>
+            <tr><td class="p-2 border-b">Procesar pagos y facturación</td><td class="p-2 border-b">Contrato / obligación legal</td></tr>
+            <tr><td class="p-2 border-b">Verificación de identidad de socios (KYC)</td><td class="p-2 border-b">Consentimiento expreso</td></tr>
+            <tr><td class="p-2 border-b">Ubicación en tiempo real del socio</td><td class="p-2 border-b">Consentimiento (revocable)</td></tr>
+            <tr><td class="p-2 border-b">Comunicaciones comerciales</td><td class="p-2 border-b">Consentimiento (revocable)</td></tr>
+            <tr><td class="p-2 border-b">Seguridad, fraude y auditoría</td><td class="p-2 border-b">Interés legítimo</td></tr>
+            <tr><td class="p-2">Cookies estrictamente necesarias</td><td class="p-2">Interés legítimo</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
+
     <section>
-      <h2 class="text-lg font-semibold text-zilo-text mb-2">4. Base legal (Ley 19.628 Chile)</h2>
-      <p>El tratamiento se basa en el consentimiento del titular, la ejecución del contrato de servicios y el interés legítimo en seguridad de la plataforma.</p>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">5. Consentimiento informado</h2>
+      <p>Al registrarte, aceptas de forma libre, específica e informada los consentimientos obligatorios (Términos, Privacidad y tratamiento de cuenta). Los consentimientos opcionales —marketing, geolocalización, cookies analíticas y datos sensibles KYC— se solicitan por separado y puedes revocarlos en cualquier momento desde <a href="/legal/mis-datos" class="text-blue-600">Mis datos personales</a> o contactando al DPD.</p>
+      <p class="mt-2">Registramos cada consentimiento con fecha, versión de política, IP y finalidad, conforme al principio de accountability.</p>
     </section>
+
     <section>
-      <h2 class="text-lg font-semibold text-zilo-text mb-2">5. Derechos del titular</h2>
-      <p>Puedes acceder, rectificar, cancelar u oponerte al tratamiento de tus datos escribiendo a <a href="mailto:<%= company.dpoEmail %>" class="text-blue-600"><%= company.dpoEmail %></a></p>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">6. Destinatarios y encargados</h2>
+      <p>Podemos compartir datos con proveedores que nos prestan servicios (hosting, correo, pagos, mensajería), siempre bajo contrato y medidas de seguridad adecuadas. No vendemos tus datos personales.</p>
     </section>
+
     <section>
-      <h2 class="text-lg font-semibold text-zilo-text mb-2">6. Seguridad</h2>
-      <p>Implementamos cifrado HTTPS, cookies seguras, headers de protección HTTP, rate limiting y auditoría de accesos.</p>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">7. Transferencias internacionales</h2>
+      <p>Si algún proveedor procesa datos fuera de Chile, adoptamos salvaguardas contractuales y técnicas exigidas por la Ley 21.719.</p>
     </section>
+
     <section>
-      <h2 class="text-lg font-semibold text-zilo-text mb-2">7. Conservación</h2>
-      <p>Los datos se conservan mientras dure la relación comercial y el plazo legal aplicable (mínimo 5 años para registros contables).</p>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">8. Derechos del titular (ARCO+)</h2>
+      <p>Tienes derecho a:</p>
+      <ul class="list-disc list-inside space-y-1 mt-2">
+        <li><strong>Acceso</strong> — conocer qué datos tratamos sobre ti.</li>
+        <li><strong>Rectificación</strong> — corregir datos inexactos o incompletos.</li>
+        <li><strong>Supresión / cancelación</strong> — solicitar eliminación cuando proceda.</li>
+        <li><strong>Oposición</strong> — oponerte a ciertos tratamientos basados en interés legítimo.</li>
+        <li><strong>Portabilidad</strong> — recibir tus datos en formato estructurado, cuando aplique.</li>
+        <li><strong>Bloqueo</strong> — limitar el tratamiento en casos previstos por ley.</li>
+        <li><strong>Revocar consentimientos</strong> — retirar consentimientos revocables sin afectar tratamientos previos lícitos.</li>
+      </ul>
+      <p class="mt-3">Ejercicio de derechos: escribe a <a href="mailto:<%= company.dpoEmail %>" class="text-blue-600"><%= company.dpoEmail %></a> o usa <a href="/legal/mis-datos" class="text-blue-600">Mis datos personales</a> (requiere iniciar sesión). Responderemos en los plazos legales.</p>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">9. Seguridad de la información</h2>
+      <p>Aplicamos medidas técnicas y organizativas: cifrado HTTPS, contraseñas hasheadas, cookies seguras, headers HTTP de protección, rate limiting, verificación de correo, auditoría de accesos y control de roles administrativos.</p>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">10. Conservación</h2>
+      <p>Conservamos los datos mientras mantengas una cuenta activa y el plazo necesario para cumplir obligaciones legales (por ejemplo, registros contables). Los registros de consentimiento se conservan como evidencia del cumplimiento normativo.</p>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">11. Menores de edad</h2>
+      <p>Fundez no está dirigida a menores de 18 años. Si detectamos datos de menores sin autorización válida, los eliminaremos.</p>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-semibold text-zilo-text mb-2">12. Cambios a esta política</h2>
+      <p>Podemos actualizar esta política. Te notificaremos cambios sustanciales y solicitaremos nuevo consentimiento cuando la ley lo exija. Versión vigente: <%= policyVersion || '2.0-21719' %>.</p>
     </section>
   </div>
 </article>

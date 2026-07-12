@@ -1,0 +1,103 @@
+<%- include('partials/head') %>
+
+<div class="min-h-screen flex items-center justify-center p-5 relative">
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-80 h-80 bg-zilo-accent/6 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="absolute top-5 right-5 z-20">
+    <%- include('partials/lang-switcher') %>
+  </div>
+
+  <div class="relative z-10 w-full max-w-md zilo-card-premium rounded-3xl p-8 zilo-page-enter">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-zilo-accent/10 flex items-center justify-center">
+        <svg class="w-7 h-7 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M22 6l-10 7L2 6"/></svg>
+      </div>
+      <h1 class="zilo-display text-2xl mb-1"><%= t('verify.title') %></h1>
+      <p class="text-sm text-zilo-muted"><%= t('verify.subtitle') %><br><strong class="text-zilo-text"><%= email %></strong></p>
+    </div>
+
+    <% if (error) { %>
+      <div class="mb-4 p-3 rounded-xl bg-zilo-danger/10 border border-zilo-danger/30 text-zilo-danger text-sm text-center"><%= error %></div>
+    <% } %>
+    <% if (success) { %>
+      <div class="mb-4 p-3 rounded-xl bg-zilo-success/10 border border-zilo-success/30 text-zilo-success text-sm text-center"><%= success %></div>
+    <% } %>
+
+    <% if (demoHint) { %>
+      <div class="mb-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs text-center leading-relaxed">
+        Modo demo: revisa la consola del servidor (<code>[verify:demo]</code>) si no tienes SMTP configurado.
+      </div>
+    <% } %>
+
+    <form action="/verificar-email" method="POST" class="space-y-4">
+      <div>
+        <label for="code" class="zilo-label block mb-1.5 text-center"><%= t('verify.code_label') %></label>
+        <input type="text" id="code" name="code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"
+          placeholder="000000"
+          class="zilo-input text-center text-2xl tracking-[0.4em] font-semibold">
+      </div>
+      <button type="submit" class="zilo-btn-primary"><%= t('verify.submit') %></button>
+    </form>
+
+    <div class="mt-5 text-center space-y-2">
+      <button type="button" id="btnResend" class="text-sm text-zilo-accent font-medium hover:underline disabled:opacity-40 disabled:no-underline"
+        <%= cooldown > 0 ? 'disabled' : '' %>>
+        <%= t('verify.resend') %><span id="resendTimer"><%= cooldown > 0 ? ` (${cooldown}s)` : '' %></span>
+      </button>
+      <p class="text-[11px] text-zilo-muted"><%= t('verify.hint') %></p>
+      <a href="/logout" class="text-xs text-zilo-muted hover:text-zilo-accent block"><%= t('verify.other_email') %></a>
+    </div>
+
+    <details class="mt-6 pt-4 border-t border-zilo-border text-xs text-zilo-muted">
+      <summary class="cursor-pointer font-medium text-zilo-text"><%= t('verify.law_title') %></summary>
+      <p class="mt-2 leading-relaxed">Al verificar tu correo confirmas que puedes acceder a esta cuenta. Fundez trata tus datos según nuestra <a href="/legal/privacidad" class="text-zilo-accent underline">Política de Privacidad</a>. Puedes ejercer tus derechos ARCO+ escribiendo a <a href="mailto:<%= company.dpoEmail %>" class="text-zilo-accent underline"><%= company.dpoEmail %></a> o en <a href="/legal/mis-datos" class="text-zilo-accent underline">Mis datos personales</a>.</p>
+    </details>
+  </div>
+</div>
+
+<script>
+(function () {
+  const btn = document.getElementById('btnResend');
+  const timerEl = document.getElementById('resendTimer');
+  let cooldown = <%= cooldown || 0 %>;
+
+  function tick() {
+    if (cooldown <= 0) {
+      btn.disabled = false;
+      timerEl.textContent = '';
+      return;
+    }
+    btn.disabled = true;
+    timerEl.textContent = ` (${cooldown}s)`;
+    cooldown -= 1;
+    setTimeout(tick, 1000);
+  }
+  if (cooldown > 0) tick();
+
+  btn?.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const res = await fetch('/verificar-email/reenviar', { method: 'POST', headers: { Accept: 'application/json' } });
+      const data = await res.json();
+      if (!data.success) {
+        FundezNotify?.show(data.error || 'No se pudo reenviar', 'warning');
+        cooldown = data.cooldown || 60;
+        tick();
+        return;
+      }
+      FundezNotify?.show(data.demo ? 'Código reenviado (modo demo — revisa consola)' : 'Código reenviado a tu correo', 'success');
+      cooldown = 60;
+      tick();
+    } catch (_) {
+      FundezNotify?.show('Error de conexión', 'error');
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('code')?.focus();
+})();
+</script>
+
+<%- include('partials/footer') %>

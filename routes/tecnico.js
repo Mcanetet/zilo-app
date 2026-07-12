@@ -2,9 +2,11 @@ const express = require('express');
 const { dispatchPendingToTechnician, broadcastRequestTaken, buildWorkWallPayload } = require('../lib/dispatch');
 const router = express.Router();
 const store = require('../models/store');
-const { requireRole } = require('../middleware/auth');
+const { requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
 const { saveRequestFile } = require('../lib/uploads');
+
+router.use(requireRole('tecnico'), requireVerifiedEmail);
 
 function getTechLabels(t) {
   return {

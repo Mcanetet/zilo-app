@@ -88,10 +88,27 @@
         <p class="text-[11px] text-zilo-muted mt-1"><%= t('register.provider_hint') %></p>
       </div>
 
-      <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
-        <input type="checkbox" name="consent" required class="mt-0.5 rounded accent-[#2563EB]">
-        <span><%- t('auth.consent') %></span>
-      </label>
+      <div class="space-y-2 p-3 rounded-xl border border-zilo-border bg-zilo-bg/30">
+        <p class="text-xs font-semibold text-zilo-text"><%= t('consent.section_title') %></p>
+        <p class="text-[11px] text-zilo-muted leading-relaxed"><%= t('consent.section_hint') %></p>
+
+        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+          <input type="checkbox" name="consent_terminos" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
+          <span><%- t('consent.terminos') %></span>
+        </label>
+        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+          <input type="checkbox" name="consent_privacidad" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
+          <span><%- t('consent.privacidad') %></span>
+        </label>
+        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+          <input type="checkbox" name="consent_tratamiento_cuenta" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
+          <span><%- t('consent.tratamiento_cuenta') %></span>
+        </label>
+        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+          <input type="checkbox" name="consent_marketing" class="mt-0.5 rounded accent-[#2563EB] shrink-0">
+          <span><%- t('consent.marketing') %></span>
+        </label>
+      </div>
 
       <button type="submit" class="zilo-btn-primary"><%= t('register.submit') %></button>
     </form>

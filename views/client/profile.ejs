@@ -84,6 +84,18 @@
       <button type="submit" class="zilo-btn-ghost w-full !py-3">Guardar facturación</button>
     </form>
 
+    <a href="/legal/mis-datos" class="block p-4 rounded-2xl zilo-card-premium border border-zilo-border zilo-page-enter-delay-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zilo-accent/10 flex items-center justify-center">
+          <svg class="w-5 h-5 text-zilo-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div>
+          <strong class="text-sm block"><%= t('consent.my_data') %></strong>
+          <span class="text-xs text-zilo-muted">Ley 21.719 — consentimientos y derechos ARCO+</span>
+        </div>
+      </div>
+    </a>
+
     <a href="/cliente/hogar" class="block p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15 zilo-page-enter-delay-3">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-zilo-accent/10 flex items-center justify-center">

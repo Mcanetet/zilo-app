@@ -74,6 +74,11 @@
         <li id="check-location" class="<%= provider.locationShare?.consent ? 'text-zilo-success' : '' %>">✓ Permiso de ubicación en tiempo real</li>
       </ul>
 
+      <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer p-3 rounded-xl border border-zilo-border bg-zilo-bg/30">
+        <input type="checkbox" id="consentKyc" class="mt-0.5 rounded accent-[#2563EB] shrink-0" <%= typeof hasKycConsent !== 'undefined' && hasKycConsent ? 'checked disabled' : '' %>>
+        <span><%- typeof t === 'function' ? t('consent.kyc') : 'Autorizo el tratamiento de datos sensibles para verificación de identidad (Ley 21.719)' %></span>
+      </label>
+
       <div class="zilo-divider"></div>
 
       <div>
@@ -146,6 +151,16 @@
         </div>
       <% } %>
     </section>
+
+    <a href="/legal/mis-datos" class="block p-4 rounded-2xl zilo-card-premium border border-zilo-border">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-zilo-accent/10 flex items-center justify-center text-zilo-accent text-sm font-bold">21</div>
+        <div>
+          <strong class="text-sm block"><%= typeof t === 'function' ? t('consent.my_data') : 'Mis datos y consentimientos' %></strong>
+          <span class="text-xs text-zilo-muted">Ley 21.719 — gestionar consentimientos revocables</span>
+        </div>
+      </div>
+    </a>
 
     <div class="p-3 rounded-xl zilo-card-premium">
       <span class="zilo-label block mb-2">Especialidades</span>

@@ -38,10 +38,17 @@
         <label for="password" class="zilo-label block mb-1.5"><%= t('auth.password') %></label>
         <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" class="zilo-input">
       </div>
-      <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
-        <input type="checkbox" name="consent" required class="mt-0.5 rounded accent-[#2563EB]">
-        <span><%- t('auth.consent') %></span>
-      </label>
+      <div class="space-y-2 p-3 rounded-xl border border-zilo-border bg-zilo-bg/30">
+        <p class="text-xs font-semibold text-zilo-text"><%= t('consent.section_title') %></p>
+        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+          <input type="checkbox" name="consent_terminos" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
+          <span><%- t('consent.terminos') %></span>
+        </label>
+        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
+          <input type="checkbox" name="consent_privacidad" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
+          <span><%- t('consent.privacidad') %></span>
+        </label>
+      </div>
       <button type="submit" class="zilo-btn-primary"><%= t('auth.login') %></button>
     </form>
 

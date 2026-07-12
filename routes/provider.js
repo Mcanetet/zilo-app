@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const store = require('../models/store');
 const { dispatchPendingToProvider, broadcastRequestTaken, buildWorkWallPayload } = require('../lib/dispatch');
-const { requireRole } = require('../middleware/auth');
+const { requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
 const { saveProviderFile } = require('../lib/uploads');
 const { verifySelfie } = require('../lib/faceVerify');
@@ -18,6 +18,9 @@ const {
   getContractSummary
 } = require('../lib/contracts');
 const company = require('../config/company');
+const { CONSENT_DEFINITIONS, POLICY_VERSION } = require('../lib/consent-policy');
+
+router.use(requireRole('provider'), requireVerifiedEmail);
 
 router.get('/mensajes', requireRole('provider'), requireModule('provider_mensajes'), (req, res) => {
   res.render('provider/mensajes', {
@@ -147,11 +150,15 @@ router.post('/status/:requestId', requireRole('provider'), (req, res) => {
 router.get('/perfil', requireRole('provider'), requireModule('provider_perfil'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
   const verificationCheck = store.canProviderGoOnline(provider);
+  const hasKycConsent = store.getUserConsentStatus(req.session.user.id).some(
+    (c) => c.type === 'datos_sensibles_kyc' && c.granted
+  );
   res.render('provider/profile', {
     title: 'Mi perfil — Fundez',
     user: req.session.user,
     provider,
     verificationCheck,
+    hasKycConsent,
     services: store.SERVICES,
     formatCLP: store.formatCLP
   });
@@ -168,10 +175,32 @@ router.post('/perfil', requireRole('provider'), requireModule('provider_perfil')
 });
 
 router.post('/verificacion/documento', requireRole('provider'), requireModule('provider_verificacion'), (req, res) => {
-  const { type, data, label } = req.body;
+  const { type, data, label, consent_kyc } = req.body;
   const valid = ['idFront', 'idBack', 'certificate'];
   if (!valid.includes(type) || !data) {
     return res.status(400).json({ error: 'Tipo de documento o archivo inválido' });
+  }
+
+  if (['idFront', 'idBack'].includes(type)) {
+    const hasKyc = store.getUserConsentStatus(req.session.user.id).some(
+      (c) => c.type === 'datos_sensibles_kyc' && c.granted
+    );
+    if (!hasKyc && consent_kyc !== true && consent_kyc !== 'true') {
+      return res.status(400).json({
+        error: 'Debes autorizar el tratamiento de datos sensibles (KYC) según la Ley 21.719.'
+      });
+    }
+    if (!hasKyc) {
+      store.recordConsent({
+        userId: req.session.user.id,
+        ip: getClientIp(req),
+        type: 'datos_sensibles_kyc',
+        granted: true,
+        version: POLICY_VERSION,
+        userAgent: req.get('user-agent'),
+        source: 'verificacion_kyc'
+      });
+    }
   }
 
   try {
@@ -185,8 +214,28 @@ router.post('/verificacion/documento', requireRole('provider'), requireModule('p
 });
 
 router.post('/verificacion/selfie', requireRole('provider'), requireModule('provider_verificacion'), (req, res) => {
-  const { data } = req.body;
+  const { data, consent_kyc } = req.body;
   if (!data) return res.status(400).json({ error: 'Imagen requerida' });
+
+  const hasKyc = store.getUserConsentStatus(req.session.user.id).some(
+    (c) => c.type === 'datos_sensibles_kyc' && c.granted
+  );
+  if (!hasKyc && consent_kyc !== true && consent_kyc !== 'true') {
+    return res.status(400).json({
+      error: 'Debes autorizar el tratamiento de datos sensibles (KYC) según la Ley 21.719.'
+    });
+  }
+  if (!hasKyc) {
+    store.recordConsent({
+      userId: req.session.user.id,
+      ip: getClientIp(req),
+      type: 'datos_sensibles_kyc',
+      granted: true,
+      version: POLICY_VERSION,
+      userAgent: req.get('user-agent'),
+      source: 'verificacion_kyc'
+    });
+  }
 
   const faceResult = verifySelfie(data);
   if (!faceResult.success) {
@@ -205,6 +254,21 @@ router.post('/verificacion/selfie', requireRole('provider'), requireModule('prov
 router.post('/verificacion/ubicacion', requireRole('provider'), requireModule('provider_verificacion'), (req, res) => {
   const consent = req.body.consent === true || req.body.consent === 'true';
   const locationShare = store.setLocationConsent(req.session.user.id, consent);
+
+  if (consent) {
+    store.recordConsent({
+      userId: req.session.user.id,
+      ip: getClientIp(req),
+      type: 'geolocalizacion',
+      granted: true,
+      version: POLICY_VERSION,
+      userAgent: req.get('user-agent'),
+      source: 'verificacion_ubicacion'
+    });
+  } else {
+    store.revokeUserConsent(req.session.user.id, 'geolocalizacion', req);
+  }
+
   res.json({ success: true, locationShare, verification: store.getUserById(req.session.user.id).verification });
 });
 
@@ -263,6 +327,7 @@ router.post('/equipo', requireRole('provider'), requireModule('provider_equipo')
   }
 
   store.logSecurityEvent('tecnico_creado', result.tecnico.email, req);
+  await store.issueEmailVerification(result.tecnico.id, { locale: req.locale || 'es' });
   const isJson = req.xhr || (req.get('accept') || '').includes('application/json');
   if (isJson) {
     return res.json({

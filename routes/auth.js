@@ -122,11 +122,12 @@ router.get('/registro', (req, res) => {
     if (user && !store.isEmailVerified(user)) return res.redirect('/verificar-email');
     return res.redirect(getDashboardPath(req.session.user.role));
   }
+  const defaultRole = req.query.role === 'provider' || req.query.socio ? 'provider' : 'client';
   res.render('registro', {
     title: 'Crear cuenta',
     error: null,
     services: store.getActiveServices(),
-    form: { role: 'client', specialties: [] },
+    form: { role: defaultRole, specialties: [] },
     referralCode: req.session.pendingReferral || null
   });
 });

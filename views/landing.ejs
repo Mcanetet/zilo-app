@@ -61,10 +61,28 @@
       <p class="zilo-label mb-3"><%= t('landing.only_fundez') %></p>
       <ul class="space-y-3 text-sm text-zilo-muted">
         <li class="flex gap-3"><span class="text-zilo-accent">◆</span> <%= t('landing.feature.passport') %></li>
+        <li class="flex gap-3"><span class="text-zilo-accent">◆</span> <%= t('landing.feature.card') %></li>
         <li class="flex gap-3"><span class="text-zilo-accent">◆</span> <%= t('landing.feature.guardian') %></li>
         <li class="flex gap-3"><span class="text-zilo-accent">◆</span> <%= t('landing.feature.gift') %></li>
       </ul>
     </div>
+
+    <a href="/registro?role=provider" class="group block rounded-2xl p-5 mb-8 border border-zilo-success/25 bg-gradient-to-br from-zilo-success/10 via-zilo-card to-zilo-accent/5 hover:border-zilo-accent/35 transition zilo-page-enter-delay-2">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-zilo-success/15 border border-zilo-success/25 flex items-center justify-center shrink-0">
+          <svg class="w-6 h-6 text-zilo-success" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="zilo-label mb-1"><%= t('landing.partner_eyebrow') %></p>
+          <h2 class="zilo-display text-xl text-zilo-text mb-1.5"><%= t('landing.partner_title') %></h2>
+          <p class="text-sm text-zilo-muted leading-relaxed mb-3"><%= t('landing.partner_body') %></p>
+          <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-zilo-accent group-hover:underline">
+            <%= t('landing.partner_cta') %>
+            <svg class="w-4 h-4 transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
+        </div>
+      </div>
+    </a>
   </main>
 
   <section class="relative z-10 px-5 pb-10 max-w-lg mx-auto">
@@ -79,7 +97,10 @@
     </div>
   </section>
 
-  <footer class="relative z-10 text-center py-8 text-zilo-muted text-xs border-t border-zilo-border"><%= t('footer.copyright') %></footer>
+  <footer class="relative z-10 text-center py-8 text-zilo-muted text-xs border-t border-zilo-border space-y-2">
+    <p><a href="/quienes-somos" class="hover:text-zilo-accent transition"><%= t('landing.about_link') %></a></p>
+    <p><%= t('footer.copyright') %></p>
+  </footer>
 </div>
 
 <%- include('partials/footer') %>

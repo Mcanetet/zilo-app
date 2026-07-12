@@ -115,6 +115,12 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get('/quienes-somos', (req, res) => {
+  res.render('quienes-somos', {
+    title: req.t('about.page_title') + ' — Fundez'
+  });
+});
+
 app.use('/', authRoutes);
 app.use('/cliente', clientRoutes);
 app.use('/proveedor', providerRoutes);

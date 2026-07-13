@@ -137,6 +137,9 @@
         </div>
         <div id="addressCoverageAlert" class="hidden p-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs"></div>
         <div id="registerAddressMap" class="fundez-map-panel h-44 sm:h-52 rounded-2xl border border-zilo-border overflow-hidden bg-zilo-bg shadow-zilo"></div>
+        <div id="addressMapActions" class="hidden flex flex-wrap gap-2">
+          <button type="button" id="addressUseGps" class="zilo-btn-ghost !py-2 !px-3 text-xs"><%= t('register.address_use_gps') %></button>
+        </div>
         <p id="addressMapStatus" class="text-[11px] text-zilo-muted min-h-[1rem]"></p>
       </div>
 
@@ -193,7 +196,6 @@
 
       <div class="space-y-2 p-3 rounded-xl border border-zilo-border bg-zilo-bg/30">
         <p class="text-xs font-semibold text-zilo-text"><%= t('consent.section_title') %></p>
-        <p class="text-[11px] text-zilo-muted leading-relaxed"><%= t('consent.section_hint') %></p>
 
         <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
           <input type="checkbox" name="consent_terminos" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
@@ -202,18 +204,6 @@
         <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
           <input type="checkbox" name="consent_privacidad" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
           <span><%- t('consent.privacidad') %></span>
-        </label>
-        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
-          <input type="checkbox" name="consent_tratamiento_cuenta" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
-          <span><%- t('consent.tratamiento_cuenta') %></span>
-        </label>
-        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
-          <input type="checkbox" name="consent_camara" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
-          <span><%- t('consent.camara') %></span>
-        </label>
-        <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
-          <input type="checkbox" name="consent_microfono" required class="mt-0.5 rounded accent-[#2563EB] shrink-0">
-          <span><%- t('consent.microfono') %></span>
         </label>
         <label class="flex items-start gap-2 text-xs text-zilo-muted cursor-pointer">
           <input type="checkbox" name="consent_marketing" class="mt-0.5 rounded accent-[#2563EB] shrink-0">
@@ -285,8 +275,13 @@
   'register.address_commune_first': t('register.address_commune_first'),
   'register.commune_loading': t('register.commune_loading'),
   'register.commune_selected': t('register.commune_selected'),
+  'register.validation_commune_required': t('register.validation_commune_required'),
   'register.address_pin_drag_hint': t('register.address_pin_drag_hint'),
   'register.address_pin_adjusted': t('register.address_pin_adjusted'),
+  'register.address_map_tap_hint': t('register.address_map_tap_hint'),
+  'register.address_use_gps': t('register.address_use_gps'),
+  'register.address_gps_loading': t('register.address_gps_loading'),
+  'register.address_gps_error': t('register.address_gps_error'),
   'register.error_address_mismatch': t('register.error_address_mismatch'),
   'register.address_searching': t('register.address_searching'),
   'register.address_no_results': t('register.address_no_results'),

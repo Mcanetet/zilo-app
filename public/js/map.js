@@ -148,6 +148,29 @@ window.FundezMap = {
     this._bindMarkerDrag(store.destination, containerId, store.onMarkerDrag);
   },
 
+  enableMapPick(containerId, onPick, { draggable = true, onMarkerDrag } = {}) {
+    const map = this.maps[containerId];
+    if (!map) return;
+    map.off('click.mapPick');
+    map.on('click.mapPick', (event) => {
+      const { lat, lng } = event.latlng;
+      const store = this.markers[containerId] || {};
+      const label = store.destination?.getPopup?.()?.getContent?.() || '';
+      this.update(containerId, lat, lng, label, {
+        zoom: Math.max(map.getZoom(), 18),
+        markerDraggable: draggable,
+        onMarkerDrag: onMarkerDrag || store.onMarkerDrag
+      });
+      if (onPick) onPick(lat, lng);
+    });
+  },
+
+  disableMapPick(containerId) {
+    const map = this.maps[containerId];
+    if (!map) return;
+    map.off('click.mapPick');
+  },
+
   updateProviderLocation(containerId, lat, lng, destLat, destLng) {
     const map = this.maps[containerId];
     if (!map || typeof L === 'undefined') return;

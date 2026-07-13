@@ -14,6 +14,8 @@
   const unitInput = document.getElementById('address_unit');
   const suggestionsEl = document.getElementById('addressSuggestions');
   const mapStatus = document.getElementById('addressMapStatus');
+  const mapActions = document.getElementById('addressMapActions');
+  const useGpsBtn = document.getElementById('addressUseGps');
   const coverageAlert = document.getElementById('addressCoverageAlert');
   const addressLabel = document.getElementById('addressLabel');
   const addressHint = document.getElementById('addressHint');
@@ -75,6 +77,29 @@
     setMapStatus(t('register.address_pin_adjusted'));
   }
 
+  function enablePinAdjustment(label) {
+    if (mapActions) mapActions.classList.remove('hidden');
+    setMapStatus(t('register.address_map_tap_hint'));
+    if (typeof FundezMap !== 'undefined') {
+      FundezMap.enableMapPick('registerAddressMap', onPinDrag, {
+        draggable: true,
+        onMarkerDrag: onPinDrag
+      });
+    }
+    if (label) {
+      const map = FundezMap?.maps?.registerAddressMap;
+      const marker = FundezMap?.markers?.registerAddressMap?.destination;
+      if (marker) marker.bindPopup(label);
+    }
+  }
+
+  function disablePinAdjustment() {
+    if (mapActions) mapActions.classList.add('hidden');
+    if (typeof FundezMap !== 'undefined') {
+      FundezMap.disableMapPick('registerAddressMap');
+    }
+  }
+
   function showMapAt(lat, lng, label, zoom, { draggable = false } = {}) {
     if (typeof FundezMap === 'undefined' || typeof L === 'undefined') return;
     const mapEl = document.getElementById('registerAddressMap');
@@ -126,6 +151,7 @@
     if (lngInput) lngInput.value = '';
     if (placeInput) placeInput.value = '';
     hideCoverage();
+    disablePinAdjustment();
     resetMapToCommune();
   }
 
@@ -195,8 +221,8 @@
     if (lngInput) lngInput.value = item.lng;
     if (placeInput) placeInput.value = item.placeId || '';
     hideSuggestions();
-    setMapStatus(t('register.address_pin_drag_hint'));
-    showMapAt(item.lat, item.lng, item.label, 17, { draggable: true });
+    showMapAt(item.lat, item.lng, item.label, 19, { draggable: true });
+    enablePinAdjustment(item.label);
 
     fetch('/registro/direcciones/validar', {
       method: 'POST',
@@ -294,6 +320,26 @@
   if (communeSelect) {
     communeSelect.addEventListener('change', () => {
       loadCommune(communeSelect.value);
+    });
+  }
+
+  if (useGpsBtn) {
+    useGpsBtn.addEventListener('click', () => {
+      if (!addressConfirmed || !navigator.geolocation) {
+        setMapStatus(t('register.address_gps_error'));
+        return;
+      }
+      setMapStatus(t('register.address_gps_loading'));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          onPinDrag(latitude, longitude);
+          showMapAt(latitude, longitude, addressInput.value, 19, { draggable: true });
+          enablePinAdjustment(addressInput.value);
+        },
+        () => setMapStatus(t('register.address_gps_error')),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
     });
   }
 
@@ -420,9 +466,10 @@
           parseFloat(latInput.value),
           parseFloat(lngInput.value),
           addressInput.value,
-          17,
+          19,
           { draggable: true }
         );
+        enablePinAdjustment(addressInput.value);
         addressConfirmed = true;
         lastSelectedLabel = addressInput.value.trim();
       }

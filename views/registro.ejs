@@ -51,8 +51,13 @@
       </div>
 
       <div>
-        <label for="name" id="nameLabel" class="zilo-label block mb-1.5"><%= t('register.name') %></label>
-        <input type="text" id="name" name="name" required autocomplete="name" placeholder="<%= t('register.name_placeholder') %>" class="zilo-input" value="<%= form.name || '' %>">
+        <label for="name" id="nameLabel" class="zilo-label block mb-1.5"
+          data-label-natural="<%= t('register.name') %>"
+          data-label-company="<%= t('register.contact_name') %>"><%= t('register.name') %></label>
+        <input type="text" id="name" name="name" required autocomplete="name"
+          data-placeholder-natural="<%= t('register.name_placeholder') %>"
+          data-placeholder-company="<%= t('register.contact_name_placeholder') %>"
+          placeholder="<%= t('register.name_placeholder') %>" class="zilo-input" value="<%= form.name || '' %>">
       </div>
       <div>
         <label for="email" class="zilo-label block mb-1.5"><%= t('auth.email') %></label>
@@ -255,13 +260,10 @@
   })();
 </script>
 
-<% if (typeof pageScript !== 'undefined') { %>
-<script src="/js/map.js"></script>
-<script src="/js/register-client-billing.js"></script>
-<script src="/js/register-provider-docs.js"></script>
-<% } %>
-
-<%- include('partials/footer', { pageScript: typeof pageScript !== 'undefined' ? pageScript : undefined, clientI18n: {
+<%- include('partials/footer', {
+  pageScript: typeof pageScript !== 'undefined' ? pageScript : undefined,
+  extraScripts: typeof pageScript !== 'undefined' ? ['/js/map.js', '/js/register-client-billing.js', '/js/register-provider-docs.js'] : undefined,
+  clientI18n: {
   'register.address_hint': t('register.address_hint'),
   'register.address_provider_hint': t('register.address_provider_hint'),
   'register.address': t('register.address'),

@@ -11,8 +11,12 @@
   const nameInput = document.getElementById('name');
   const billingTypeInputs = document.querySelectorAll('input[name="client_billing_type"]');
 
-  function t(key) {
-    return typeof FundezI18n !== 'undefined' ? FundezI18n.t(key) : key;
+  function t(key, fallback) {
+    if (typeof FundezI18n !== 'undefined') {
+      const value = FundezI18n.t(key);
+      if (value && value !== key) return value;
+    }
+    return fallback || key;
   }
 
   function isClientRole() {
@@ -38,14 +42,16 @@
     }
 
     if (nameLabel) {
-      nameLabel.textContent = isClient && isCompanyClient()
-        ? t('register.contact_name')
-        : t('register.name');
+      const company = isClient && isCompanyClient();
+      nameLabel.textContent = company
+        ? (nameLabel.dataset.labelCompany || t('register.contact_name', 'Nombre del contacto'))
+        : (nameLabel.dataset.labelNatural || t('register.name', 'Nombre completo'));
     }
     if (nameInput) {
-      nameInput.placeholder = isClient && isCompanyClient()
-        ? t('register.contact_name_placeholder')
-        : t('register.name_placeholder');
+      const company = isClient && isCompanyClient();
+      nameInput.placeholder = company
+        ? (nameInput.dataset.placeholderCompany || t('register.contact_name_placeholder', 'Quién gestiona la cuenta'))
+        : (nameInput.dataset.placeholderNatural || t('register.name_placeholder', 'Tu nombre'));
     }
   }
 

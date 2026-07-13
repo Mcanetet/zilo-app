@@ -57,10 +57,33 @@
       coverageAlert.classList.add('hidden');
       coverageAlert.textContent = '';
     }
+    resetMapToDefault();
   }
 
   function setMapStatus(text) {
     if (mapStatus) mapStatus.textContent = text || '';
+  }
+
+  function showMapAt(lat, lng, label, zoom) {
+    if (typeof FundezMap === 'undefined' || typeof L === 'undefined') return;
+    const mapEl = document.getElementById('registerAddressMap');
+    if (!mapEl) return;
+
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    if (isNaN(latitude) || isNaN(longitude)) return;
+
+    const mapZoom = zoom || 16;
+    if (!FundezMap.maps.registerAddressMap) {
+      FundezMap.init(mapEl, { lat: latitude, lng: longitude, label: label || '', zoom: mapZoom });
+    } else {
+      FundezMap.update('registerAddressMap', latitude, longitude, label || '');
+    }
+  }
+
+  function resetMapToDefault() {
+    showMapAt(SANTIAGO.lat, SANTIAGO.lng, 'Santiago, Chile', 11);
+    setMapStatus('');
   }
 
   function hideSuggestions() {
@@ -93,17 +116,7 @@
     if (placeInput) placeInput.value = item.placeId || '';
     hideSuggestions();
     setMapStatus(item.displayName || item.label);
-
-    if (typeof FundezMap !== 'undefined') {
-      const mapEl = document.getElementById('registerAddressMap');
-      if (mapEl) {
-        if (!FundezMap.maps.registerAddressMap) {
-          FundezMap.init(mapEl, { lat: item.lat, lng: item.lng, label: item.label, zoom: 16 });
-        } else {
-          FundezMap.update('registerAddressMap', item.lat, item.lng, item.label);
-        }
-      }
-    }
+    showMapAt(item.lat, item.lng, item.label, 16);
 
     fetch('/registro/direcciones/validar', {
       method: 'POST',
@@ -154,6 +167,10 @@
         e.preventDefault();
         const item = currentSuggestions[Number(btn.dataset.index)];
         if (item) selectSuggestion(item);
+      });
+      btn.addEventListener('mouseenter', () => {
+        const item = currentSuggestions[Number(btn.dataset.index)];
+        if (item) showMapAt(item.lat, item.lng, item.label, 15);
       });
     });
   }
@@ -218,6 +235,10 @@
     suggestionsEl.querySelectorAll('.address-suggestion').forEach((btn, i) => {
       btn.classList.toggle('bg-zilo-accent-soft', i === activeIndex);
     });
+    if (activeIndex >= 0 && currentSuggestions[activeIndex]) {
+      const item = currentSuggestions[activeIndex];
+      showMapAt(item.lat, item.lng, item.label, 15);
+    }
   }
 
   document.addEventListener('click', (e) => {
@@ -267,18 +288,18 @@
   onReady(() => {
     syncAddressCopy();
 
-    if (typeof FundezMap !== 'undefined') {
-      const mapEl = document.getElementById('registerAddressMap');
-      if (mapEl) {
-        const hasCoords = latInput && latInput.value && lngInput && lngInput.value;
-        FundezMap.init(mapEl, hasCoords
-          ? { lat: parseFloat(latInput.value), lng: parseFloat(lngInput.value), label: addressInput.value, zoom: 16 }
-          : { lat: SANTIAGO.lat, lng: SANTIAGO.lng, label: 'Santiago, Chile', zoom: 11 });
-        if (hasCoords) {
-          addressConfirmed = true;
-          lastSelectedLabel = addressInput.value.trim();
-        }
-      }
+    const hasCoords = latInput && latInput.value && lngInput && lngInput.value;
+    if (hasCoords) {
+      showMapAt(
+        parseFloat(latInput.value),
+        parseFloat(lngInput.value),
+        addressInput.value,
+        16
+      );
+      addressConfirmed = true;
+      lastSelectedLabel = addressInput.value.trim();
+    } else {
+      resetMapToDefault();
     }
   });
 })();

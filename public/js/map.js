@@ -51,6 +51,7 @@ window.FundezMap = {
     if (label) marker.bindPopup(label).openPopup();
 
     setTimeout(() => map.invalidateSize(), 300);
+    setTimeout(() => map.invalidateSize(), 800);
     this.maps[mapId] = map;
     this.markers[mapId] = { destination: marker };
     return map;
@@ -84,6 +85,7 @@ window.FundezMap = {
     const marker = L.marker([latitude, longitude], { icon: this._destIcon() }).addTo(map);
     if (label) marker.bindPopup(label).openPopup();
     this.markers[containerId] = { destination: marker };
+    setTimeout(() => map.invalidateSize(), 100);
   },
 
   updateProviderLocation(containerId, lat, lng, destLat, destLng) {

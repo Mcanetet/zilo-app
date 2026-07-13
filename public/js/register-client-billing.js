@@ -29,6 +29,39 @@
     return selected && selected.value === 'empresa';
   }
 
+  function showRutError(message) {
+    if (!clientRut) return;
+    clientRut.setCustomValidity(message || '');
+    clientRut.classList.toggle('border-zilo-danger', Boolean(message));
+    clientRut.classList.toggle('focus:border-zilo-danger', Boolean(message));
+  }
+
+  function validateClientRut(showMessage) {
+    if (!clientRut || !isClientRole()) {
+      showRutError('');
+      return true;
+    }
+
+    const value = clientRut.value.trim();
+    if (!value) {
+      const msg = t('register.error_client_rut', 'Ingresa el RUT del cliente.');
+      showRutError(msg);
+      if (showMessage) clientRut.reportValidity();
+      return false;
+    }
+
+    if (typeof FundezRut === 'undefined' || !FundezRut.validate(value)) {
+      const msg = t('register.error_client_rut_invalid', 'El RUT ingresado no es válido.');
+      showRutError(msg);
+      if (showMessage) clientRut.reportValidity();
+      return false;
+    }
+
+    showRutError('');
+    clientRut.value = FundezRut.format(value);
+    return true;
+  }
+
   function syncClientBilling() {
     const isClient = isClientRole();
     if (clientBillingFields) clientBillingFields.classList.toggle('hidden', !isClient);
@@ -53,6 +86,8 @@
         ? (nameInput.dataset.placeholderCompany || t('register.contact_name_placeholder', 'Quién gestiona la cuenta'))
         : (nameInput.dataset.placeholderNatural || t('register.name_placeholder', 'Tu nombre'));
     }
+
+    if (!isClient) showRutError('');
   }
 
   billingTypeInputs.forEach((input) => {
@@ -64,10 +99,26 @@
   });
 
   if (clientRut) {
+    clientRut.addEventListener('input', () => showRutError(''));
     clientRut.addEventListener('blur', () => {
-      clientRut.value = clientRut.value.trim();
+      if (!clientRut.value.trim()) {
+        showRutError('');
+        return;
+      }
+      validateClientRut(true);
     });
   }
+
+  form.addEventListener('submit', (e) => {
+    if (!isClientRole()) return;
+    if (!validateClientRut(true)) e.preventDefault();
+  });
+
+  form.addEventListener('invalid', (event) => {
+    if (event.target !== clientRut) return;
+    event.preventDefault();
+    validateClientRut(true);
+  }, true);
 
   syncClientBilling();
 })();

@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
-const { geocodeAddress, haversineKm } = require('../lib/geocode');
+const { normalizeBilling } = require('../lib/billing');
+const { validateRut, formatRut } = require('../lib/rut');
 const db = require('../lib/db');
 const repository = require('./repository');
 const { getAppVersionInfo } = require('../lib/version');
@@ -1101,7 +1102,8 @@ function attachProviderRegistrationDocuments(provider, {
 
 async function registerUser({
   name, email, password, phone, role, address, addressLat, addressLng, addressPlaceId, specialties,
-  companyRut, companyLegalName, repRut, providerDocuments
+  addressUnit, companyRut, companyLegalName, repRut, providerDocuments,
+  clientBillingType, clientRut, clientLegalName, clientGiro
 }) {
   name = (name || '').trim();
   email = (email || '').trim().toLowerCase();
@@ -1122,7 +1124,9 @@ async function registerUser({
     if (cleanSpecialties.length === 0) return { errorKey: 'register.error_specialties' };
     if (!(companyLegalName || '').trim()) return { errorKey: 'register.error_company_name' };
     if (!(companyRut || '').trim()) return { errorKey: 'register.error_company_rut' };
+    if (!validateRut(companyRut)) return { errorKey: 'register.error_company_rut_invalid' };
     if (!(repRut || '').trim()) return { errorKey: 'register.error_rep_rut' };
+    if (!validateRut(repRut)) return { errorKey: 'register.error_rep_rut_invalid' };
     const docCheck = validateProviderRegistrationDocuments(providerDocuments);
     if (!docCheck.ok) return { errorKey: docCheck.errorKey, missingDocs: docCheck.missing };
   }
@@ -1131,7 +1135,21 @@ async function registerUser({
   let resolvedCoords = null;
   let resolvedPlaceId = null;
 
+  let clientBilling = null;
+
+  if (role === 'client') {
+    const billingType = clientBillingType === 'empresa' ? 'empresa' : 'natural';
+    const rut = (clientRut || '').trim();
+    if (!rut) return { errorKey: 'register.error_client_rut' };
+    if (!validateRut(rut)) return { errorKey: 'register.error_client_rut_invalid' };
+    if (billingType === 'empresa') {
+      if (!(clientLegalName || '').trim()) return { errorKey: 'register.error_client_company_name' };
+      if (!(clientGiro || '').trim()) return { errorKey: 'register.error_client_giro' };
+    }
+  }
+
   const addr = (address || '').trim();
+  const unit = (addressUnit || '').trim();
   if (addr.length < 5) {
     return {
       errorKey: role === 'provider'
@@ -1139,6 +1157,7 @@ async function registerUser({
         : 'register.error_address_required'
     };
   }
+  if (unit.length < 2) return { errorKey: 'register.error_address_unit_required' };
 
   const lat = parseFloat(addressLat);
   const lng = parseFloat(addressLng);
@@ -1147,6 +1166,7 @@ async function registerUser({
   }
 
   const geo = await geocodeAddress(addr, { strict: true });
+  if (!geo.found || !geo.hasStreetNumber) return { errorKey: 'register.error_address_street_number' };
   if (geo.found) {
     const distKm = haversineKm(lat, lng, geo.lat, geo.lng);
     if (distKm > 0.35) return { errorKey: 'register.error_address_mismatch' };
@@ -1165,9 +1185,21 @@ async function registerUser({
     };
   }
 
-  resolvedAddress = geo.displayName || addr;
+  resolvedAddress = `${geo.label || addr}, ${unit}`;
   resolvedCoords = { lat, lng };
   resolvedPlaceId = (addressPlaceId || geo.placeId || '').trim() || null;
+
+  if (role === 'client') {
+    const billingType = clientBillingType === 'empresa' ? 'empresa' : 'natural';
+    clientBilling = normalizeBilling({
+      type: billingType,
+      rut: formatRut(clientRut),
+      legalName: billingType === 'empresa' ? clientLegalName : name,
+      giro: billingType === 'empresa' ? clientGiro : '',
+      fiscalAddress: resolvedAddress,
+      invoiceEmail: email
+    });
+  }
 
   const shortId = uuidv4().slice(0, 8);
   const hashedPassword = await hashPassword(password);
@@ -1219,7 +1251,7 @@ async function registerUser({
       servicesCount: 0,
       usedWelcomePromo: false,
       usedReferral: false,
-      billing: null
+      billing: clientBilling
     };
   }
 

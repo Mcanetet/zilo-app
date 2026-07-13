@@ -12,6 +12,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <title><%= title %></title>
+  <%- include('seo-meta', { seo: typeof seo !== 'undefined' ? seo : null }) %>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {

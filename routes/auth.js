@@ -40,18 +40,23 @@ function redirectAfterAuth(req, res, user) {
   return res.redirect(getDashboardPath(user.role));
 }
 
+function loginRenderOptions(req, extra = {}) {
+  return {
+    title: 'Iniciar sesión',
+    seo: buildPageMeta('login', req),
+    demoAccounts: store.getDemoAccounts(),
+    referralCode: req.session.pendingReferral || null,
+    ...extra
+  };
+}
+
 router.get('/login', (req, res) => {
   if (req.session.user) {
     const user = store.getUserById(req.session.user.id);
     if (user && !store.isEmailVerified(user)) return res.redirect('/verificar-email');
     return res.redirect(getDashboardPath(req.session.user.role));
   }
-  res.render('login', {
-    title: 'Iniciar sesión',
-    error: null,
-    demoAccounts: store.getDemoAccounts(),
-    referralCode: req.session.pendingReferral || null
-  });
+  res.render('login', loginRenderOptions(req, { error: null }));
 });
 
 router.post('/login', rateLimitLogin(12), async (req, res) => {
@@ -60,32 +65,23 @@ router.post('/login', rateLimitLogin(12), async (req, res) => {
 
   if (result.error === 'wrong_portal') {
     store.logSecurityEvent('login_admin_blocked_public', email, req);
-    return res.render('login', {
-      title: 'Iniciar sesión',
-      error: 'Las cuentas de administración usan el portal corporativo en /admin/login',
-      demoAccounts: store.getDemoAccounts(),
-      referralCode: req.session.pendingReferral || null
-    });
+    return res.render('login', loginRenderOptions(req, {
+      error: 'Las cuentas de administración usan el portal corporativo en /admin/login'
+    }));
   }
 
   if (result.error === 'blocked') {
     store.logSecurityEvent('login_blocked', email, req);
-    return res.render('login', {
-      title: 'Iniciar sesión',
-      error: 'Esta cuenta está desactivada. Escribe a soporte@fundez.cl para reactivarla.',
-      demoAccounts: store.getDemoAccounts(),
-      referralCode: req.session.pendingReferral || null
-    });
+    return res.render('login', loginRenderOptions(req, {
+      error: 'Esta cuenta está desactivada. Escribe a soporte@fundez.cl para reactivarla.'
+    }));
   }
 
   if (result.error) {
     store.logSecurityEvent('login_fail', email, req);
-    return res.render('login', {
-      title: 'Iniciar sesión',
-      error: 'Credenciales incorrectas. Intenta nuevamente.',
-      demoAccounts: store.getDemoAccounts(),
-      referralCode: req.session.pendingReferral || null
-    });
+    return res.render('login', loginRenderOptions(req, {
+      error: 'Credenciales incorrectas. Intenta nuevamente.'
+    }));
   }
 
   const user = result.user;
@@ -116,7 +112,7 @@ router.post('/login', rateLimitLogin(12), async (req, res) => {
   redirectAfterAuth(req, res, user);
 });
 
-const { searchAddressSuggestions } = require('../lib/geocode');
+const { buildPageMeta } = require('../lib/seo');
 const { PROVIDER_REGISTRATION_DOC_KEYS } = require('../lib/contracts');
 
 function wantsJson(req) {
@@ -132,12 +128,15 @@ function providerRegistrationDocsForView(t) {
 }
 
 function registerRenderOptions(req, extra = {}) {
+  const form = extra.form || {};
+  const pageId = form.role === 'provider' || req.query.role === 'provider' ? 'register_provider' : 'register';
   return {
     services: store.getActiveServices(),
     referralCode: req.session.pendingReferral || null,
     useMap: true,
     pageScript: '/js/register-address.js',
     providerRegistrationDocs: providerRegistrationDocsForView(req.t.bind(req)),
+    seo: buildPageMeta(pageId, req),
     ...extra
   };
 }
@@ -155,13 +154,18 @@ function registerFormFromBody(body) {
     phone: body.phone,
     role: body.role === 'provider' ? 'provider' : 'client',
     address: body.address,
+    addressUnit: body.address_unit || body.addressUnit,
     addressLat: body.address_lat || body.addressLat,
     addressLng: body.address_lng || body.addressLng,
     addressPlaceId: body.address_place_id || body.addressPlaceId,
     specialties: (Array.isArray(rawSpecialties) ? rawSpecialties : [rawSpecialties]).filter(Boolean),
     companyRut: body.company_rut || body.companyRut,
     companyLegalName: body.company_legal_name || body.companyLegalName,
-    repRut: body.rep_rut || body.repRut
+    repRut: body.rep_rut || body.repRut,
+    clientBillingType: body.client_billing_type || body.clientBillingType || 'natural',
+    clientRut: body.client_rut || body.clientRut,
+    clientLegalName: body.client_legal_name || body.clientLegalName,
+    clientGiro: body.client_giro || body.clientGiro
   };
 }
 
@@ -180,6 +184,13 @@ router.post('/registro/direcciones/validar', async (req, res) => {
   if (!addr) return res.status(400).json({ error: 'address_required' });
 
   const geo = await geocodeAddress(addr, { strict: true });
+  if (!geo.found || !geo.hasStreetNumber) {
+    return res.status(400).json({
+      success: false,
+      error: req.t('register.error_address_street_number')
+    });
+  }
+
   const coverage = store.validateAddressCoverage({
     address: addr,
     displayName: geo.displayName || addr,
@@ -215,8 +226,8 @@ router.get('/registro', (req, res) => {
 
 router.post('/registro', async (req, res) => {
   const form = registerFormFromBody(req.body);
-  const { name, email, password, phone, role, address, addressLat, addressLng, addressPlaceId, specialties,
-    companyRut, companyLegalName, repRut } = form;
+  const { name, email, password, phone, role, address, addressUnit, addressLat, addressLng, addressPlaceId, specialties,
+    companyRut, companyLegalName, repRut, clientBillingType, clientRut, clientLegalName, clientGiro } = form;
   const providerDocuments = req.body.provider_documents || req.body.providerDocuments;
 
   const consentCheck = validateRegistrationConsents(req.body);
@@ -232,8 +243,9 @@ router.post('/registro', async (req, res) => {
 
   const result = await store.registerUser({
     name, email, password, phone, role, address,
-    addressLat, addressLng, addressPlaceId, specialties,
-    companyRut, companyLegalName, repRut, providerDocuments
+    addressUnit,     addressUnit, addressLat, addressLng, addressPlaceId, specialties,
+    companyRut, companyLegalName, repRut, providerDocuments,
+    clientBillingType, clientRut, clientLegalName, clientGiro
   });
 
   if (!result.success) {
@@ -253,12 +265,9 @@ router.post('/registro', async (req, res) => {
         return redirectAfterAuth(req, res, existingUser);
       }
 
-      return res.status(409).render('login', {
-        title: 'Iniciar sesión',
-        error: 'Ya existe una cuenta con ese correo. Ingresa con tu contraseña o usa otro correo para crear una cuenta nueva.',
-        demoAccounts: store.getDemoAccounts(),
-        referralCode: req.session.pendingReferral || null
-      });
+      return res.status(409).render('login', loginRenderOptions(req, {
+        error: 'Ya existe una cuenta con ese correo. Ingresa con tu contraseña o usa otro correo para crear una cuenta nueva.'
+      }));
     }
 
     const errMsg = resolveRegisterError(req, result);

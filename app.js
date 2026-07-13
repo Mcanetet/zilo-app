@@ -26,6 +26,8 @@ const documentosRoutes = require('./routes/documentos');
 const langRoutes = require('./routes/lang');
 const alandRoutes = require('./routes/aland');
 const { localizeServices } = require('./lib/i18n-admin');
+const { buildPageMeta } = require('./lib/seo');
+const seoRoutes = require('./routes/seo');
 
 const app = express();
 const server = http.createServer(app);
@@ -91,6 +93,8 @@ app.use(session({
 
 app.use(i18nMiddleware);
 
+app.use(seoRoutes);
+
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.currentPath = req.path;
@@ -110,6 +114,7 @@ app.get('/', (req, res) => {
   }
   res.render('landing', {
     title: req.t('app.name') + ' — ' + (req.locale === 'en' ? 'Premium home services' : 'Servicios premium a domicilio'),
+    seo: buildPageMeta('home', req),
     services: localizeServices(store.getLandingServices(), req.t),
     referralBanner: req.session.pendingReferral || null
   });
@@ -117,7 +122,8 @@ app.get('/', (req, res) => {
 
 app.get('/quienes-somos', (req, res) => {
   res.render('quienes-somos', {
-    title: req.t('about.page_title') + ' — Fundez'
+    title: req.t('about.page_title') + ' — Fundez',
+    seo: buildPageMeta('about', req)
   });
 });
 

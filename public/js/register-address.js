@@ -10,6 +10,7 @@
   const latInput = document.getElementById('address_lat');
   const lngInput = document.getElementById('address_lng');
   const placeInput = document.getElementById('address_place_id');
+  const unitInput = document.getElementById('address_unit');
   const suggestionsEl = document.getElementById('addressSuggestions');
   const mapStatus = document.getElementById('addressMapStatus');
   const coverageAlert = document.getElementById('addressCoverageAlert');
@@ -69,6 +70,7 @@
       suggestionsEl.classList.add('hidden');
       suggestionsEl.innerHTML = '';
     }
+    addressInput.setAttribute('aria-expanded', 'false');
   }
 
   function showCoverage(coverage) {
@@ -113,11 +115,20 @@
         placeId: item.placeId
       })
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+          throw new Error(data.error || t('register.error_address_street_number'));
+        }
+        return data;
+      })
       .then((data) => {
         if (data.coverage) showCoverage(data.coverage);
       })
-      .catch(() => { /* silencioso */ });
+      .catch((err) => {
+        clearCoords();
+        setMapStatus(err.message || t('register.error_address_street_number'));
+      });
   }
 
   function renderSuggestions(items) {
@@ -137,6 +148,7 @@
     )).join('');
 
     suggestionsEl.classList.remove('hidden');
+    addressInput.setAttribute('aria-expanded', 'true');
     suggestionsEl.querySelectorAll('.address-suggestion').forEach((btn) => {
       btn.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -223,7 +235,14 @@
       addressInput.reportValidity();
       return;
     }
+    if (unitInput && unitInput.value.trim().length < 2) {
+      e.preventDefault();
+      unitInput.setCustomValidity(t('register.error_address_unit_required'));
+      unitInput.reportValidity();
+      return;
+    }
     addressInput.setCustomValidity('');
+    if (unitInput) unitInput.setCustomValidity('');
   });
 
   form.addEventListener('invalid', (event) => {
@@ -238,6 +257,7 @@
   }, true);
 
   addressInput.addEventListener('input', () => addressInput.setCustomValidity(''));
+  if (unitInput) unitInput.addEventListener('input', () => unitInput.setCustomValidity(''));
 
   function onReady(fn) {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);

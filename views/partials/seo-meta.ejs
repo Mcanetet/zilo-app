@@ -1,0 +1,36 @@
+<% const meta = typeof seo !== 'undefined' && seo ? seo : null; %>
+<% if (meta) { %>
+  <meta name="description" content="<%= meta.description %>">
+  <% if (meta.keywords) { %><meta name="keywords" content="<%= meta.keywords %>"><% } %>
+  <meta name="robots" content="<%= meta.robots %>">
+  <meta name="author" content="Fundez SpA">
+  <link rel="canonical" href="<%= meta.canonical %>">
+  <% (meta.hreflang || []).forEach(function (alt) { %>
+    <link rel="alternate" hreflang="<%= alt.lang %>" href="<%= alt.href %>">
+  <% }); %>
+
+  <meta property="og:site_name" content="<%= meta.siteName || 'Fundez' %>">
+  <meta property="og:title" content="<%= meta.title %>">
+  <meta property="og:description" content="<%= meta.description %>">
+  <meta property="og:type" content="<%= meta.ogType || 'website' %>">
+  <meta property="og:url" content="<%= meta.canonical %>">
+  <meta property="og:locale" content="<%= meta.ogLocale || 'es_CL' %>">
+  <meta property="og:image" content="<%= meta.ogImage %>">
+  <meta property="og:image:alt" content="<%= meta.title %>">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= meta.title %>">
+  <meta name="twitter:description" content="<%= meta.description %>">
+  <meta name="twitter:image" content="<%= meta.ogImage %>">
+
+  <% if (process.env.GOOGLE_SITE_VERIFICATION) { %>
+    <meta name="google-site-verification" content="<%= process.env.GOOGLE_SITE_VERIFICATION %>">
+  <% } %>
+  <% if (process.env.BING_SITE_VERIFICATION) { %>
+    <meta name="msvalidate.01" content="<%= process.env.BING_SITE_VERIFICATION %>">
+  <% } %>
+
+  <% (meta.jsonLd || []).forEach(function (block) { %>
+    <script type="application/ld+json"><%- JSON.stringify(block) %></script>
+  <% }); %>
+<% } %>

@@ -4,6 +4,7 @@ const company = require('../config/company');
 const store = require('../models/store');
 const { requireAuth } = require('../middleware/auth');
 const { CONSENT_DEFINITIONS, POLICY_VERSION } = require('../lib/consent-policy');
+const { buildPageMeta } = require('../lib/seo');
 
 const CONSENT_LABELS = {
   terminos: 'Términos y Condiciones',
@@ -47,6 +48,7 @@ function buildConsentDashboard(userId) {
 router.get('/privacidad', (req, res) => {
   res.render('legal/privacidad', {
     title: 'Política de Privacidad — Fundez',
+    seo: buildPageMeta('privacy', req),
     company,
     lastUpdated: '11 de julio de 2026',
     policyVersion: POLICY_VERSION
@@ -56,6 +58,7 @@ router.get('/privacidad', (req, res) => {
 router.get('/terminos', (req, res) => {
   res.render('legal/terminos', {
     title: 'Términos y Condiciones — Fundez',
+    seo: buildPageMeta('terms', req),
     company,
     lastUpdated: '11 de julio de 2026'
   });
@@ -64,6 +67,7 @@ router.get('/terminos', (req, res) => {
 router.get('/cookies', (req, res) => {
   res.render('legal/cookies', {
     title: 'Política de Cookies — Fundez',
+    seo: buildPageMeta('cookies', req),
     company,
     lastUpdated: '11 de julio de 2026'
   });

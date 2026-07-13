@@ -1,11 +1,12 @@
 {
-  "name": "Fundez",
+  "name": "Fundez — Servicios premium a domicilio",
   "short_name": "Fundez",
-  "description": "Servicios premium a domicilio en Santiago",
+  "description": "Técnicos verificados a domicilio en Santiago, Chile. Gasfitería, electricidad, cerrajería y más.",
+  "lang": "es-CL",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
-  "theme_color": "#FFFFFF",
+  "theme_color": "#2563EB",
   "icons": [
     {
       "src": "/icon-192.png",

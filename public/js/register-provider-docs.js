@@ -143,6 +143,7 @@
       phone: form.phone.value.trim(),
       role: 'provider',
       address: form.address.value.trim(),
+      address_unit: form.address_unit.value.trim(),
       address_lat: form.address_lat.value,
       address_lng: form.address_lng.value,
       address_place_id: form.address_place_id.value,

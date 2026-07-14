@@ -80,6 +80,7 @@
   "auth.email_placeholder": "tu@email.com",
   "auth.password": "Contraseña",
   "auth.login": "Ingresar",
+  "auth.remember_password": "Guardar correo y contraseña en este dispositivo",
   "auth.no_account": "¿No tienes cuenta?",
   "auth.register_link": "Regístrate",
   "auth.consent": "Acepto la <a href=\"/legal/privacidad\" target=\"_blank\" class=\"text-zilo-accent underline\">Privacidad</a> y <a href=\"/legal/terminos\" target=\"_blank\" class=\"text-zilo-accent underline\">Términos</a>",

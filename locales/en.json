@@ -80,6 +80,7 @@
   "auth.email_placeholder": "you@example.com",
   "auth.password": "Password",
   "auth.login": "Sign in",
+  "auth.remember_password": "Save email and password on this device",
   "auth.no_account": "Don't have an account?",
   "auth.register_link": "Sign up",
   "auth.consent": "I accept the <a href=\"/legal/privacidad\" target=\"_blank\" class=\"text-zilo-accent underline\">Privacy Policy</a> and <a href=\"/legal/terminos\" target=\"_blank\" class=\"text-zilo-accent underline\">Terms</a>",

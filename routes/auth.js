@@ -9,8 +9,9 @@ const emailVerification = require('../lib/emailVerification');
 const PUBLIC_ROLES = ['client', 'provider', 'tecnico'];
 const ADMIN_SESSION_MS = 4 * 60 * 60 * 1000;
 const DEFAULT_SESSION_MS = 24 * 60 * 60 * 1000;
+const REMEMBER_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
-function setSessionUser(req, user, { admin = false } = {}) {
+function setSessionUser(req, user, { admin = false, remember = false } = {}) {
   req.session.user = {
     id: user.id,
     email: user.email,
@@ -19,7 +20,9 @@ function setSessionUser(req, user, { admin = false } = {}) {
   };
   req.session.isAdminSession = admin;
   if (req.session.cookie) {
-    req.session.cookie.maxAge = admin ? ADMIN_SESSION_MS : DEFAULT_SESSION_MS;
+    if (admin) req.session.cookie.maxAge = ADMIN_SESSION_MS;
+    else if (remember) req.session.cookie.maxAge = REMEMBER_SESSION_MS;
+    else req.session.cookie.maxAge = DEFAULT_SESSION_MS;
   }
 }
 
@@ -86,7 +89,8 @@ router.post('/login', rateLimitLogin(12), async (req, res) => {
   }
 
   const user = result.user;
-  setSessionUser(req, user);
+  const remember = req.body.remember === '1' || req.body.remember === 'on' || req.body.remember === true;
+  setSessionUser(req, user, { remember });
   store.logSecurityEvent('login_ok', email, req);
 
   if (user.role === 'client' && req.session.pendingReferral) {

@@ -385,9 +385,9 @@ router.get('/verificar-email', (req, res) => {
   let success = null;
   let error = null;
   if (req.query.mail === 'error') {
-    error = 'No pudimos enviar el correo de verificación. Revisa spam o pulsa Reenviar. Si persiste, configura SMTP en el servidor.';
+    error = 'No pudimos enviar el correo de verificación. Revisa spam o pulsa Reenviar. Si el problema continúa, el SMTP de Hostinger puede estar rechazando el envío (revisa /health?smtp=1).';
   } else if (req.query.mail === 'demo') {
-    success = 'Modo demo: el código aparece en los logs del servidor ([verify:demo]).';
+    success = 'Modo demo: faltan SMTP_HOST / SMTP_USER / SMTP_PASS en el servidor. El código está en los logs ([verify:demo]).';
   }
 
   res.render('verificar-email', {

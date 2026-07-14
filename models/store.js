@@ -2098,7 +2098,7 @@ async function issueEmailVerification(userId, { locale = 'es' } = {}) {
 
   if (sent.mailResult?.error) {
     return {
-      error: 'No pudimos enviar el correo. Revisa que SMTP esté configurado o intenta reenviar en un momento.',
+      error: `No pudimos enviar el correo (${sent.mailResult.error}). Revisa spam, espera un minuto y pulsa Reenviar.`,
       sentAt: sent.sentAt,
       mailError: sent.mailResult.error
     };

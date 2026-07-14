@@ -100,6 +100,14 @@ SMTP_FROM=soporte@fundez.cl
 # Preferir solo el email. Si usas "Fundez <soporte@...>", también funciona.
 ```
 
+> **Importante SMTP en Hostinger Node.js:**
+> - Las variables deben estar en la app **Node.js** (no solo en el hosting web).
+> - Tras guardar SMTP, **Reinicia** la aplicación Node.
+> - Usa `SMTP_FROM=soporte@fundez.cl` (mismo buzón que `SMTP_USER`).
+> - Diagnóstico: `https://tudominio.cl/health` (debe decir `"smtp":{"configured":true}`)
+> - Prueba de conexión: `https://tudominio.cl/health?smtp=1` (añade `"verified":true` si SMTP conecta)
+> - Hotmail/Outlook a veces demoran o mandan a spam; pide al usuario revisar **Correo no deseado**.
+
 (O usa `DATABASE_URL=mysql://usuario:clave@127.0.0.1:3306/u482073296_fundezapp_bd`)
 
 > **Correos:** soporte al cliente y notificaciones desde **soporte@fundez.cl**; privacidad y derechos ARCO+ al DPD en **privacidad@fundez.cl** (ambos en Hostinger).

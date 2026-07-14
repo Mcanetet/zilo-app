@@ -25,6 +25,7 @@ const trackingRoutes = require('./routes/tracking');
 const documentosRoutes = require('./routes/documentos');
 const langRoutes = require('./routes/lang');
 const alandRoutes = require('./routes/aland');
+const aland = require('./lib/aland');
 const { localizeServices } = require('./lib/i18n-admin');
 const { buildPageMeta } = require('./lib/seo');
 const seoRoutes = require('./routes/seo');
@@ -56,6 +57,14 @@ app.get('/health', async (req, res) => {
     }
   }
   const version = getAppVersionInfo();
+  const mailer = require('./lib/mailer');
+  const smtp = mailer.smtpStatus();
+  let smtpOk = null;
+  if (smtp.configured && req.query.smtp === '1') {
+    const check = await mailer.verifySmtp();
+    smtpOk = check.ok;
+    if (!check.ok) smtp.verifyError = check.reason;
+  }
   res.status(200).json({
     ok: store.isReady() && dbOk,
     app: 'fundez',
@@ -66,6 +75,10 @@ app.get('/health', async (req, res) => {
     dbHost: process.env.DB_HOST || null,
     dbName: process.env.DB_NAME || null,
     missingVars,
+    smtp: {
+      ...smtp,
+      verified: smtpOk
+    },
     port: PORT,
     uptime: process.uptime(),
     initError: global.__ziloInitError || null

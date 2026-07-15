@@ -11,6 +11,7 @@
     "db:setup": "node scripts/db-setup.js",
     "db:seed": "node scripts/db-setup.js",
     "db:test": "node scripts/test-db.js",
+    "test:tariffs": "node scripts/test-dynamic-tariffs.js",
     "admin:reset": "node scripts/reset-admin.js"
   },
   "engines": {

@@ -8,6 +8,7 @@ npm-debug.log*
 data/backups/
 data/backup-config.json
 data/dte/
+data/vouchers/
 zilo-hostinger.zip
 
 # Documentos subidos por proveedores (KYC) — no van a GitHub

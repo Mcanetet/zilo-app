@@ -115,7 +115,7 @@
           <span class="zilo-badge zilo-badge-success shrink-0">${t('tecnico.js.wall_available')}</span>
         </div>
         <p class="text-xs text-zilo-muted mb-2 truncate">${data.request.address}</p>
-        <p class="text-xs font-semibold text-zilo-accent mb-3">${t('provider.js.visit_label')}: ${fmt(data.request.estimatedVisit)}</p>
+        <p class="text-xs font-semibold text-zilo-success mb-3">${t('provider.js.your_payout')}: ${fmt(data.request.providerPayout ?? data.request.estimatedVisit)}</p>
         <button type="button" class="w-full py-2.5 rounded-xl zilo-btn-primary !text-sm" data-take="${data.request.id}">${t('tecnico.js.take_job')}</button>
       `;
       workWallList.appendChild(card);

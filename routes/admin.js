@@ -688,6 +688,7 @@ router.post('/precios', requireRole('admin'), requireAdminPermission('precios.ma
   const tierLabels = Array.isArray(body.tierLabel) ? body.tierLabel : (body.tierLabel ? [body.tierLabel] : []);
   const tierDescs = Array.isArray(body.tierDesc) ? body.tierDesc : (body.tierDesc ? [body.tierDesc] : []);
   const tierPercents = Array.isArray(body.tierPercent) ? body.tierPercent : (body.tierPercent ? [body.tierPercent] : []);
+  const tierMinutes = Array.isArray(body.tierMinutes) ? body.tierMinutes : (body.tierMinutes ? [body.tierMinutes] : []);
   const tierEnabledRaw = body.tierEnabled;
   const enabledSet = new Set(Array.isArray(tierEnabledRaw) ? tierEnabledRaw : (tierEnabledRaw ? [tierEnabledRaw] : []));
   const tierOrders = Array.isArray(body.tierOrder) ? body.tierOrder : (body.tierOrder ? [body.tierOrder] : []);
@@ -697,6 +698,7 @@ router.post('/precios', requireRole('admin'), requireAdminPermission('precios.ma
       id: tierIds[i],
       label: tierLabels[i] || `Opción ${i + 1}`,
       description: tierDescs[i] || '',
+      responseMinutes: parseInt(tierMinutes[i], 10) || 180,
       adjustmentPercent: parseInt(tierPercents[i], 10) || 0,
       enabled: enabledSet.has(tierIds[i]),
       sortOrder: parseInt(tierOrders[i], 10) || i + 1
@@ -721,6 +723,8 @@ router.post('/precios', requireRole('admin'), requireAdminPermission('precios.ma
     cancellationFee: parseInt(body.cancellationFee, 10),
     laborCommissionRate: parseFloat(body.laborCommissionPercent) / 100,
     materialsCommissionRate: parseFloat(body.materialsCommissionPercent) / 100,
+    merchantCardFeePercent: parseInt(body.merchantCardFeePercent, 10),
+    ivaRate: parseFloat(body.ivaPercent) / 100,
     cardSurchargePercent: parseInt(body.cardSurchargePercent, 10),
     cardEnabled: body.cardEnabled === 'on',
     transferEnabled: body.transferEnabled === 'on',

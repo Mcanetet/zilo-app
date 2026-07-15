@@ -28,13 +28,14 @@
         <h2 class="text-sm font-semibold mb-4">Tarifas base</h2>
         <div class="grid grid-cols-1 gap-3">
           <div>
-            <label class="text-xs text-gray-500">Visita técnica (CLP)</label>
-            <input type="number" name="visitPrice" value="<%= pricing.visitPrice %>" min="0" step="1000" class="zilo-input w-full mt-1" required>
+            <label class="text-xs text-gray-500">Visita diagnóstico mínima (CLP)</label>
+            <input type="number" name="visitPrice" value="<%= pricing.visitPrice %>" min="50000" step="1000" class="zilo-input w-full mt-1" required>
+            <p class="text-[10px] text-gray-400 mt-1">Mínimo $50.000 si no se realiza trabajo.</p>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Servicio en sitio (CLP)</label>
-            <input type="number" name="servicePrice" value="<%= pricing.servicePrice %>" min="0" step="1000" class="zilo-input w-full mt-1" required>
-            <p class="text-[10px] text-gray-400 mt-1">Se confirma o ajusta con el técnico en terreno.</p>
+            <label class="text-xs text-gray-500">Trabajo base / servicePrice (CLP)</label>
+            <input type="number" name="servicePrice" value="<%= pricing.servicePrice %>" min="100000" step="1000" class="zilo-input w-full mt-1" required>
+            <p class="text-[10px] text-gray-400 mt-1">Base del cálculo dinámico (mín. $100.000). Sobre esto se aplican horario y urgencia.</p>
           </div>
           <div>
             <label class="text-xs text-gray-500">Cargo por cancelación (CLP)</label>
@@ -44,17 +45,31 @@
       </section>
 
       <section class="zilo-card-premium rounded-2xl p-5 border border-gray-200">
-        <h2 class="text-sm font-semibold mb-4">Comisiones Fundez</h2>
+        <h2 class="text-sm font-semibold mb-4">Comisiones y liquidación al socio</h2>
+        <p class="text-xs text-gray-500 mb-4">
+          Fundez <strong>recauda el 100%</strong> del cliente. Al socio: al tomar solo ve <strong>Te pagamos</strong>;
+          al completar ve cobrado − comisión app − fee tarjeta − IVA (IVA solo sobre comisión/cargos Fundez).
+          Contabilidad: Fundez factura su margen; el socio factura su parte (confirmar con contador).
+        </p>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs text-gray-500">Mano de obra — App (%)</label>
+            <label class="text-xs text-gray-500">Comisión app — mano de obra (%)</label>
             <input type="number" name="laborCommissionPercent" value="<%= Math.round(pricing.laborCommissionRate * 100) %>" min="0" max="100" class="zilo-input w-full mt-1" required>
-            <p class="text-[10px] text-gray-400 mt-1">Socio recibe el resto (visita + servicio).</p>
+            <p class="text-[10px] text-gray-400 mt-1">Default 20%.</p>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Materiales — App (%)</label>
+            <label class="text-xs text-gray-500">Comisión app — materiales (%)</label>
             <input type="number" name="materialsCommissionPercent" value="<%= Math.round(pricing.materialsCommissionRate * 100) %>" min="0" max="100" class="zilo-input w-full mt-1" required>
-            <p class="text-[10px] text-gray-400 mt-1">El socio recibe el resto de materiales.</p>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Fee tarjeta al liquidar socio (%)</label>
+            <input type="number" name="merchantCardFeePercent" value="<%= pricing.merchantCardFeePercent != null ? pricing.merchantCardFeePercent : 4 %>" min="0" max="100" step="1" class="zilo-input w-full mt-1" required>
+            <p class="text-[10px] text-gray-400 mt-1">Default 4%. Se aplica si el cliente pagó con tarjeta (o estimado). Distinto del recargo al cliente.</p>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">IVA sobre comisiones (%)</label>
+            <input type="number" name="ivaPercent" value="<%= Math.round((pricing.ivaRate != null ? pricing.ivaRate : 0.19) * 100) %>" min="0" max="100" step="1" class="zilo-input w-full mt-1" required>
+            <p class="text-[10px] text-gray-400 mt-1">Default 19%. IVA = (comisión app + fee tarjeta) × IVA.</p>
           </div>
         </div>
       </section>
@@ -123,10 +138,14 @@
 
       <section class="zilo-card-premium rounded-2xl p-5 border border-gray-200">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-sm font-semibold">Urgencia y horarios</h2>
-          <span class="text-[10px] text-gray-500">% sobre la visita</span>
+          <h2 class="text-sm font-semibold">Tiempo de llegada</h2>
+          <span class="text-[10px] text-gray-500">Tarifa dinámica</span>
         </div>
-        <p class="text-xs text-gray-500 mb-4">El cliente elige cuándo necesita el servicio. El porcentaje se aplica sobre el precio de la visita al pagar.</p>
+        <p class="text-xs text-gray-500 mb-4">
+          El cliente elige el compromiso de llegada. El precio final se calcula así:
+          <strong>(precio servicio × recargo horario) × recargo urgencia</strong>.
+          Horario: 09–17 normal, 17:01–21 +25%, 21:01–08:59 +50%. Urgencia: &lt;60 min +25%, 60–120 +10%, &gt;120 +0%.
+        </p>
 
         <div class="space-y-3" id="tiersList">
           <% pricing.urgencyTiers.forEach((tier, i) => { %>
@@ -144,11 +163,9 @@
                 <input type="text" name="tierLabel" value="<%= tier.label %>" placeholder="Nombre" class="zilo-input w-full !py-2 text-sm" required>
                 <input type="text" name="tierDesc" value="<%= tier.description %>" placeholder="Descripción para el cliente" class="zilo-input w-full !py-2 text-sm">
                 <div class="flex items-center gap-2">
-                  <label class="text-xs text-gray-500 shrink-0">Ajuste %</label>
-                  <input type="number" name="tierPercent" value="<%= tier.adjustmentPercent %>" step="1" class="zilo-input flex-1 !py-2 text-sm" required>
-                  <span class="text-xs text-gray-500">
-                    <% if (tier.adjustmentPercent > 0) { %>+<%= tier.adjustmentPercent %>%<% } else if (tier.adjustmentPercent < 0) { %><%= tier.adjustmentPercent %>%<% } else { %>Normal<% } %>
-                  </span>
+                  <label class="text-xs text-gray-500 shrink-0">Minutos</label>
+                  <input type="number" name="tierMinutes" value="<%= tier.responseMinutes || 180 %>" min="0" step="15" class="zilo-input flex-1 !py-2 text-sm" required>
+                  <span class="text-xs text-gray-500"><%= tier.responseMinutes || 180 %> min</span>
                 </div>
               </div>
             </div>
@@ -160,7 +177,7 @@
     </form>
 
     <section class="mt-6 p-4 rounded-2xl bg-zilo-accent/5 border border-zilo-accent/20">
-      <p class="text-xs text-gray-600"><strong>Vista previa:</strong> Visita <%= formatCLP(pricing.visitPrice) %> + Servicio <%= formatCLP(pricing.servicePrice) %>. Comisión app: <%= Math.round(pricing.laborCommissionRate * 100) %>% mano de obra, <%= Math.round(pricing.materialsCommissionRate * 100) %>% materiales.</p>
+      <p class="text-xs text-gray-600"><strong>Vista previa:</strong> Diagnóstico mínimo <%= formatCLP(pricing.visitPrice) %>. Trabajo base (servicePrice) <%= formatCLP(pricing.servicePrice) %> — el total del cliente aplica horario × urgencia. Comisión app: <%= Math.round(pricing.laborCommissionRate * 100) %>% mano de obra, <%= Math.round(pricing.materialsCommissionRate * 100) %>% materiales.</p>
     </section>
   </main>
 </div>

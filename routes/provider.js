@@ -125,7 +125,7 @@ router.post('/accept/:requestId', requireRole('provider'), requireModule('provid
     provider: publicProvider
   });
 
-  res.json({ success: true, request: store.requests.find(r => r.id === request.id) });
+  res.json({ success: true, request: store.enrichRequestForProvider(request, req.locale) });
 });
 
 router.post('/status/:requestId', requireRole('provider'), (req, res) => {

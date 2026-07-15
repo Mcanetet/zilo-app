@@ -21,16 +21,28 @@
     </div>
     <% } %>
 
+    <% var paymentVoucher = (request.vouchers || []).find(function(v){ return v.phase === 'payment'; }); %>
+    <% if (paymentVoucher && paymentVoucher.url) { %>
+    <a href="<%= paymentVoucher.url %>" target="_blank" rel="noopener"
+      class="w-full block zilo-card-premium rounded-2xl p-4 mb-3 text-left hover:border-zilo-accent/40 transition border border-zilo-success/25">
+      <p class="zilo-label mb-1">Comprobante de pago</p>
+      <p class="text-sm font-semibold"><%= paymentVoucher.code %></p>
+      <p class="text-xs text-zilo-muted mt-1">Acuse de recibo · también lo enviamos a tu correo</p>
+    </a>
+    <% } else { %>
+    <p class="text-xs text-zilo-muted mb-3">Tu comprobante de pago se está generando y llegará a tu correo.</p>
+    <% } %>
+
     <% var visitDte = (request.dteDocuments || []).find(function(d){ return d.phase === 'visit'; }); %>
     <% if (visitDte && visitDte.pdfUrl) { %>
     <a href="<%= visitDte.pdfUrl %>" target="_blank" rel="noopener"
       class="w-full block zilo-card-premium rounded-2xl p-4 mb-4 text-left hover:border-zilo-accent/40 transition">
-      <p class="zilo-label mb-1">Documento tributario</p>
+      <p class="zilo-label mb-1">Documento tributario (SII)</p>
       <p class="text-sm font-semibold capitalize"><%= visitDte.kind %> electrónica N° <%= visitDte.folio %></p>
-      <p class="text-xs text-zilo-muted mt-1">Descargar boleta o factura emitida ante el SII</p>
+      <p class="text-xs text-zilo-muted mt-1">Boleta/factura · enviada al email de facturación</p>
     </a>
     <% } else { %>
-    <p class="text-xs text-zilo-muted mb-4">Tu boleta o factura electrónica llegará por email en unos minutos.</p>
+    <p class="text-xs text-zilo-muted mb-4">La boleta o factura electrónica se envía al correo de facturación (requiere datos de factura en el checkout).</p>
     <% } %>
 
     <!-- Modo Guardián — feature única -->

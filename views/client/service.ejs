@@ -28,22 +28,22 @@
     <div class="p-5 rounded-2xl zilo-card-premium mb-5 zilo-page-enter-delay-1" id="pricingBox">
       <p class="zilo-label mb-4"><%= t('client.service.rates') %></p>
       <div class="flex justify-between py-3 border-b border-zilo-border">
-        <span class="text-zilo-muted text-sm"><%= t('client.service.visit') %></span>
-        <strong class="text-zilo-accent font-semibold" id="displayVisitPrice"><%= formatCLP(pricing.visitPrice) %></strong>
+        <span class="text-zilo-muted text-sm"><%= t('client.service.work_base') %></span>
+        <strong class="text-zilo-accent font-semibold" id="displayVisitPrice"><%= formatCLP(pricing.servicePrice) %></strong>
       </div>
       <div id="urgencyAdjustmentRow" class="hidden flex justify-between py-2 border-b border-zilo-border text-sm">
-        <span class="text-zilo-muted" id="urgencyAdjustmentLabel"><%= t('client.service.urgency_surcharge') %></span>
+        <span class="text-zilo-muted" id="urgencyAdjustmentLabel"><%= t('client.service.dynamic_surcharge') %></span>
         <strong id="displayUrgencyAdj" class="text-orange-600">—</strong>
       </div>
-      <div class="flex justify-between py-3 border-b border-zilo-border">
+      <div class="flex justify-between py-3 border-b border-zilo-border hidden" id="servicePriceRow">
         <span class="text-zilo-muted text-sm"><%= t('client.service.service_est') %></span>
-        <strong class="text-zilo-accent font-semibold" id="displayServicePrice"><%= formatCLP(pricing.servicePrice) %></strong>
+        <strong class="text-zilo-accent font-semibold" id="displayServicePrice"><%= formatCLP(0) %></strong>
       </div>
       <div class="flex justify-between py-3">
         <span class="text-zilo-muted text-sm font-medium"><%= t('client.service.total_est') %></span>
-        <strong class="text-zilo-accent font-semibold" id="displayTotalPrice"><%= formatCLP(pricing.visitPrice + pricing.servicePrice) %></strong>
+        <strong class="text-zilo-accent font-semibold" id="displayTotalPrice"><%= formatCLP(pricing.servicePrice) %></strong>
       </div>
-      <p class="text-[11px] text-zilo-muted/70 mt-3"><%= t('client.service.pay_hint') %></p>
+      <p class="text-[11px] text-zilo-muted/70 mt-3"><%= t('client.service.pay_hint_dynamic') %></p>
       <details class="mt-3 text-left">
         <summary class="text-xs text-zilo-accent font-medium cursor-pointer select-none"><%= t('client.service.guarantees') %></summary>
         <ul class="mt-2 space-y-1.5 text-[11px] text-zilo-muted leading-relaxed pl-1">
@@ -60,15 +60,15 @@
     <div class="p-5 rounded-2xl zilo-card-premium mb-5 zilo-page-enter-delay-1">
       <p class="zilo-label mb-3"><%= t('client.service.when') %></p>
       <div class="space-y-2" id="urgencyOptions">
-        <% urgencyTiers.forEach((tier, i) => { %>
-          <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer urgency-option <%= tier.id === 'tomorrow' ? 'border-zilo-accent bg-zilo-accent/5' : 'border-zilo-border' %>" data-tier="<%= tier.id %>">
-            <input type="radio" name="urgencyTier" value="<%= tier.id %>" class="mt-1 accent-[#2563EB]" <%= tier.id === 'tomorrow' ? 'checked' : '' %>>
+        <% urgencyTiers.forEach((tier, i) => {
+          const isDefault = tier.id === 'scheduled' || (i === urgencyTiers.length - 1 && !urgencyTiers.some(t => t.id === 'scheduled'));
+        %>
+          <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer urgency-option <%= isDefault ? 'border-zilo-accent bg-zilo-accent/5' : 'border-zilo-border' %>" data-tier="<%= tier.id %>">
+            <input type="radio" name="urgencyTier" value="<%= tier.id %>" class="mt-1 accent-[#2563EB]" <%= isDefault ? 'checked' : '' %>>
             <div class="flex-1 min-w-0">
               <div class="flex justify-between items-start gap-2">
                 <strong class="text-sm"><%= tier.label %></strong>
-                <span class="text-xs font-medium shrink-0 urgency-pct <%= tier.adjustmentPercent > 0 ? 'text-orange-600' : (tier.adjustmentPercent < 0 ? 'text-emerald-600' : 'text-zilo-muted') %>">
-                  <% if (tier.adjustmentPercent > 0) { %>+<%= tier.adjustmentPercent %>%<% } else if (tier.adjustmentPercent < 0) { %><%= tier.adjustmentPercent %>%<% } else { %><%= t('client.service.urgency_normal') %><% } %>
-                </span>
+                <span class="text-xs font-medium shrink-0 urgency-pct text-zilo-muted"><%= tier.responseMinutes || '—' %> min</span>
               </div>
               <% if (tier.description) { %><p class="text-[11px] text-zilo-muted mt-0.5"><%= tier.description %></p><% } %>
             </div>
@@ -162,7 +162,7 @@
       <div class="sticky-order-inner max-w-lg mx-auto">
         <div class="min-w-0">
           <p class="text-[10px] text-zilo-muted uppercase tracking-wide"><%= t('client.service.visit_est') %></p>
-          <strong class="text-zilo-accent text-base" id="stickyTotal"><%= formatCLP(pricing.visitPrice + pricing.servicePrice) %></strong>
+          <strong class="text-zilo-accent text-base" id="stickyTotal"><%= formatCLP(pricing.servicePrice) %></strong>
         </div>
         <button type="button" id="btnRequestSticky" class="sticky-order-btn"><%= t('client.service.continue') %></button>
       </div>

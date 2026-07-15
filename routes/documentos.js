@@ -4,6 +4,7 @@ const fs = require('fs');
 const router = express.Router();
 const store = require('../models/store');
 const { requireRole } = require('../middleware/auth');
+const { getVoucherFilePath } = require('../lib/voucher');
 
 const DTE_DIR = path.join(__dirname, '../data/dte');
 
@@ -13,6 +14,37 @@ function canAccessDocument(req, request) {
   if (req.session.user?.role === 'client' && request.clientId === req.session.user.id) return true;
   return false;
 }
+
+router.get('/comprobantes/:voucherId', (req, res) => {
+  if (!store.isReady()) {
+    return res.status(503).render('error', { title: 'Cargando…', message: 'Espera unos segundos.', code: 503 });
+  }
+
+  const voucherId = req.params.voucherId;
+  const request = store.getAllRequests().find((r) =>
+    Array.isArray(r.vouchers) && r.vouchers.some((v) => v.id === voucherId)
+  );
+  const doc = request?.vouchers?.find((v) => v.id === voucherId);
+
+  if (!doc || !canAccessDocument(req, request)) {
+    return res.status(404).render('error', {
+      title: 'Comprobante no encontrado',
+      message: 'No tienes acceso a este comprobante de pago.',
+      code: 404
+    });
+  }
+
+  const filePath = getVoucherFilePath(voucherId);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+
+  return res.status(404).render('error', {
+    title: 'Archivo no disponible',
+    message: 'El comprobante aún no está generado.',
+    code: 404
+  });
+});
 
 router.get('/tributarios/:docId', (req, res) => {
   if (!store.isReady()) {

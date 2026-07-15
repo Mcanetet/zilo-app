@@ -123,6 +123,9 @@
               <span class="zilo-badge zilo-badge-success"><%= job.techStatusLabel || job.statusLabel %></span>
             </div>
             <p class="text-xs text-zilo-muted truncate"><%= job.clientName %> · <%= job.address %></p>
+            <% if (job.providerPayout != null) { %>
+              <p class="text-[11px] text-zilo-success font-medium mt-1"><%= t('provider.js.your_payout') %>: <%= formatCLP(job.providerPayout) %></p>
+            <% } %>
             <% if (job.urgencyTierLabel) { %>
               <p class="text-[10px] text-orange-600 mt-1">Urgencia: <%= job.urgencyTierLabel %></p>
             <% } %>
@@ -165,8 +168,25 @@
               </div>
               <div class="text-right shrink-0 ml-3">
                 <span class="zilo-badge zilo-badge-muted block mb-1"><%= req.statusLabel || req.status %></span>
-                <% if (req.status === 'completed' && req.financials?.providerTotal) { %>
-                  <span class="text-xs text-zilo-success font-medium"><%= formatCLP(req.financials.providerTotal) %></span>
+                <% if (req.providerPayout != null) { %>
+                  <span class="text-xs text-zilo-success font-medium block"><%= formatCLP(req.providerPayout) %></span>
+                <% } %>
+                <% if (req.status === 'completed' && req.financialsVisible && req.financialsVisible.completed) { %>
+                  <% const fin = req.financialsVisible; %>
+                  <details class="mt-1 text-left">
+                    <summary class="text-[10px] text-zilo-muted cursor-pointer"><%= t('provider.settlement') %></summary>
+                    <div class="text-[10px] text-zilo-muted mt-1 space-y-0.5 max-w-[11rem]">
+                      <p><%= t('provider.settlement_charged') %>: <%= formatCLP(fin.grandTotal) %></p>
+                      <p><%= t('provider.settlement_app') %> <%= Math.round((fin.laborCommissionRate || 0) * 100) %>%: −<%= formatCLP(fin.laborCommission) %></p>
+                      <% if (fin.materialsCommission) { %><p><%= t('provider.settlement_materials') %>: −<%= formatCLP(fin.materialsCommission) %></p><% } %>
+                      <p><%= t('provider.settlement_card') %> <%= fin.merchantCardFeePercent || 0 %>%: −<%= formatCLP(fin.cardFee || 0) %></p>
+                      <p><%= t('provider.settlement_iva') %> <%= Math.round((fin.ivaRate || 0) * 100) %>%: −<%= formatCLP(fin.ivaOnFees || 0) %></p>
+                      <p class="text-[9px] text-zilo-muted/80"><%= t('provider.settlement_iva_hint') %></p>
+                      <p class="text-zilo-success font-medium"><%= t('provider.js.your_payout') %>: <%= formatCLP(fin.providerPayout) %></p>
+                    </div>
+                  </details>
+                <% } else if (req.status !== 'completed' && req.providerPayout != null) { %>
+                  <p class="text-[9px] text-zilo-muted mt-0.5"><%= t('provider.payout_until_complete') %></p>
                 <% } %>
               </div>
             </div>

@@ -130,7 +130,7 @@
         </div>
         <p class="text-xs text-zilo-muted mb-1 truncate">${data.request.address}</p>
         ${urgency}
-        <p class="text-xs font-semibold text-zilo-accent mb-3">${t('provider.js.visit_label')}: ${fmt(data.request.estimatedVisit)}</p>
+        <p class="text-xs font-semibold text-zilo-success mb-3">${t('provider.js.your_payout')}: ${fmt(data.request.providerPayout ?? data.request.estimatedVisit)}</p>
         <button type="button" class="w-full py-2.5 rounded-xl zilo-modal-accept !text-sm" data-take="${data.request.id}">${t('provider.js.take_job')}</button>
       `;
       workWallList.appendChild(card);
@@ -185,7 +185,16 @@
       }, 400);
     }
 
-    document.getElementById('modalPrice').textContent = `${t('provider.js.visit_est')}: ${fmt(data.request.estimatedVisit)}`;
+    document.getElementById('modalPrice').textContent = `${t('provider.js.your_payout')}: ${fmt(data.request.providerPayout ?? data.request.estimatedVisit)}`;
+    let payoutHint = document.getElementById('modalPayoutHint');
+    if (!payoutHint) {
+      const priceEl = document.getElementById('modalPrice');
+      payoutHint = document.createElement('p');
+      payoutHint.id = 'modalPayoutHint';
+      payoutHint.className = 'text-[10px] text-zilo-muted mb-3';
+      priceEl.insertAdjacentElement('afterend', payoutHint);
+    }
+    payoutHint.textContent = t('provider.payout_until_complete');
     document.getElementById('modalNotes').textContent = data.request.notes || t('provider.js.no_details');
 
     let urgencyEl = document.getElementById('modalUrgency');

@@ -26,7 +26,7 @@
   const urgencyRadios = document.querySelectorAll('input[name="urgencyTier"]');
 
   let currentRequestId = trackingId || null;
-  let selectedUrgencyTier = document.querySelector('input[name="urgencyTier"]:checked')?.value || 'tomorrow';
+  let selectedUrgencyTier = document.querySelector('input[name="urgencyTier"]:checked')?.value || 'scheduled';
   let geocodeTimer = null;
   let addressCovered = null;
   const socket = io();
@@ -100,15 +100,24 @@
       const stickyTotal = document.getElementById('stickyTotal');
       if (stickyTotal) stickyTotal.textContent = f.estimatedTotal;
 
+      const svcRow = document.getElementById('servicePriceRow');
+      if (svcRow) {
+        if (p.servicePrice > 0) svcRow.classList.remove('hidden');
+        else svcRow.classList.add('hidden');
+      }
+
       const adjRow = document.getElementById('urgencyAdjustmentRow');
       if (adjRow) {
         if (p.adjustmentAmount !== 0) {
           adjRow.classList.remove('hidden');
           adjRow.classList.add('flex');
+          const band = p.tariff
+            ? `${p.tariff.horarioBand || ''} / ${p.tariff.urgenciaBand || ''}`
+            : p.tier.label;
           document.getElementById('urgencyAdjustmentLabel').textContent =
-            p.adjustmentPercent > 0
-              ? t('client.js.surcharge_label', { label: p.tier.label })
-              : t('client.js.discount_label', { label: p.tier.label });
+            p.adjustmentAmount > 0
+              ? t('client.js.surcharge_label', { label: band })
+              : t('client.js.discount_label', { label: band });
           const adjEl = document.getElementById('displayUrgencyAdj');
           adjEl.textContent = (p.adjustmentAmount > 0 ? '+' : '') + f.adjustment;
           adjEl.className = p.adjustmentAmount > 0 ? 'text-orange-600' : 'text-emerald-600';

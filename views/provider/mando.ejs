@@ -50,6 +50,9 @@
               <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               <span><%= r.address || 'Sin dirección' %></span>
             </p>
+            <% if (r.providerPayout != null) { %>
+              <p class="text-[11px] text-zilo-success font-medium mb-2">Te pagamos: <%= formatCLP(r.providerPayout) %></p>
+            <% } %>
             <% if (r.urgencyTierLabel) { %>
               <p class="text-[10px] text-orange-600 mb-2">Urgencia: <%= r.urgencyTierLabel %></p>
             <% } %>

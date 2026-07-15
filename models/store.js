@@ -18,7 +18,9 @@ const {
   getActiveUrgencyTiers,
   calculateVisitPricing,
   calculatePaymentSurcharge,
-  computeRequestFinancials
+  computeRequestFinancials,
+  getProviderVisibleFinancials,
+  sanitizeRequestForWorker
 } = require('../lib/pricing');
 const {
   defaultProviderContract,
@@ -186,9 +188,12 @@ async function createRequest({ clientId, serviceId, address, notes, coords: inpu
     urgencyTierLabel: visitCalc.tier.label,
     urgencyAdjustmentPercent: visitCalc.adjustmentPercent,
     urgencyAdjustmentAmount: visitCalc.adjustmentAmount,
+    urgencyResponseMinutes: visitCalc.tier.responseMinutes,
+    tariffHorarioBand: visitCalc.tariff?.horarioBand || null,
+    tariffUrgenciaBand: visitCalc.tariff?.urgenciaBand || null,
     visitBasePrice: visitCalc.baseVisit,
     visitTotal: visitCalc.visitTotal,
-    servicePriceBase: visitCalc.servicePrice,
+    servicePriceBase: visitCalc.baseVisit,
     basePrice: visitCalc.visitTotal,
     estimatedVisit: visitCalc.visitTotal,
     amountDue: visitCalc.visitTotal,
@@ -2000,10 +2005,16 @@ function getTechStatusLabel(techStatus, locale = 'es') {
 
 function enrichRequestForProvider(request, locale = 'es') {
   if (!request) return null;
+  const pricing = getPricingConfig();
+  const visible = getProviderVisibleFinancials(request, pricing);
+  const safe = sanitizeRequestForWorker(request, pricing);
   return {
-    ...request,
+    ...safe,
     statusLabel: getRequestStatusLabel(request, locale),
-    techStatusLabel: getTechStatusLabel(request.techStatus, locale) || getRequestStatusLabel(request, locale)
+    techStatusLabel: getTechStatusLabel(request.techStatus, locale) || getRequestStatusLabel(request, locale),
+    financials: request.status === 'completed' ? computeRequestFinancials(request, pricing) : undefined,
+    financialsVisible: visible,
+    providerPayout: visible.providerPayout
   };
 }
 

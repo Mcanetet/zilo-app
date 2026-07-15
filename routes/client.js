@@ -143,8 +143,8 @@ router.get('/servicio/:id', requireRole('client'), requireModule('client_solicit
 });
 
 router.get('/precio-preview', requireRole('client'), (req, res) => {
-  const preview = store.previewVisitPrice(req.query.tier || 'tomorrow');
-  if (!preview) return res.status(400).json({ error: 'Urgencia no válida' });
+  const preview = store.previewVisitPrice(req.query.tier || 'scheduled');
+  if (!preview) return res.status(400).json({ error: 'Opción de llegada no válida' });
   res.json({
     success: true,
     preview: {
@@ -154,7 +154,8 @@ router.get('/precio-preview', requireRole('client'), (req, res) => {
         adjustment: store.formatCLP(preview.adjustmentAmount),
         visitTotal: store.formatCLP(preview.visitTotal),
         servicePrice: store.formatCLP(preview.servicePrice),
-        estimatedTotal: store.formatCLP(preview.estimatedTotal)
+        estimatedTotal: store.formatCLP(preview.estimatedTotal),
+        diagnosticVisitMin: store.formatCLP(preview.diagnosticVisitMin || 50000)
       }
     }
   });

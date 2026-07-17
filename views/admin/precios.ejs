@@ -58,8 +58,10 @@
             <p class="text-[10px] text-gray-400 mt-1">Default 20%.</p>
           </div>
           <div>
-            <label class="text-xs text-gray-500">Comisión app — materiales (%)</label>
-            <input type="number" name="materialsCommissionPercent" value="<%= Math.round(pricing.materialsCommissionRate * 100) %>" min="0" max="100" class="zilo-input w-full mt-1" required>
+            <label class="text-xs text-gray-500">Comisión app — materiales</label>
+            <input type="hidden" name="materialsCommissionPercent" value="0">
+            <div class="zilo-input w-full mt-1 text-gray-500 bg-gray-50">0% · a costo</div>
+            <p class="text-[10px] text-gray-400 mt-1">El material se entrega íntegro al socio y no aumenta comisiones ni cargos.</p>
           </div>
           <div>
             <label class="text-xs text-gray-500">Fee tarjeta al liquidar socio (%)</label>

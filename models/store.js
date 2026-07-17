@@ -6,6 +6,7 @@ const repository = require('./repository');
 const { getAppVersionInfo } = require('../lib/version');
 const { t: translate } = require('../lib/i18n');
 const { verifyPassword, hashPassword } = require('../lib/password');
+const { resolvePayoutSchedule, formatPayDate } = require('../lib/payoutSchedule');
 const {
   generateSecret,
   buildOtpauthUrl,
@@ -20,6 +21,7 @@ const {
   calculatePaymentSurcharge,
   computeRequestFinancials,
   getProviderVisibleFinancials,
+  getClientVisibleFinancials,
   sanitizeRequestForWorker,
   getPricingServiceCatalog,
   getPricingCatalogRows,
@@ -261,7 +263,8 @@ async function createRequest({
     tariffUrgenciaBand: visitCalc.tariff?.urgenciaBand || null,
     visitBasePrice: visitCalc.baseVisit,
     visitTotal: visitCalc.visitTotal,
-    servicePriceBase: visitCalc.baseVisit,
+    // El checkout inicial ya cobra el servicio dinámico completo.
+    servicePriceBase: 0,
     basePrice: visitCalc.visitTotal,
     estimatedVisit: visitCalc.visitTotal,
     amountDue: visitCalc.visitTotal,
@@ -398,7 +401,7 @@ function getCheckoutSummary(userId, requestId) {
     cardEnabled: pricing.cardEnabled,
     transferEnabled: pricing.transferEnabled,
     bankTransfer: pricing.bankTransfer,
-    servicePriceBase: request.servicePriceBase ?? pricing.servicePrice,
+    servicePriceBase: 0,
     billingComplete: Boolean(request.billingSnapshot) || isBillingComplete(user),
     billingSnapshot: request.billingSnapshot || null,
     creditsAvailable: user.creditsCLP || 0,
@@ -626,6 +629,92 @@ function markPaymentApproved(requestId, paymentId) {
   return request;
 }
 
+function openAdditionalCharge(request, { reason, baseAmount, description }) {
+  if (!request || request.paymentStatus !== 'approved') {
+    return { error: 'La visita inicial aún no está pagada.' };
+  }
+  if (request.additionalCharge?.status === 'pending') {
+    return { error: 'Ya existe un ajuste pendiente de pago.' };
+  }
+  const base = Math.max(0, Math.round(Number(baseAmount) || 0));
+  if (base <= 0) return { success: true, additionalCharge: null };
+
+  const surcharge = calculatePaymentSurcharge(getPricingConfig(), base, 'card');
+  request.additionalCharge = {
+    id: `ajuste-${uuidv4()}`,
+    reason,
+    description: String(description || 'Ajuste de servicio'),
+    status: 'pending',
+    paymentMethod: 'card',
+    baseAmount: base,
+    paymentSurchargePercent: surcharge.percent,
+    paymentSurchargeAmount: surcharge.amount,
+    amountDue: surcharge.subtotal,
+    paymentId: null,
+    gateway: null,
+    createdAt: new Date().toISOString(),
+    paidAt: null
+  };
+  repository.persist(() => repository.saveRequest(request), `ajuste ${request.id}`);
+  return { success: true, additionalCharge: request.additionalCharge };
+}
+
+function setAdditionalPaymentSession(requestId, data = {}) {
+  const request = requests.find((r) => r.id === requestId);
+  const charge = request?.additionalCharge;
+  if (!charge || charge.status !== 'pending') return null;
+  charge.gateway = data.gateway || null;
+  charge.token = data.token || null;
+  charge.paymentUrl = data.paymentUrl || null;
+  charge.buyOrder = data.buyOrder || null;
+  charge.preferenceId = data.preferenceId || null;
+  charge.paypalOrderId = data.paypalOrderId || null;
+  repository.persist(() => repository.saveRequest(request), `sesión ajuste ${requestId}`);
+  return charge;
+}
+
+function applyApprovedActivityChange(request, change) {
+  request.activityId = change.toActivityId;
+  request.activityName = change.toActivityName;
+  request.activityKind = change.toActivityKind;
+  request.activityBasePrice = change.toBasePrice;
+  request.activityManual = Boolean(change.manual);
+  request.visitBasePrice = change.toBasePrice;
+  request.visitTotal = change.proposedTotal;
+  request.estimatedVisit = change.proposedTotal;
+  request.basePrice = change.proposedTotal;
+  change.status = 'approved';
+  if (['diagnostico', 'presupuesto_pendiente'].includes(request.techStatus)) {
+    request.techStatus = 'reparando';
+  }
+}
+
+function markAdditionalPaymentApproved(requestId, paymentId) {
+  const request = requests.find((r) => r.id === requestId);
+  const charge = request?.additionalCharge;
+  if (!charge || charge.status === 'approved') return request || null;
+  if (charge.status !== 'pending') return null;
+
+  charge.status = 'approved';
+  charge.paymentId = paymentId;
+  charge.paidAt = new Date().toISOString();
+  request.additionalPaymentsTotal = (request.additionalPaymentsTotal || 0) + charge.amountDue;
+  request.approvedServicePrice = request.additionalPaymentsTotal;
+
+  const sr = ensureSiteReport(request);
+  if (charge.reason === 'budget') {
+    sr.budgetStatus = 'approved';
+    sr.budgetRespondedAt = charge.paidAt;
+    request.techStatus = 'presupuesto_aprobado';
+  } else if (charge.reason === 'activity_change' && sr.activityChange) {
+    sr.activityChange.respondedAt = charge.paidAt;
+    applyApprovedActivityChange(request, sr.activityChange);
+  }
+
+  repository.persist(() => repository.saveRequest(request), `pago ajuste ${requestId}`);
+  return request;
+}
+
 function activateRequest(requestId) {
   const request = requests.find(r => r.id === requestId);
   if (!request) return null;
@@ -806,8 +895,12 @@ function getUrgencyTiersForClient() {
   return getActiveUrgencyTiers(getPricingConfig());
 }
 
-function previewVisitPrice(tierId) {
-  return calculateVisitPricing(getPricingConfig(), tierId);
+function previewVisitPrice(tierId, valorBase) {
+  const opts = {};
+  if (valorBase != null && Number.isFinite(valorBase) && valorBase > 0) {
+    opts.valorBase = valorBase;
+  }
+  return calculateVisitPricing(getPricingConfig(), tierId, opts);
 }
 
 function getUserById(id) {
@@ -1401,6 +1494,16 @@ async function createTechnician(socioId, { name, email, password, phone } = {}) 
     avatar: name.split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase(),
     bio: '',
     reviews: [],
+    verification: {
+      status: 'incomplete',
+      photo: null,
+      idCardFront: null,
+      idCardBack: null,
+      criminalRecord: null,
+      studyCertificates: [],
+      otherCertificates: [],
+      updatedAt: null
+    },
     locationShare: defaultLocationShare(),
     active: true,
     memberSince: new Date().toISOString().slice(0, 10),
@@ -1428,6 +1531,55 @@ function getTechniciansByProvider(socioId) {
 
 function getTechnicianForProvider(socioId, tecnicoId) {
   return USERS.find(u => u.id === tecnicoId && u.role === 'tecnico' && u.parentId === socioId) || null;
+}
+
+function ensureTechnicianDossier(tecnico) {
+  if (!tecnico.verification) tecnico.verification = {};
+  const dossier = tecnico.verification;
+  if (!Array.isArray(dossier.studyCertificates)) dossier.studyCertificates = [];
+  if (!Array.isArray(dossier.otherCertificates)) dossier.otherCertificates = [];
+  const complete = Boolean(
+    dossier.photo &&
+    dossier.idCardFront &&
+    dossier.idCardBack &&
+    dossier.criminalRecord &&
+    dossier.studyCertificates.length
+  );
+  dossier.status = complete ? 'complete' : 'incomplete';
+  return dossier;
+}
+
+function canTechnicianOperate(tecnico) {
+  if (!tecnico || tecnico.role !== 'tecnico') return { ok: false, missing: ['Técnico inválido'] };
+  const dossier = ensureTechnicianDossier(tecnico);
+  const missing = [];
+  if (!dossier.photo) missing.push('foto');
+  if (!dossier.idCardFront) missing.push('carnet frontal');
+  if (!dossier.idCardBack) missing.push('carnet reverso');
+  if (!dossier.criminalRecord) missing.push('certificado de antecedentes');
+  if (!dossier.studyCertificates.length) missing.push('certificado de estudios');
+  if (tecnico.active === false) missing.push('cuenta activa');
+  return { ok: missing.length === 0, missing, status: dossier.status };
+}
+
+function saveTechnicianDocument(socioId, tecnicoId, type, url, label) {
+  const tecnico = getTechnicianForProvider(socioId, tecnicoId);
+  if (!tecnico) return { error: 'Técnico no encontrado.' };
+  const dossier = ensureTechnicianDossier(tecnico);
+  const entry = { url, label: String(label || '').trim() || type, uploadedAt: new Date().toISOString() };
+  if (['photo', 'idCardFront', 'idCardBack', 'criminalRecord'].includes(type)) {
+    dossier[type] = url;
+  } else if (type === 'studyCertificate') {
+    dossier.studyCertificates.push(entry);
+  } else if (type === 'otherCertificate') {
+    dossier.otherCertificates.push(entry);
+  } else {
+    return { error: 'Tipo de documento inválido.' };
+  }
+  dossier.updatedAt = new Date().toISOString();
+  ensureTechnicianDossier(tecnico);
+  repository.persist(() => repository.saveUser(tecnico), `expediente técnico ${tecnicoId}`);
+  return { success: true, verification: dossier, check: canTechnicianOperate(tecnico) };
 }
 
 function setUserActive(userId, active) {
@@ -1663,6 +1815,8 @@ function tryAcceptRequest(requestId, userId) {
       return { error: 'No tienes esta especialidad' };
     }
     if (!user.parentId) return { error: 'Sin socio asignado' };
+    const operational = canTechnicianOperate(user);
+    if (!operational.ok) return { error: `Expediente incompleto: ${operational.missing.join(', ')}` };
     const socio = getUserById(user.parentId);
     if (!socio) return { error: 'Socio no encontrado' };
 
@@ -1697,13 +1851,77 @@ function assignProvider(requestId, providerId) {
   return request;
 }
 
+function assignPayoutSchedule(request) {
+  if (!request?.completedAt) return null;
+  const schedule = resolvePayoutSchedule(request.completedAt);
+  request.payoutStatus = request.payoutStatus === 'pagado' ? 'pagado' : 'programado';
+  request.payoutScheduledDate = schedule.scheduledPayDate;
+  request.payoutPeriodStart = schedule.periodStart;
+  request.payoutPeriodEnd = schedule.periodEnd;
+  request.payoutCutoffAt = schedule.cutoffAt;
+  return schedule;
+}
+
+function buildProviderInvoicePlan(request, financials) {
+  const client = getUserById(request.clientId);
+  const billing = request.billingSnapshot || {};
+  request.providerInvoicePlan = {
+    status: request.providerInvoicePlan?.status === 'issued' ? 'issued' : 'pending',
+    amount: financials.providerTotal,
+    issuerProviderId: request.providerId,
+    recipient: {
+      type: billing.type || 'natural',
+      rut: billing.rut || null,
+      legalName: billing.legalName || client?.name || request.clientName,
+      giro: billing.giro || null,
+      fiscalAddress: billing.fiscalAddress || request.address,
+      invoiceEmail: billing.invoiceEmail || client?.email || null
+    },
+    description: `Servicios técnicos y materiales — ${request.serviceName}`,
+    requestId: request.id,
+    createdAt: request.providerInvoicePlan?.createdAt || new Date().toISOString(),
+    issuedAt: request.providerInvoicePlan?.issuedAt || null,
+    documentType: request.providerInvoicePlan?.documentType || null,
+    folio: request.providerInvoicePlan?.folio || null,
+    filePath: request.providerInvoicePlan?.filePath || null,
+    fileName: request.providerInvoicePlan?.fileName || null,
+    mimeType: request.providerInvoicePlan?.mimeType || null,
+    url: request.providerInvoicePlan?.url || null,
+    note: 'El socio emite este documento con su propio RUT y sistema tributario.'
+  };
+  return request.providerInvoicePlan;
+}
+
+function registerProviderInvoice(requestId, providerId, { documentType, folio, filePath, fileName, mimeType }) {
+  const request = requests.find((r) => r.id === requestId && r.providerId === providerId);
+  if (!request || request.status !== 'completed' || !request.providerInvoicePlan) {
+    return { error: 'No hay una factura pendiente para este servicio.' };
+  }
+  if (request.providerInvoicePlan.status !== 'pending') return { error: 'Este documento ya fue registrado.' };
+  const type = String(documentType || '').trim();
+  const cleanFolio = String(folio || '').trim();
+  if (!['boleta', 'factura'].includes(type)) return { error: 'Selecciona boleta o factura.' };
+  if (!cleanFolio) return { error: 'Ingresa el folio del documento emitido.' };
+  if (!filePath) return { error: 'Adjunta el documento emitido.' };
+  request.providerInvoicePlan.status = 'issued';
+  request.providerInvoicePlan.documentType = type;
+  request.providerInvoicePlan.folio = cleanFolio;
+  request.providerInvoicePlan.issuedAt = new Date().toISOString();
+  request.providerInvoicePlan.filePath = filePath;
+  request.providerInvoicePlan.fileName = fileName || null;
+  request.providerInvoicePlan.mimeType = mimeType || 'application/pdf';
+  request.providerInvoicePlan.url = `/documentos/factura-socio/${request.id}`;
+  repository.persist(() => repository.saveRequest(request), `factura socio ${requestId}`);
+  return { success: true, invoice: request.providerInvoicePlan };
+}
+
 function updateRequestStatus(requestId, status) {
   const request = requests.find(r => r.id === requestId);
   if (!request) return null;
   request.status = status;
   if (status === 'completed') {
     request.completedAt = new Date().toISOString();
-    request.payoutStatus = request.payoutStatus || 'pendiente';
+    assignPayoutSchedule(request);
     addLogbookEntryFromRequest(request);
   }
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
@@ -1718,6 +1936,10 @@ function assignTechnician(requestId, socioId, technicianId) {
   const tecnico = getTechnicianForProvider(socioId, technicianId);
   if (!tecnico) return { error: 'Técnico no válido.' };
   if (tecnico.active === false) return { error: 'El técnico está desactivado.' };
+  const operational = canTechnicianOperate(tecnico);
+  if (!operational.ok) {
+    return { error: `Completa el expediente del técnico: ${operational.missing.join(', ')}.` };
+  }
 
   request.technicianId = tecnico.id;
   request.technicianName = tecnico.name;
@@ -1749,7 +1971,7 @@ function updateTechStatus(requestId, technicianId, techStatus) {
     request.status = mappedStatus;
     if (mappedStatus === 'completed') {
       request.completedAt = new Date().toISOString();
-      request.payoutStatus = request.payoutStatus || 'pendiente';
+      assignPayoutSchedule(request);
       addLogbookEntryFromRequest(request);
     }
   }
@@ -1784,8 +2006,8 @@ function ensureSiteReport(request) {
 function recordSiteArrival(requestId, technicianId, { diagnosis, photoStart }) {
   const request = getRequestForTechnician(requestId, technicianId);
   if (!request) return { error: 'Solicitud no encontrada.' };
-  if (!['en_sitio', 'en_camino', 'aceptado'].includes(request.techStatus)) {
-    return { error: 'No puedes registrar llegada en este estado.' };
+  if (request.techStatus !== 'en_sitio') {
+    return { error: 'Primero confirma que llegaste al domicilio.' };
   }
   diagnosis = (diagnosis || '').trim();
   if (!diagnosis) return { error: 'Describe lo que observas en el lugar.' };
@@ -1828,9 +2050,12 @@ function submitSiteBudget(requestId, technicianId, { amount, description }) {
   const parsed = parseInt(amount, 10);
   if (!parsed || parsed < 1000) return { error: 'Ingresa un monto válido (mín. $1.000).' };
   description = (description || '').trim();
-  if (!description) return { error: 'Describe el trabajo y materiales del presupuesto.' };
+  if (!description) return { error: 'Describe el trabajo incluido en el presupuesto.' };
 
   const sr = ensureSiteReport(request);
+  if (['pending', 'payment_pending'].includes(sr.budgetStatus)) {
+    return { error: 'Este presupuesto aún está pendiente del cliente o de pago.' };
+  }
   sr.budgetAmount = parsed;
   sr.budgetDescription = description;
   sr.budgetStatus = 'pending';
@@ -1846,10 +2071,24 @@ function respondSiteBudget(requestId, clientId, approved) {
   const sr = ensureSiteReport(request);
   if (sr.budgetStatus !== 'pending') return { error: 'Este presupuesto ya fue respondido.' };
 
-  sr.budgetStatus = approved ? 'approved' : 'rejected';
+  sr.budgetStatus = approved ? 'payment_pending' : 'rejected';
   sr.budgetRespondedAt = new Date().toISOString();
+  let additionalCharge = null;
   if (approved) {
-    request.techStatus = 'presupuesto_aprobado';
+    const alreadyQuoted = request.visitTotal || request.visitPricePaid || 0;
+    const delta = Math.max(0, sr.budgetAmount - alreadyQuoted);
+    if (delta > 0) {
+      const chargeResult = openAdditionalCharge(request, {
+        reason: 'budget',
+        baseAmount: delta,
+        description: sr.budgetDescription || 'Ajuste por presupuesto aprobado'
+      });
+      if (chargeResult.error) return chargeResult;
+      additionalCharge = chargeResult.additionalCharge;
+    } else {
+      sr.budgetStatus = 'approved';
+      request.techStatus = 'presupuesto_aprobado';
+    }
   } else {
     request.techStatus = 'completado';
     request.status = 'completed';
@@ -1857,7 +2096,7 @@ function respondSiteBudget(requestId, clientId, approved) {
     sr.workNotes = 'Presupuesto rechazado por el cliente. Visita finalizada.';
   }
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
-  return { success: true, request, approved };
+  return { success: true, request, approved, additionalCharge };
 }
 
 /**
@@ -1873,7 +2112,7 @@ function proposeActivityChange(requestId, technicianId, {
 }) {
   const request = getRequestForTechnician(requestId, technicianId);
   if (!request) return { error: 'Solicitud no encontrada.' };
-  if (!['diagnostico', 'reparando', 'comprando', 'presupuesto_pendiente', 'presupuesto_aprobado', 'en_sitio'].includes(request.techStatus)) {
+  if (!['diagnostico', 'reparando', 'comprando', 'presupuesto_pendiente', 'presupuesto_aprobado'].includes(request.techStatus)) {
     return { error: 'Solo puedes cambiar el subservicio cuando estás en terreno.' };
   }
   if (!photoUrl) return { error: 'Sube una foto que respalde el cambio de servicio.' };
@@ -1923,7 +2162,7 @@ function proposeActivityChange(requestId, technicianId, {
   if (!quote) return { error: 'No se pudo recalcular el precio.' };
 
   const sr = ensureSiteReport(request);
-  if (sr.activityChange?.status === 'pending') {
+  if (['pending', 'payment_pending'].includes(sr.activityChange?.status)) {
     return { error: 'Ya hay un cambio de servicio pendiente de aprobación del cliente.' };
   }
 
@@ -1958,42 +2197,28 @@ function respondActivityChange(requestId, clientId, approved) {
     return { error: 'No hay un cambio de servicio pendiente.' };
   }
 
-  change.status = approved ? 'approved' : 'rejected';
+  change.status = approved ? 'payment_pending' : 'rejected';
   change.respondedAt = new Date().toISOString();
+  let additionalCharge = null;
 
   if (approved) {
-    request.activityId = change.toActivityId;
-    request.activityName = change.toActivityName;
-    request.activityKind = change.toActivityKind;
-    request.activityBasePrice = change.toBasePrice;
-    request.activityManual = Boolean(change.manual);
-    request.visitBasePrice = change.toBasePrice;
-    request.servicePriceBase = change.toBasePrice;
-    request.visitTotal = change.proposedTotal;
-    request.estimatedVisit = change.proposedTotal;
-    request.basePrice = change.proposedTotal;
-
-    const paid = request.visitPricePaid || 0;
-    if (request.paymentStatus === 'approved' && paid > 0) {
-      const delta = Math.max(0, change.proposedTotal - paid);
-      request.approvedServicePrice = delta;
-      if (delta > 0) {
-        sr.budgetAmount = delta;
-        sr.budgetDescription = `Ajuste por cambio de servicio a: ${change.toActivityName}`;
-        sr.budgetStatus = 'approved';
-        sr.budgetRespondedAt = change.respondedAt;
-      }
+    const previousTotal = request.visitTotal || request.visitPricePaid || 0;
+    const delta = Math.max(0, change.proposedTotal - previousTotal);
+    if (request.paymentStatus === 'approved' && delta > 0) {
+      const chargeResult = openAdditionalCharge(request, {
+        reason: 'activity_change',
+        baseAmount: delta,
+        description: `Cambio de servicio a: ${change.toActivityName}`
+      });
+      if (chargeResult.error) return chargeResult;
+      additionalCharge = chargeResult.additionalCharge;
     } else {
-      request.amountDue = change.proposedTotal;
-    }
-
-    if (['diagnostico', 'presupuesto_pendiente'].includes(request.techStatus)) {
-      request.techStatus = 'reparando';
+      applyApprovedActivityChange(request, change);
     }
   }
 
   repository.persist(() => repository.saveRequest(request), `respuesta cambio ${requestId}`);
-  return { success: true, request, approved, activityChange: change };
+  return { success: true, request, approved, activityChange: change, additionalCharge };
 }
 
 function addSiteMaterial(requestId, technicianId, { description, amount, receiptUrl }) {
@@ -2039,8 +2264,9 @@ function completeSiteWork(requestId, technicianId, { workNotes, photoEnd }) {
   request.techStatus = 'completado';
   request.status = 'completed';
   request.completedAt = new Date().toISOString();
-  request.payoutStatus = request.payoutStatus || 'pendiente';
+  assignPayoutSchedule(request);
   request.financials = computeRequestFinancials(request, getPricingConfig());
+  buildProviderInvoicePlan(request, request.financials);
   addLogbookEntryFromRequest(request);
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   afterEvent((ev) => ev.onServiceCompleted(request));
@@ -2089,6 +2315,7 @@ function setProviderOnline(providerId, online) {
 function setTechnicianOnline(tecnicoId, online) {
   const tecnico = getUserById(tecnicoId);
   if (tecnico && tecnico.role === 'tecnico') {
+    if (online && !canTechnicianOperate(tecnico).ok) return null;
     tecnico.online = online;
     repository.persist(() => repository.saveUser(tecnico), `tecnico ${tecnicoId}`);
     return tecnico;
@@ -2126,9 +2353,21 @@ function getRequestStatusLabel(request, locale = 'es') {
 
 function enrichRequestForClient(request, locale = 'es') {
   if (!request) return null;
+  const clientTotals = getClientVisibleFinancials(request, getPricingConfig());
+  const providerInvoicePlan = request.providerInvoicePlan?.status === 'issued'
+    ? {
+        status: 'issued',
+        documentType: request.providerInvoicePlan.documentType,
+        folio: request.providerInvoicePlan.folio,
+        issuedAt: request.providerInvoicePlan.issuedAt,
+        url: `/documentos/factura-socio/${request.id}`
+      }
+    : null;
   return {
     ...request,
-    statusLabel: getRequestStatusLabel(request, locale)
+    statusLabel: getRequestStatusLabel(request, locale),
+    clientTotals: clientTotals.completed ? clientTotals : null,
+    providerInvoicePlan
   };
 }
 
@@ -2168,30 +2407,33 @@ function submitClientReview(requestId, clientId, { rating, text }) {
   if (request.status !== 'completed') return { error: 'Solo puedes calificar servicios completados' };
   if (request.clientReview) return { error: 'Ya calificaste este servicio' };
 
-  const stars = Math.min(5, Math.max(1, parseInt(rating, 10) || 0));
-  if (!stars) return { error: 'Selecciona una calificación' };
+  const stars = parseInt(rating, 10);
+  if (![1, 2, 3, 4, 5].includes(stars)) return { error: 'Selecciona una calificación' };
 
   const provider = request.providerId ? getUserById(request.providerId) : null;
   const client = getUserById(clientId);
   const reviewText = (text || '').trim().slice(0, 500);
 
-  if (provider) {
-    const nameParts = (client?.name || 'Cliente').split(' ');
-    const author = nameParts.length > 1
-      ? `${nameParts[0]} ${nameParts[1][0]}.`
-      : nameParts[0];
-    const review = {
-      author,
-      rating: stars,
-      text: reviewText || 'Servicio completado vía Fundez',
-      date: new Date().toISOString().slice(0, 10)
-    };
-    provider.reviews = [review, ...(provider.reviews || [])].slice(0, 50);
-    provider.reviewsCount = (provider.reviewsCount || 0) + 1;
-    const ratings = provider.reviews.map(r => r.rating);
-    provider.rating = Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10;
-    repository.persist(() => repository.saveUser(provider), `proveedor ${provider.id}`);
-  }
+  const nameParts = (client?.name || 'Cliente').trim().split(/\s+/);
+  const author = nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1].charAt(0)}.` : nameParts[0];
+  const review = {
+    requestId,
+    author,
+    rating: stars,
+    text: reviewText || 'Servicio completado vía Fundez',
+    date: new Date().toISOString().slice(0, 10)
+  };
+  const applyReview = (user, label) => {
+    if (!user) return;
+    user.reviews = [review, ...(user.reviews || []).filter((item) => item.requestId !== requestId)].slice(0, 50);
+    user.reviewsCount = user.reviews.length;
+    const ratings = user.reviews.map((item) => Number(item.rating) || 0).filter(Boolean);
+    user.rating = Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10;
+    repository.persist(() => repository.saveUser(user), `${label} ${user.id}`);
+  };
+  applyReview(provider, 'proveedor');
+  const technician = request.technicianId ? getUserById(request.technicianId) : null;
+  if (technician && technician.id !== provider?.id) applyReview(technician, 'técnico');
 
   request.clientReview = {
     rating: stars,
@@ -2234,6 +2476,7 @@ function enrichRequestForProvider(request, locale = 'es') {
     ...safe,
     statusLabel: getRequestStatusLabel(request, locale),
     techStatusLabel: getTechStatusLabel(request.techStatus, locale) || getRequestStatusLabel(request, locale),
+    payoutScheduledLabel: request.payoutScheduledDate ? formatPayDate(request.payoutScheduledDate, locale === 'en' ? 'en-US' : 'es-CL') : null,
     financials: request.status === 'completed' ? computeRequestFinancials(request, pricing) : undefined,
     financialsVisible: visible,
     providerPayout: visible.providerPayout
@@ -2265,6 +2508,18 @@ function getProviderDashboardStats(providerId) {
     r.status === 'completed' &&
     new Date(r.completedAt || r.createdAt) >= monthStart
   ).length;
+  const scheduled = requests
+    .filter((r) =>
+      r.providerId === providerId &&
+      r.status === 'completed' &&
+      r.payoutStatus !== 'pagado' &&
+      r.payoutScheduledDate
+    )
+    .sort((a, b) => String(a.payoutScheduledDate).localeCompare(String(b.payoutScheduledDate)));
+  const nextPayDate = scheduled[0]?.payoutScheduledDate || null;
+  const nextPayAmount = scheduled
+    .filter((r) => r.payoutScheduledDate === nextPayDate)
+    .reduce((sum, r) => sum + computeRequestFinancials(r, getPricingConfig()).providerTotal, 0);
 
   return {
     rating: provider?.rating || 0,
@@ -2275,6 +2530,9 @@ function getProviderDashboardStats(providerId) {
     monthCompleted,
     pendingPayout: payout.pending,
     paidTotal: payout.paid,
+    nextPayDate,
+    nextPayDateLabel: nextPayDate ? formatPayDate(nextPayDate) : null,
+    nextPayAmount,
     online: Boolean(provider?.online)
   };
 }
@@ -2800,6 +3058,8 @@ module.exports = {
   createTechnician,
   getTechniciansByProvider,
   getTechnicianForProvider,
+  canTechnicianOperate,
+  saveTechnicianDocument,
   setUserActive,
   getAdminTeamUsers,
   createAdminUser,
@@ -2818,7 +3078,9 @@ module.exports = {
   createRequest,
   setPaymentPreference,
   setCardPaymentSession,
+  setAdditionalPaymentSession,
   markPaymentApproved,
+  markAdditionalPaymentApproved,
   activateRequest,
   assignProvider,
   updateRequestStatus,
@@ -2846,6 +3108,7 @@ module.exports = {
   getActiveRequestsForProvider,
   getProviderDashboardStats,
   getProviderPayoutSummary,
+  registerProviderInvoice,
   getProviderWorkflowStep,
   enrichRequestForProvider,
   getTechStatusLabel,

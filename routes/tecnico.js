@@ -67,7 +67,7 @@ router.get('/trabajo/:requestId', requireRole('tecnico'), (req, res) => {
   const tecnico = store.getUserById(req.session.user.id);
   const request = store.getRequestForTechnician(req.params.requestId, tecnico.id);
   if (!request || request.techStatus === 'completado' || request.status === 'completed') {
-    return res.redirect('/tecnico');
+    return res.redirect(req.session.user.role === 'provider' ? '/proveedor/mando' : '/tecnico');
   }
 
   res.render('tecnico/trabajo', {
@@ -75,6 +75,7 @@ router.get('/trabajo/:requestId', requireRole('tecnico'), (req, res) => {
     user: req.session.user,
     tecnico,
     request: serializeJob(request),
+    returnUrl: req.session.user.role === 'provider' ? '/proveedor/mando' : '/tecnico',
     techLabels: getTechLabels(req.t),
     formatCLP: store.formatCLP
   });
@@ -86,7 +87,14 @@ router.get('/muro', requireRole('tecnico'), (req, res) => {
 
 router.post('/toggle-online', requireRole('tecnico'), (req, res) => {
   const online = req.body.online === 'true' || req.body.online === true;
-  store.setTechnicianOnline(req.session.user.id, online);
+  const tecnico = store.setTechnicianOnline(req.session.user.id, online);
+  if (!tecnico) {
+    const check = store.canTechnicianOperate(store.getUserById(req.session.user.id));
+    return res.status(400).json({
+      success: false,
+      error: `Tu expediente está incompleto: ${check.missing.join(', ')}. Pide al socio que cargue los documentos.`
+    });
+  }
 
   let synced = 0;
   if (online) {
@@ -227,7 +235,8 @@ router.post('/trabajo/:requestId/completar', requireRole('tecnico'), (req, res) 
   });
   if (result.error) return res.status(400).json({ success: false, error: result.error });
   req.app.get('io').emit(`request_update_${result.request.id}`, { request: result.request });
-  res.json({ success: true, request: serializeJob(result.request) });
+  const enriched = store.enrichRequestForProvider(result.request);
+  res.json({ success: true, request: serializeJob(result.request), settlement: enriched.financialsVisible });
 });
 
 router.post('/ubicacion', requireRole('tecnico'), requireModule('provider_ubicacion'), (req, res) => {

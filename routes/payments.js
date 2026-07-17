@@ -26,6 +26,95 @@ function ensureBillingForPayment(userId, requestId, billingData) {
   return store.setRequestBillingSnapshot(requestId, userId, billingData);
 }
 
+function getAdditionalCharge(request, chargeId) {
+  const charge = request?.additionalCharge;
+  if (!charge) return null;
+  if (chargeId && charge.id !== chargeId) return null;
+  return charge;
+}
+
+function buildAdditionalPaymentRequest(request, charge) {
+  return {
+    ...request,
+    paymentReference: `${request.id}::${charge.id}`,
+    additionalChargeId: charge.id,
+    amountDue: charge.amountDue,
+    estimatedVisit: charge.amountDue
+  };
+}
+
+router.get('/ajuste', requireRole('client'), (req, res) => {
+  const request = store.requests.find((r) => r.id === req.query.ref && r.clientId === req.session.user.id);
+  const charge = getAdditionalCharge(request);
+  if (!request || !charge) return res.redirect('/cliente');
+  if (charge.status === 'approved') {
+    return res.redirect(`/pagos/exito?ref=${request.id}&charge=${encodeURIComponent(charge.id)}`);
+  }
+  const pricing = store.getPricingConfig();
+  res.render('payments/additional-checkout', {
+    title: 'Pago de ajuste — Fundez',
+    request,
+    charge,
+    service: store.getServiceById(request.serviceId),
+    formatCLP: store.formatCLP,
+    enabledCardGateways: gateways.getEnabledCardGateways(pricing),
+    cardGateway: gateways.getActiveCardGateway(pricing),
+    demoMode: !cardCheckout.isAnyCardGatewayConfigured(pricing)
+  });
+});
+
+router.post('/ajuste/crear', requireRole('client'), async (req, res) => {
+  const request = store.requests.find((r) => r.id === req.body.requestId && r.clientId === req.session.user.id);
+  const charge = getAdditionalCharge(request, req.body.chargeId);
+  if (!request || !charge || charge.status !== 'pending') {
+    return res.status(400).json({ error: 'Este ajuste ya no está disponible para pago.' });
+  }
+  const pricing = store.getPricingConfig();
+  const service = store.getServiceById(request.serviceId);
+  const baseUrl = getBaseUrl(req);
+  try {
+    const payment = await cardCheckout.createCardPayment({
+      request: buildAdditionalPaymentRequest(request, charge),
+      service,
+      baseUrl,
+      pricingConfig: pricing,
+      gatewayId: req.body.cardGateway || null
+    });
+    if (payment.mode === 'demo') {
+      return res.json({ success: true, demo: true });
+    }
+    store.setAdditionalPaymentSession(request.id, {
+      gateway: payment.gateway,
+      token: payment.token,
+      paymentUrl: payment.paymentUrl,
+      buyOrder: payment.buyOrder,
+      preferenceId: payment.preferenceId,
+      paypalOrderId: payment.orderId
+    });
+    return res.json({
+      success: true,
+      redirect: payment.mode === 'transbank' ? `${baseUrl}${payment.redirectPath}` : payment.checkoutUrl
+    });
+  } catch (err) {
+    console.error('Error creando pago de ajuste:', err.message);
+    return res.status(500).json({ error: 'No se pudo crear el pago del ajuste.' });
+  }
+});
+
+router.post('/ajuste/demo/confirmar', requireRole('client'), (req, res) => {
+  const request = store.requests.find((r) => r.id === req.body.requestId && r.clientId === req.session.user.id);
+  const charge = getAdditionalCharge(request, req.body.chargeId);
+  if (!request || !charge || charge.status !== 'pending') {
+    return res.status(400).json({ error: 'Ajuste no disponible.' });
+  }
+  store.markAdditionalPaymentApproved(request.id, `demo-${charge.id}`);
+  req.app.get('io').emit(`request_update_${request.id}`, { request });
+  res.json({
+    success: true,
+    redirect: `/pagos/exito?ref=${request.id}&charge=${encodeURIComponent(charge.id)}`
+  });
+});
+
 router.get('/checkout', requireRole('client'), (req, res) => {
   const request = store.requests.find(r => r.id === req.query.ref);
   if (!request || request.clientId !== req.session.user.id) {
@@ -203,6 +292,7 @@ router.post('/crear', requireRole('client'), async (req, res) => {
 
 router.get('/paypal/retorno', requireRole('client'), async (req, res) => {
   const ref = req.query.ref;
+  const chargeId = req.query.charge;
   const orderId = req.query.token;
   const request = store.requests.find(r => r.id === ref && r.clientId === req.session.user.id);
   if (!request) return res.redirect('/cliente');
@@ -214,7 +304,8 @@ router.get('/paypal/retorno', requireRole('client'), async (req, res) => {
   try {
     const paypal = require('../lib/paypal');
     const result = await paypal.captureOrder(orderId);
-    const expectedAmount = Math.round(Number(request.amountDue ?? request.estimatedVisit ?? 0));
+    const charge = getAdditionalCharge(request, chargeId);
+    const expectedAmount = Math.round(Number(charge?.amountDue ?? request.amountDue ?? request.estimatedVisit ?? 0));
     const paidAmount = paypal.getCaptureAmount(result);
 
     if (
@@ -222,6 +313,11 @@ router.get('/paypal/retorno', requireRole('client'), async (req, res) => {
       (paidAmount == null || paidAmount === expectedAmount)
     ) {
       const paymentId = paypal.getCaptureId(result) || orderId;
+      if (chargeId && charge) {
+        store.markAdditionalPaymentApproved(request.id, String(paymentId));
+        req.app.get('io').emit(`request_update_${request.id}`, { request });
+        return res.redirect(`/pagos/exito?ref=${ref}&charge=${encodeURIComponent(charge.id)}`);
+      }
       store.markPaymentApproved(request.id, String(paymentId));
       store.activateRequest(request.id);
       notifyProviders(req, request);
@@ -240,19 +336,25 @@ router.get('/transbank/iniciar', requireRole('client'), (req, res) => {
   if (!request || request.clientId !== req.session.user.id) {
     return res.redirect('/cliente');
   }
-  if (!request.transbankToken || !request.paymentUrl) {
-    return res.redirect(`/pagos/checkout?ref=${request.id}`);
+  const charge = getAdditionalCharge(request, req.query.charge);
+  const token = charge ? charge.token : request.transbankToken;
+  const paymentUrl = charge ? charge.paymentUrl : request.paymentUrl;
+  if (!token || !paymentUrl) {
+    return res.redirect(charge
+      ? `/pagos/ajuste?ref=${request.id}`
+      : `/pagos/checkout?ref=${request.id}`);
   }
 
   res.render('payments/transbank-iniciar', {
     title: 'Webpay Plus — Fundez',
-    token: request.transbankToken,
-    paymentUrl: request.paymentUrl
+    token,
+    paymentUrl
   });
 });
 
 router.post('/transbank/retorno', requireRole('client'), async (req, res) => {
   const ref = req.query.ref;
+  const chargeId = req.query.charge;
   const request = store.requests.find(r => r.id === ref && r.clientId === req.session.user.id);
   if (!request) return res.redirect('/cliente');
 
@@ -263,7 +365,8 @@ router.post('/transbank/retorno', requireRole('client'), async (req, res) => {
 
   try {
     const result = await transbank.commitTransaction(token);
-    const expectedAmount = Math.round(Number(request.amountDue ?? request.estimatedVisit ?? 0));
+    const charge = getAdditionalCharge(request, chargeId);
+    const expectedAmount = Math.round(Number(charge?.amountDue ?? request.amountDue ?? request.estimatedVisit ?? 0));
     const paidAmount = transbank.getCommittedAmount(result);
 
     if (
@@ -271,6 +374,11 @@ router.post('/transbank/retorno', requireRole('client'), async (req, res) => {
       (paidAmount == null || paidAmount === expectedAmount)
     ) {
       const paymentId = transbank.getAuthorizationId(result) || `tbk-${Date.now()}`;
+      if (chargeId && charge) {
+        store.markAdditionalPaymentApproved(request.id, String(paymentId));
+        req.app.get('io').emit(`request_update_${request.id}`, { request });
+        return res.redirect(`/pagos/exito?ref=${ref}&charge=${encodeURIComponent(charge.id)}`);
+      }
       store.markPaymentApproved(request.id, String(paymentId));
       store.activateRequest(request.id);
       notifyProviders(req, request);
@@ -348,7 +456,11 @@ router.get('/exito', requireRole('client'), (req, res) => {
     return res.redirect('/cliente');
   }
 
-  if (req.query.payment_id && request.paymentStatus !== 'approved') {
+  const charge = getAdditionalCharge(request, req.query.charge);
+  if (req.query.payment_id && charge && charge.status !== 'approved') {
+    store.markAdditionalPaymentApproved(request.id, String(req.query.payment_id));
+    req.app.get('io').emit(`request_update_${request.id}`, { request });
+  } else if (req.query.payment_id && request.paymentStatus !== 'approved') {
     store.markPaymentApproved(request.id, req.query.payment_id);
     store.activateRequest(request.id);
     notifyProviders(req, request);
@@ -364,6 +476,8 @@ router.get('/exito', requireRole('client'), (req, res) => {
     beneficiaryWhatsapp,
     guardianUrl,
     company,
+    additionalPayment: charge?.status === 'approved' ? charge : null,
+    splitInvoicing: process.env.SPLIT_INVOICING !== 'false',
     checkoutStep: 3
   });
 });
@@ -390,10 +504,18 @@ router.post('/webhook', async (req, res) => {
   if (type === 'payment' && data?.id) {
     try {
       const payment = await mp.getPaymentInfo(data.id);
-      const ref = payment?.external_reference;
+      const externalRef = String(payment?.external_reference || '');
+      const [ref, chargeId] = externalRef.split('::');
       const request = store.requests.find(r => r.id === ref);
 
       if (request && payment.status === 'approved') {
+        const charge = getAdditionalCharge(request, chargeId);
+        if (chargeId && charge) {
+          store.markAdditionalPaymentApproved(request.id, String(data.id));
+          const io = req.app.get('io');
+          if (io) io.emit(`request_update_${request.id}`, { request });
+          return res.sendStatus(200);
+        }
         store.markPaymentApproved(request.id, String(data.id));
         store.activateRequest(request.id);
         const io = req.app.get('io');

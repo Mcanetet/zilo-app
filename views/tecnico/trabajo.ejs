@@ -2,11 +2,12 @@
 
 <div class="max-w-lg mx-auto min-h-screen flex flex-col zilo-page-enter" id="trabajoPage"
   data-request-id="<%= request.id %>"
-  data-tech-status="<%= request.techStatus %>">
+  data-tech-status="<%= request.techStatus %>"
+  data-return-url="<%= typeof returnUrl !== 'undefined' ? returnUrl : '/tecnico' %>">
 
   <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
     <div class="flex items-center gap-3">
-      <a href="/tecnico" class="zilo-icon-btn" title="Volver">
+      <a href="<%= typeof returnUrl !== 'undefined' ? returnUrl : '/tecnico' %>" class="zilo-icon-btn" title="Volver">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </a>
       <div class="min-w-0">
@@ -40,8 +41,16 @@
       <% } %>
     </section>
 
+    <section id="stepTrayecto" class="zilo-card-premium rounded-2xl p-5 <%= ['aceptado','en_camino'].includes(request.techStatus) ? '' : 'hidden' %>">
+      <p class="zilo-label mb-1">Trayecto</p>
+      <h2 class="text-sm font-semibold mb-2"><%= request.techStatus === 'aceptado' ? '¿Listo para ir al domicilio?' : 'Confirma al llegar' %></h2>
+      <p class="text-xs text-zilo-muted mb-3"><%= request.techStatus === 'aceptado' ? 'El cliente verá que vas en camino.' : 'Confirma únicamente cuando estés en el lugar.' %></p>
+      <button type="button" id="btnTrayecto" data-next-status="<%= request.techStatus === 'aceptado' ? 'en_camino' : 'en_sitio' %>"
+        class="w-full py-3 rounded-xl zilo-btn-primary"><%= request.techStatus === 'aceptado' ? 'Iniciar viaje' : 'Ya llegué' %></button>
+    </section>
+
     <!-- Paso 1: Llegada -->
-    <section id="stepLlegada" class="zilo-card-premium rounded-2xl p-5 <%= ['en_sitio','en_camino','aceptado'].includes(request.techStatus) ? '' : 'hidden' %>">
+    <section id="stepLlegada" class="zilo-card-premium rounded-2xl p-5 <%= request.techStatus === 'en_sitio' ? '' : 'hidden' %>">
       <p class="zilo-label mb-1">Paso 1 · Llegada</p>
       <h2 class="text-sm font-semibold mb-3">Registra lo que observas</h2>
       <div class="space-y-3">
@@ -61,15 +70,15 @@
     </section>
 
     <!-- Cambio de subservicio si en terreno es otra cosa -->
-    <section id="stepCambioServicio" class="zilo-card-premium rounded-2xl p-5 <%= ['diagnostico','reparando','comprando','presupuesto_pendiente','presupuesto_aprobado','en_sitio'].includes(request.techStatus) ? '' : 'hidden' %>">
+    <section id="stepCambioServicio" class="zilo-card-premium rounded-2xl p-5 <%= ['diagnostico','reparando','comprando','presupuesto_pendiente','presupuesto_aprobado'].includes(request.techStatus) ? '' : 'hidden' %>">
       <p class="zilo-label mb-1">¿El trabajo es distinto?</p>
       <h2 class="text-sm font-semibold mb-1">Proponer cambio de subservicio</h2>
       <p class="text-xs text-zilo-muted mb-3">
         Solicitado: <strong><%= request.activityName || '—' %></strong>.
         Si es otra cosa, elige el subservicio correcto o <strong>Otro</strong> (nombre y precio manual), sube foto y explica. El cliente debe aprobar.
       </p>
-      <% if (request.siteReport && request.siteReport.activityChange && request.siteReport.activityChange.status === 'pending') { %>
-        <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">Cambio pendiente de aprobación del cliente: <%= request.siteReport.activityChange.toActivityName %></p>
+      <% if (request.siteReport && request.siteReport.activityChange && ['pending','payment_pending'].includes(request.siteReport.activityChange.status)) { %>
+        <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3"><%= request.siteReport.activityChange.status === 'payment_pending' ? 'Cambio aprobado; esperando el pago del cliente' : 'Cambio pendiente de aprobación del cliente' %>: <%= request.siteReport.activityChange.toActivityName %></p>
       <% } else { %>
         <div class="space-y-3">
           <div>
@@ -124,25 +133,26 @@
     </section>
 
     <!-- Paso 2b: Presupuesto -->
-    <section id="stepPresupuesto" class="zilo-card-premium rounded-2xl p-5 <%= request.techStatus === 'presupuesto_pendiente' && (!request.siteReport || request.siteReport.budgetStatus !== 'pending') ? '' : 'hidden' %>">
+    <section id="stepPresupuesto" class="zilo-card-premium rounded-2xl p-5 <%= request.techStatus === 'presupuesto_pendiente' && (!request.siteReport || !['pending','payment_pending'].includes(request.siteReport.budgetStatus)) ? '' : 'hidden' %>">
       <p class="zilo-label mb-1">Presupuesto</p>
       <div class="space-y-3">
         <div>
-          <label class="text-xs text-zilo-muted">Monto total estimado (CLP) *</label>
+          <label class="text-xs text-zilo-muted">Total de visita + servicio (sin materiales) *</label>
           <input type="number" id="budgetAmount" min="1000" step="1000" class="zilo-input w-full mt-1" placeholder="Ej: 150000">
+          <p class="text-[11px] text-zilo-muted mt-1">Los materiales se registran aparte y se suman a costo, sin comisión.</p>
         </div>
         <div>
           <label class="text-xs text-zilo-muted">Detalle del presupuesto *</label>
-          <textarea id="budgetDesc" rows="3" class="zilo-input w-full mt-1 resize-none" placeholder="Materiales, mano de obra, tiempo estimado..."></textarea>
+          <textarea id="budgetDesc" rows="3" class="zilo-input w-full mt-1 resize-none" placeholder="Trabajo a realizar, mano de obra y tiempo estimado..."></textarea>
         </div>
         <button type="button" id="btnPresupuesto" class="w-full py-3 rounded-xl zilo-btn-primary">Enviar presupuesto al cliente</button>
       </div>
     </section>
 
     <!-- Esperando cliente -->
-    <section id="stepEsperaPresupuesto" class="zilo-card-premium rounded-2xl p-5 text-center <%= request.techStatus === 'presupuesto_pendiente' && request.siteReport && request.siteReport.budgetStatus === 'pending' ? '' : 'hidden' %>">
-      <p class="zilo-display text-lg mb-2">Esperando al cliente</p>
-      <p class="text-sm text-zilo-muted">Presupuesto de <strong class="text-zilo-accent"><%= request.siteReport ? formatCLP(request.siteReport.budgetAmount) : '' %></strong> enviado. Te avisaremos cuando responda.</p>
+    <section id="stepEsperaPresupuesto" class="zilo-card-premium rounded-2xl p-5 text-center <%= request.techStatus === 'presupuesto_pendiente' && request.siteReport && ['pending','payment_pending'].includes(request.siteReport.budgetStatus) ? '' : 'hidden' %>">
+      <p class="zilo-display text-lg mb-2"><%= request.siteReport && request.siteReport.budgetStatus === 'payment_pending' ? 'Esperando el pago' : 'Esperando al cliente' %></p>
+      <p class="text-sm text-zilo-muted">Presupuesto de <strong class="text-zilo-accent"><%= request.siteReport ? formatCLP(request.siteReport.budgetAmount) : '' %></strong> enviado. <%= request.siteReport && request.siteReport.budgetStatus === 'payment_pending' ? 'El cliente lo aprobó; te avisaremos cuando pague.' : 'Te avisaremos cuando responda.' %></p>
       <% if (request.siteReport && request.siteReport.budgetDescription) { %>
         <p class="text-xs text-zilo-muted mt-3 p-3 rounded-lg bg-zilo-bg/80 border border-zilo-border text-left"><%= request.siteReport.budgetDescription %></p>
       <% } %>
@@ -187,6 +197,40 @@
         </div>
         <button type="button" id="btnCompletar" class="w-full py-3 rounded-xl zilo-btn-primary">Completar visita</button>
       </div>
+    </section>
+
+    <!-- Liquidación final: total cobrado y desglose con porcentajes -->
+    <section id="settlementResult" class="zilo-card-premium rounded-2xl p-5 hidden">
+      <p class="zilo-label mb-1">Visita completada</p>
+      <h2 class="text-sm font-semibold mb-3">Liquidación del servicio</h2>
+      <div class="space-y-1.5 text-sm">
+        <div class="flex justify-between">
+          <span class="text-zilo-muted">Total cobrado al cliente</span>
+          <strong id="setCharged">—</strong>
+        </div>
+        <div class="flex justify-between text-zilo-muted">
+          <span id="setAppLabel">Comisión Fundez</span>
+          <span id="setApp">—</span>
+        </div>
+        <div class="flex justify-between text-zilo-muted" id="setMaterialsRow">
+          <span>Comisión materiales</span>
+          <span id="setMaterials">—</span>
+        </div>
+        <div class="flex justify-between text-zilo-muted">
+          <span id="setCardLabel">Cargo tarjeta</span>
+          <span id="setCard">—</span>
+        </div>
+        <div class="flex justify-between text-zilo-muted">
+          <span id="setIvaLabel">IVA sobre comisión/cargos</span>
+          <span id="setIva">—</span>
+        </div>
+        <div class="flex justify-between pt-2 mt-1 border-t border-zilo-border">
+          <span class="font-medium">Tu neto</span>
+          <strong class="text-zilo-success" id="setPayout">—</strong>
+        </div>
+        <p class="text-[11px] text-zilo-muted/80 mt-1">El IVA aplica solo sobre lo de Fundez, no sobre tu neto.</p>
+      </div>
+      <a href="<%= typeof returnUrl !== 'undefined' ? returnUrl : '/tecnico' %>" class="mt-4 block w-full text-center py-3 rounded-xl zilo-btn-primary">Volver al panel</a>
     </section>
   </main>
 </div>

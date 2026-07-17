@@ -234,6 +234,40 @@
           <button type="button" id="btnRejectActivityChange" class="flex-1 py-2 rounded-xl zilo-btn-ghost !text-sm"><%= t('client.js.activity_change_reject') %></button>
         </div>
       </div>
+      <div id="additionalPaymentBanner" class="hidden p-4 rounded-2xl border border-amber-300 bg-amber-50">
+        <p class="text-sm font-semibold text-amber-900 mb-1">Pago adicional pendiente</p>
+        <p id="additionalPaymentText" class="text-xs text-amber-800 mb-3"></p>
+        <a id="additionalPaymentLink" href="#" class="block text-center py-2.5 rounded-xl zilo-btn-primary !text-sm">Continuar al pago</a>
+      </div>
+      <section id="completionSummary" class="hidden p-5 rounded-2xl border border-zilo-success/30 bg-zilo-success/5">
+        <p class="zilo-label mb-1">Servicio completado</p>
+        <h2 class="text-base font-semibold mb-4">Total final del servicio</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-zilo-muted">Visita</span>
+            <span id="finalVisit">—</span>
+          </div>
+          <div class="flex justify-between" id="finalServiceRow">
+            <span class="text-zilo-muted">Servicio adicional</span>
+            <span id="finalService">—</span>
+          </div>
+          <div id="finalMaterialsBlock" class="hidden">
+            <div class="flex justify-between">
+              <span class="text-zilo-muted">Materiales a costo</span>
+              <span id="finalMaterials">—</span>
+            </div>
+            <div id="finalMaterialsList" class="mt-2 pl-3 border-l-2 border-zilo-border space-y-1 text-xs text-zilo-muted"></div>
+          </div>
+          <div class="flex justify-between pt-3 border-t border-zilo-border">
+            <strong>Total final</strong>
+            <strong class="text-zilo-accent text-lg" id="finalGrandTotal">—</strong>
+          </div>
+        </div>
+        <p class="text-[11px] text-zilo-muted mt-3">Los materiales se incluyen a su valor real, sin comisión ni recargos Fundez.</p>
+        <a id="finalVoucherLink" href="#" target="_blank" class="hidden mt-3 block text-center py-2.5 rounded-xl zilo-btn-ghost !text-sm">Ver voucher del trabajo</a>
+        <a id="finalProviderInvoiceLink" href="#" target="_blank" class="hidden mt-2 block text-center py-2.5 rounded-xl zilo-btn-ghost !text-sm">Ver factura o boleta del socio</a>
+        <a id="finalReviewLink" href="/cliente/historial" class="mt-2 block text-center py-2.5 rounded-xl zilo-btn-primary !text-sm">Calificar y dejar un comentario</a>
+      </section>
       <div class="p-4 rounded-2xl zilo-card-premium">
         <div class="flex justify-between items-center mb-4">
           <p class="zilo-label"><%= t('client.service.tracking') %></p>

@@ -157,7 +157,7 @@
           <span class="text-zilo-muted font-medium">Subtotal visita</span>
           <span id="lineBase" class="font-medium"><%= formatCLP(summary.basePrice) %></span>
         </div>
-        <div class="flex justify-between checkout-line pb-2 text-zilo-muted/80">
+        <div class="flex justify-between checkout-line pb-2 text-zilo-muted/80 <%= summary.servicePriceBase ? '' : 'hidden' %>">
           <span class="text-xs">Servicio estimado <span class="text-[10px]">(se paga en sitio)</span></span>
           <span id="lineService" class="text-xs"><%= formatCLP(summary.servicePriceBase || 0) %></span>
         </div>

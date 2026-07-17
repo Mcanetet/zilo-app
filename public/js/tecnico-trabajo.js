@@ -3,6 +3,7 @@
   if (!page) return;
 
   const requestId = page.dataset.requestId;
+  const returnUrl = page.dataset.returnUrl || '/tecnico';
   const notify = (msg, type) => { if (window.FundezNotify) window.FundezNotify.show(msg, type); };
 
   function fileToBase64(input) {
@@ -32,6 +33,24 @@
   const photoEnd = document.getElementById('photoEnd');
   if (photoStart) photoStart.addEventListener('change', () => previewFile(photoStart, document.getElementById('photoStartPreview')));
   if (photoEnd) photoEnd.addEventListener('change', () => previewFile(photoEnd, document.getElementById('photoEndPreview')));
+
+  document.getElementById('btnTrayecto')?.addEventListener('click', async (event) => {
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/tecnico/status/${requestId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ techStatus: btn.dataset.nextStatus })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo actualizar el estado');
+      location.reload();
+    } catch (err) {
+      btn.disabled = false;
+      notify(err.message || 'No se pudo actualizar el estado', 'error');
+    }
+  });
 
   document.getElementById('btnLlegada')?.addEventListener('click', async () => {
     const btn = document.getElementById('btnLlegada');
@@ -205,12 +224,42 @@
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || 'Error');
       notify('¡Visita completada!', 'success');
-      setTimeout(() => { window.location.href = '/tecnico'; }, 800);
+      showSettlement(data.settlement);
     } catch (err) {
       btn.disabled = false;
       notify(err.message || 'Error al completar', 'error');
     }
   });
+
+  function showSettlement(s) {
+    const box = document.getElementById('settlementResult');
+    if (!s || !s.completed || !box) {
+      setTimeout(() => { window.location.href = returnUrl; }, 800);
+      return;
+    }
+    const fmt = (n) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n || 0);
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+    set('setCharged', fmt(s.grandTotal));
+    set('setAppLabel', `Comisión Fundez ${Math.round((s.laborCommissionRate || 0) * 100)}%`);
+    set('setApp', `−${fmt(s.laborCommission)}`);
+    if (s.materialsCommission) {
+      set('setMaterials', `−${fmt(s.materialsCommission)}`);
+    } else {
+      document.getElementById('setMaterialsRow')?.classList.add('hidden');
+    }
+    set('setCardLabel', `Cargo tarjeta ${s.merchantCardFeePercent || 0}%`);
+    set('setCard', `−${fmt(s.cardFee)}`);
+    set('setIvaLabel', `IVA ${Math.round((s.ivaRate || 0) * 100)}% sobre comisión/cargos`);
+    set('setIva', `−${fmt(s.ivaOnFees)}`);
+    set('setPayout', fmt(s.providerPayout));
+
+    document.querySelectorAll('#trabajoPage main > section').forEach((el) => {
+      if (el.id !== 'settlementResult') el.classList.add('hidden');
+    });
+    box.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   const socket = io();
   socket.on(`request_update_${requestId}`, (payload) => {

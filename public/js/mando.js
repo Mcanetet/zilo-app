@@ -45,10 +45,15 @@
         const statusEl = card.querySelector('[data-role="status"]');
         const ts = payload.request.techStatus;
         const labels = {
+          asignado: 'Asignado',
+          aceptado: 'Aceptado',
           en_camino: 'En camino',
           en_sitio: 'En sitio',
           diagnostico: 'Diagnóstico',
           reparando: 'Reparando',
+          comprando: 'Comprando materiales',
+          presupuesto_pendiente: 'Presupuesto pendiente',
+          presupuesto_aprobado: 'Presupuesto aprobado',
           completado: 'Completado'
         };
         if (statusEl && labels[ts]) statusEl.textContent = labels[ts];

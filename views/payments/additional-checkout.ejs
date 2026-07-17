@@ -1,0 +1,112 @@
+<%- include('../partials/head') %>
+
+<div class="max-w-lg mx-auto min-h-screen flex flex-col pb-8 zilo-page-enter" id="additionalCheckout"
+  data-request-id="<%= request.id %>" data-charge-id="<%= charge.id %>">
+  <header class="sticky top-0 z-50 bg-zilo-bg/90 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
+    <div class="flex items-center gap-3">
+      <a href="/cliente/servicio/<%= request.serviceId %>?tracking=<%= request.id %>"
+        class="w-10 h-10 rounded-full zilo-card-premium flex items-center justify-center">
+        <svg class="w-5 h-5 text-zilo-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </a>
+      <div>
+        <p class="zilo-label">Ajuste aprobado</p>
+        <h1 class="font-semibold"><%= service.name %></h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 px-5 py-5 space-y-4 pb-28">
+    <section class="zilo-card-premium rounded-2xl p-5">
+      <p class="zilo-label mb-2">Detalle</p>
+      <p class="text-sm font-medium"><%= charge.description %></p>
+      <p class="text-xs text-zilo-muted mt-2">El trabajo continuará cuando se confirme este pago.</p>
+    </section>
+
+    <section class="zilo-card-premium rounded-2xl p-5">
+      <h2 class="zilo-label mb-4">Total del ajuste</h2>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-zilo-muted">Servicio adicional</span>
+          <span><%= formatCLP(charge.baseAmount) %></span>
+        </div>
+        <% if (charge.paymentSurchargeAmount) { %>
+        <div class="flex justify-between">
+          <span class="text-zilo-muted">Recargo tarjeta (+<%= charge.paymentSurchargePercent %>%)</span>
+          <span class="text-orange-600">+<%= formatCLP(charge.paymentSurchargeAmount) %></span>
+        </div>
+        <% } %>
+        <div class="flex justify-between pt-3 border-t border-zilo-border">
+          <strong>Total a pagar</strong>
+          <strong class="text-zilo-accent text-lg"><%= formatCLP(charge.amountDue) %></strong>
+        </div>
+      </div>
+    </section>
+
+    <% if (enabledCardGateways.length > 1) { %>
+    <section class="zilo-card-premium rounded-2xl p-5">
+      <p class="zilo-label mb-3">Pasarela de pago</p>
+      <div class="space-y-2">
+        <% enabledCardGateways.forEach((gateway, index) => { %>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-zilo-border cursor-pointer">
+          <input type="radio" name="cardGateway" value="<%= gateway.id %>" <%= index === 0 ? 'checked' : '' %>>
+          <span class="text-sm"><%= gateway.label %></span>
+        </label>
+        <% }); %>
+      </div>
+    </section>
+    <% } %>
+
+    <% if (demoMode) { %>
+    <p class="text-xs text-zilo-warning/90 p-3 rounded-xl border border-zilo-warning/20 bg-zilo-warning/5 text-center">
+      Modo demo — ninguna pasarela de tarjeta configurada
+    </p>
+    <% } else if (cardGateway) { %>
+    <p class="text-xs text-zilo-muted text-center">Pago seguro con <strong><%= cardGateway.label %></strong>.</p>
+    <% } %>
+
+    <button type="button" id="btnPayAdjustment" class="zilo-btn-primary">
+      <%= demoMode ? 'Confirmar pago demo' : 'Pagar ajuste con tarjeta' %>
+    </button>
+  </main>
+</div>
+
+<script>
+(function () {
+  const page = document.getElementById('additionalCheckout');
+  const btn = document.getElementById('btnPayAdjustment');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const endpoint = <%- JSON.stringify(demoMode ? '/pagos/ajuste/demo/confirmar' : '/pagos/ajuste/crear') %>;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          requestId: page.dataset.requestId,
+          chargeId: page.dataset.chargeId,
+          cardGateway: document.querySelector('input[name="cardGateway"]:checked')?.value || null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo procesar el pago');
+      if (data.demo) {
+        const confirmRes = await fetch('/pagos/ajuste/demo/confirmar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ requestId: page.dataset.requestId, chargeId: page.dataset.chargeId })
+        });
+        const confirmed = await confirmRes.json();
+        if (!confirmRes.ok || !confirmed.success) throw new Error(confirmed.error || 'No se pudo confirmar');
+        window.location.href = confirmed.redirect;
+        return;
+      }
+      window.location.href = data.redirect;
+    } catch (err) {
+      btn.disabled = false;
+      FundezNotify.show(err.message || 'Error al pagar', 'error');
+    }
+  });
+})();
+</script>
+
+<%- include('../partials/footer') %>

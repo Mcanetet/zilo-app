@@ -21,12 +21,12 @@
     </div>
     <% } %>
 
-    <p class="text-xs text-zilo-muted mb-4">Asigna cada solicitud a un técnico de tu equipo y sigue su avance en terreno en tiempo real.</p>
+    <p class="text-xs text-zilo-muted mb-4">Asigna cada solicitud a un técnico aprobado de tu equipo y sigue su avance en terreno.</p>
 
     <% if (technicians.length === 0) { %>
       <a href="/proveedor/equipo" class="block mb-4 p-4 rounded-2xl border border-zilo-warning/30 bg-zilo-warning/10">
-        <p class="text-sm font-semibold text-zilo-warning mb-1">Aún no tienes técnicos</p>
-        <p class="text-xs text-zilo-muted">Crea tu equipo para poder asignar solicitudes.</p>
+        <p class="text-sm font-semibold text-zilo-warning mb-1">Aún no tienes técnicos aprobados</p>
+        <p class="text-xs text-zilo-muted">Incorpora técnicos y completa sus expedientes para poder asignar solicitudes.</p>
       </a>
     <% } %>
 
@@ -65,7 +65,7 @@
                 <div class="flex items-center justify-between gap-2">
                   <p class="text-xs">Técnico: <strong data-role="tech-name"><%= r.technicianName %></strong></p>
                   <% if (r.guardianToken) { %>
-                    <a href="/seguimiento/<%= r.guardianToken %>" target="_blank" class="zilo-btn-ghost !py-1.5 !px-3 !text-xs">Ver mapa</a>
+                    <a href="/seguimiento/<%= r.guardianToken %>" target="_blank" class="zilo-btn-ghost !py-1.5 !px-3 !text-xs">Ver avance</a>
                   <% } %>
                 </div>
               <% } else if (technicians.length > 0) { %>

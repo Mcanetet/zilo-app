@@ -145,7 +145,9 @@ router.get('/servicio/:id', requireRole('client'), requireModule('client_solicit
 });
 
 router.get('/precio-preview', requireRole('client'), (req, res) => {
-  const preview = store.previewVisitPrice(req.query.tier || 'scheduled');
+  const base = parseInt(req.query.base, 10);
+  const valorBase = Number.isFinite(base) && base > 0 ? base : undefined;
+  const preview = store.previewVisitPrice(req.query.tier || 'scheduled', valorBase);
   if (!preview) return res.status(400).json({ error: 'Opción de llegada no válida' });
   res.json({
     success: true,
@@ -280,7 +282,7 @@ router.get('/solicitud/:id', requireRole('client'), (req, res) => {
   if (request.providerId) {
     provider = store.getPublicProviderProfile(store.getUserById(request.providerId));
   }
-  res.json({ request, provider });
+  res.json({ request: store.enrichRequestForClient(request, req.locale || 'es'), provider });
 });
 
 router.post('/presupuesto/:id/responder', requireRole('client'), (req, res) => {
@@ -294,6 +296,7 @@ router.post('/presupuesto/:id/responder', requireRole('client'), (req, res) => {
   res.json({
     success: true,
     approved: result.approved,
+    redirect: result.additionalCharge ? `/pagos/ajuste?ref=${result.request.id}` : null,
     request: {
       id: result.request.id,
       techStatus: result.request.techStatus,
@@ -314,6 +317,7 @@ router.post('/cambio-servicio/:id/responder', requireRole('client'), (req, res) 
   res.json({
     success: true,
     approved: result.approved,
+    redirect: result.additionalCharge ? `/pagos/ajuste?ref=${result.request.id}` : null,
     request: {
       id: result.request.id,
       activityId: result.request.activityId,

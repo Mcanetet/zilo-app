@@ -7,11 +7,13 @@
   <div class="w-20 h-20 rounded-full bg-zilo-success/15 flex items-center justify-center mb-6 animate-bounce-in border border-zilo-success/30">
     <svg class="w-10 h-10 text-zilo-success" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
   </div>
+  <% const isAdditionalPayment = typeof additionalPayment !== 'undefined' && additionalPayment; %>
   <h1 class="zilo-display text-3xl mb-2">Pago confirmado</h1>
-  <p class="text-zilo-muted text-sm mb-1">Tu visita técnica está en proceso</p>
+  <p class="text-zilo-muted text-sm mb-1"><%= isAdditionalPayment ? 'El ajuste fue pagado y el trabajo puede continuar' : 'Tu visita técnica está en proceso' %></p>
   <% if (request) { %>
-    <p class="text-zilo-accent font-semibold text-lg mb-6"><%= formatCLP(request.amountDue ?? request.estimatedVisit) %></p>
+    <p class="text-zilo-accent font-semibold text-lg mb-6"><%= formatCLP(isAdditionalPayment ? additionalPayment.amountDue : (request.amountDue ?? request.estimatedVisit)) %></p>
 
+    <% if (!isAdditionalPayment) { %>
     <% if (request.discountCredits || request.discountPoints || request.discountPromo) { %>
     <div class="w-full zilo-card-premium rounded-2xl p-4 mb-4 text-left text-xs space-y-1">
       <% if (request.discountPromo) { %><p class="text-zilo-success">Promoción: −<%= formatCLP(request.discountPromo) %></p><% } %>
@@ -42,7 +44,9 @@
       <p class="text-xs text-zilo-muted mt-1">Boleta/factura · enviada al email de facturación</p>
     </a>
     <% } else { %>
-    <p class="text-xs text-zilo-muted mb-4">La boleta o factura electrónica se envía al correo de facturación (requiere datos de factura en el checkout).</p>
+    <p class="text-xs text-zilo-muted mb-4"><%= typeof splitInvoicing !== 'undefined' && splitInvoicing
+      ? 'Los documentos tributarios se definirán al cierre: Fundez documentará su parte y el socio prestador emitirá la suya con su propio RUT.'
+      : 'La boleta o factura electrónica se envía al correo de facturación (requiere datos de factura en el checkout).' %></p>
     <% } %>
 
     <!-- Modo Guardián — feature única -->
@@ -74,6 +78,7 @@
     <% if (request.coords) { %>
     <div id="paymentMap" class="w-full h-44 rounded-2xl overflow-hidden border border-zilo-border mb-4"
       data-lat="<%= request.coords.lat %>" data-lng="<%= request.coords.lng %>" data-label="<%= request.address %>"></div>
+    <% } %>
     <% } %>
 
     <a href="/cliente/servicio/<%= request.serviceId %>?tracking=<%= request.id %>" class="zilo-btn-primary mb-3">

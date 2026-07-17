@@ -1,4 +1,15 @@
 (function () {
+  function fileToDataUrl(input) {
+    return new Promise((resolve, reject) => {
+      const file = input?.files?.[0];
+      if (!file) return reject(new Error('Adjunta la factura o boleta'));
+      if (file.size > 6 * 1024 * 1024) return reject(new Error('El archivo supera 6 MB'));
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+  }
   const dashboard = document.getElementById('providerDashboard');
   if (!dashboard) return;
 
@@ -392,6 +403,32 @@
     closeModal();
     workWall?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     FundezNotify.show(FundezI18n.t('js.still_on_wall'), 'info');
+  });
+
+  document.querySelectorAll('[data-role="register-invoice"]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const form = button.closest('.provider-invoice-form');
+      button.disabled = true;
+      try {
+        const file = await fileToDataUrl(form.querySelector('[data-role="invoice-file"]'));
+        const res = await fetch(`/proveedor/factura/${form.dataset.requestId}/registrar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            documentType: form.querySelector('[data-role="invoice-type"]').value,
+            folio: form.querySelector('[data-role="invoice-folio"]').value.trim(),
+            file
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo registrar');
+        FundezNotify.show('Documento tributario registrado', 'success');
+        setTimeout(() => location.reload(), 500);
+      } catch (err) {
+        button.disabled = false;
+        FundezNotify.show(err.message || 'No se pudo registrar', 'error');
+      }
+    });
   });
 
   socket.on('modules_updated', () => {

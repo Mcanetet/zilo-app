@@ -90,19 +90,31 @@
     if (!activitySelect || !customActivityFields) return;
     customActivityFields.classList.toggle('hidden', activitySelect.value !== 'otro');
   }
-  activitySelect?.addEventListener('change', toggleClientOtherFields);
+  function selectedActivityBase() {
+    const opt = activitySelect?.selectedOptions?.[0];
+    const base = opt?.dataset?.base;
+    const n = base ? parseInt(base, 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  activitySelect?.addEventListener('change', () => {
+    toggleClientOtherFields();
+    updatePricePreview();
+  });
   toggleClientOtherFields();
 
   async function updatePricePreview() {
     const visitEl = document.getElementById('displayVisitPrice');
     if (!visitEl) return;
     try {
-      const res = await fetch(`/cliente/precio-preview?tier=${encodeURIComponent(selectedUrgencyTier)}`);
+      const base = selectedActivityBase();
+      const params = new URLSearchParams({ tier: selectedUrgencyTier });
+      if (base) params.set('base', String(base));
+      const res = await fetch(`/cliente/precio-preview?${params.toString()}`);
       const data = await res.json();
       if (!data.success) return;
       const p = data.preview;
       const f = data.preview.formatted;
-      visitEl.textContent = f.visitTotal;
+      visitEl.textContent = f.baseVisit;
       document.getElementById('displayServicePrice').textContent = f.servicePrice;
       document.getElementById('displayTotalPrice').textContent = f.estimatedTotal;
 
@@ -283,6 +295,59 @@
     }
   }
 
+  function renderCompletionSummary(totals, vouchers, request) {
+    const box = document.getElementById('completionSummary');
+    if (!box || !totals?.completed) return;
+    document.getElementById('finalVisit').textContent = fmtCLP(totals.visitPaid || 0);
+    document.getElementById('finalService').textContent = fmtCLP(totals.serviceAmount || 0);
+    document.getElementById('finalServiceRow')?.classList.toggle('hidden', !totals.serviceAmount);
+    document.getElementById('finalMaterials').textContent = fmtCLP(totals.materialsTotal || 0);
+    document.getElementById('finalGrandTotal').textContent = fmtCLP(totals.grandTotal || 0);
+
+    const materialsBlock = document.getElementById('finalMaterialsBlock');
+    const list = document.getElementById('finalMaterialsList');
+    const materials = Array.isArray(totals.materials) ? totals.materials : [];
+    materialsBlock?.classList.toggle('hidden', !totals.materialsTotal);
+    if (list) {
+      list.replaceChildren();
+      materials.forEach((material) => {
+        const row = document.createElement('div');
+        row.className = 'flex justify-between gap-3';
+        const description = document.createElement('span');
+        description.textContent = material.description || 'Material';
+        const amount = document.createElement('span');
+        amount.textContent = fmtCLP(material.amount || 0);
+        row.append(description, amount);
+        list.appendChild(row);
+      });
+    }
+    const voucher = (vouchers || []).find((item) => item.phase === 'job_settlement');
+    const voucherLink = document.getElementById('finalVoucherLink');
+    if (voucher?.url && voucherLink) {
+      voucherLink.href = voucher.url;
+      voucherLink.classList.remove('hidden');
+    }
+    const invoiceLink = document.getElementById('finalProviderInvoiceLink');
+    if (request?.providerInvoicePlan?.status === 'issued' && request.providerInvoicePlan.url && invoiceLink) {
+      invoiceLink.href = request.providerInvoicePlan.url;
+      invoiceLink.classList.remove('hidden');
+    }
+    const reviewLink = document.getElementById('finalReviewLink');
+    if (reviewLink && request?.id) {
+      reviewLink.href = `/cliente/historial?calificar=${encodeURIComponent(request.id)}`;
+      reviewLink.classList.toggle('hidden', Boolean(request.clientReview));
+    }
+    box.classList.remove('hidden');
+  }
+
+  async function loadCompletionSummary(requestId) {
+    try {
+      const res = await fetch(`/cliente/solicitud/${requestId}`);
+      const data = await res.json();
+      renderCompletionSummary(data.request?.clientTotals, data.request?.vouchers, data.request);
+    } catch (_) { /* se reintentará con la próxima actualización */ }
+  }
+
   function renderVerificationBadges(provider) {
     const container = document.getElementById('providerVerification');
     if (!container) return;
@@ -337,6 +402,20 @@
     banner.classList.remove('hidden');
   }
 
+  function showAdditionalPaymentBanner(request) {
+    const banner = document.getElementById('additionalPaymentBanner');
+    if (!banner) return;
+    const charge = request?.additionalCharge;
+    if (!charge || charge.status !== 'pending') {
+      banner.classList.add('hidden');
+      return;
+    }
+    document.getElementById('additionalPaymentText').textContent =
+      `${charge.description || 'Ajuste de servicio'} · ${fmtCLP(charge.amountDue || 0)}`;
+    document.getElementById('additionalPaymentLink').href = `/pagos/ajuste?ref=${request.id}`;
+    banner.classList.remove('hidden');
+  }
+
   async function respondBudget(approved) {
     if (!currentRequestId) return;
     const res = await fetch(`/cliente/presupuesto/${currentRequestId}/responder`, {
@@ -354,6 +433,7 @@
       approved ? 'success' : 'info'
     );
     document.getElementById('budgetBanner')?.classList.add('hidden');
+    if (data.redirect) window.location.href = data.redirect;
   }
 
   async function respondActivityChange(approved) {
@@ -373,6 +453,7 @@
       approved ? 'success' : 'info'
     );
     document.getElementById('activityChangeBanner')?.classList.add('hidden');
+    if (data.redirect) window.location.href = data.redirect;
   }
 
   document.getElementById('btnApproveBudget')?.addEventListener('click', () => respondBudget(true));
@@ -402,6 +483,8 @@
     if (request) {
       showBudgetBanner(request);
       showActivityChangeBanner(request);
+      showAdditionalPaymentBanner(request);
+      renderCompletionSummary(request.clientTotals, request.vouchers);
     }
     const waNum = page.dataset.whatsapp || '56912345678';
     const waMsg = encodeURIComponent(t('client.js.wa_help', { name: provider.name }));
@@ -472,7 +555,11 @@
       } else if (payload.request) {
         showBudgetBanner(payload.request);
         showActivityChangeBanner(payload.request);
+        showAdditionalPaymentBanner(payload.request);
         syncTripFromRequest(payload.request);
+        if (payload.request.status === 'completed' || payload.request.techStatus === 'completado') {
+          loadCompletionSummary(requestId);
+        }
       }
     });
     socket.on(`provider_location_${requestId}`, (payload) => {

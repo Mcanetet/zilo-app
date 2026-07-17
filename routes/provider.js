@@ -4,7 +4,7 @@ const store = require('../models/store');
 const { dispatchPendingToProvider, broadcastRequestTaken, buildWorkWallPayload } = require('../lib/dispatch');
 const { requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
-const { saveProviderFile } = require('../lib/uploads');
+const { saveProviderFile, saveProviderInvoice, saveTechnicianDocumentFile } = require('../lib/uploads');
 const { verifySelfie } = require('../lib/faceVerify');
 const { getProviderOnboardingSteps } = require('../lib/onboarding');
 const { getClientIp } = require('../middleware/security');
@@ -134,9 +134,9 @@ router.post('/status/:requestId', requireRole('provider'), (req, res) => {
   if (!existing || existing.providerId !== req.session.user.id) {
     return res.status(404).json({ error: 'Solicitud no encontrada' });
   }
-  const allowed = ['in_progress', 'completed'];
+  const allowed = ['in_progress'];
   if (!allowed.includes(status)) {
-    return res.status(400).json({ error: 'Estado no válido' });
+    return res.status(400).json({ error: 'El cierre debe realizarse desde el flujo de trabajo con fotos y resumen.' });
   }
   const request = store.updateRequestStatus(req.params.requestId, status);
   if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
@@ -295,7 +295,10 @@ router.post('/ubicacion', requireRole('provider'), requireModule('provider_ubica
 
 router.get('/equipo', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
-  const technicians = store.getTechniciansByProvider(provider.id);
+  const technicians = store.getTechniciansByProvider(provider.id).map((tecnico) => ({
+    ...tecnico,
+    dossierCheck: store.canTechnicianOperate(tecnico)
+  }));
   res.render('provider/equipo', {
     title: 'Mi equipo — Fundez',
     user: req.session.user,
@@ -305,6 +308,40 @@ router.get('/equipo', requireRole('provider'), requireModule('provider_equipo'),
     error: null,
     ok: null
   });
+});
+
+router.get('/equipo/:id/expediente', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
+  const tecnico = store.getTechnicianForProvider(req.session.user.id, req.params.id);
+  if (!tecnico) return res.redirect('/proveedor/equipo');
+  res.render('provider/tecnico-expediente', {
+    title: `Expediente — ${tecnico.name}`,
+    user: req.session.user,
+    tecnico,
+    check: store.canTechnicianOperate(tecnico)
+  });
+});
+
+router.post('/equipo/:id/expediente/documento', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
+  const tecnico = store.getTechnicianForProvider(req.session.user.id, req.params.id);
+  if (!tecnico) return res.status(404).json({ success: false, error: 'Técnico no encontrado.' });
+  const valid = ['photo', 'idCardFront', 'idCardBack', 'criminalRecord', 'studyCertificate', 'otherCertificate'];
+  if (!valid.includes(req.body.type) || !req.body.data) {
+    return res.status(400).json({ success: false, error: 'Documento inválido.' });
+  }
+  try {
+    const url = saveTechnicianDocumentFile(tecnico.id, req.body.type, req.body.data);
+    const result = store.saveTechnicianDocument(
+      req.session.user.id,
+      tecnico.id,
+      req.body.type,
+      url,
+      req.body.label
+    );
+    if (result.error) return res.status(400).json({ success: false, error: result.error });
+    res.json({ success: true, check: result.check });
+  } catch (err) {
+    res.status(400).json({ success: false, error: 'No se pudo guardar el documento.' });
+  }
 });
 
 router.post('/equipo', requireRole('provider'), requireModule('provider_equipo'), async (req, res) => {
@@ -319,7 +356,10 @@ router.post('/equipo', requireRole('provider'), requireModule('provider_equipo')
       title: 'Mi equipo — Fundez',
       user: req.session.user,
       provider,
-      technicians: store.getTechniciansByProvider(provider.id),
+      technicians: store.getTechniciansByProvider(provider.id).map((tecnico) => ({
+        ...tecnico,
+        dossierCheck: store.canTechnicianOperate(tecnico)
+      })),
       services: store.SERVICES,
       error: result.error,
       ok: null
@@ -349,7 +389,8 @@ router.post('/equipo/:id/toggle', requireRole('provider'), requireModule('provid
 
 router.get('/mando', requireRole('provider'), requireModule('provider_mando'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
-  const technicians = store.getTechniciansByProvider(provider.id).filter(t => t.active !== false);
+  const technicians = store.getTechniciansByProvider(provider.id)
+    .filter((t) => t.active !== false && store.canTechnicianOperate(t).ok);
   const active = store.getActiveRequestsForProvider(provider.id, req.locale);
 
   res.render('provider/mando', {
@@ -379,6 +420,29 @@ router.post('/asignar/:requestId', requireRole('provider'), requireModule('provi
     success: true,
     request: { id: result.request.id, technicianId: result.tecnico.id, technicianName: result.tecnico.name, techStatus: result.request.techStatus }
   });
+});
+
+router.post('/factura/:requestId/registrar', requireRole('provider'), (req, res) => {
+  const request = store.getAllRequests().find((item) => item.id === req.params.requestId);
+  if (!request || request.providerId !== req.session.user.id) {
+    return res.status(404).json({ success: false, error: 'Solicitud no encontrada.' });
+  }
+  if (request.status !== 'completed' || request.providerInvoicePlan?.status !== 'pending') {
+    return res.status(400).json({ success: false, error: 'La factura ya fue registrada o aún no corresponde emitirla.' });
+  }
+  if (!req.body.file) return res.status(400).json({ success: false, error: 'Adjunta la factura o boleta.' });
+  let uploaded;
+  try {
+    uploaded = saveProviderInvoice(req.params.requestId, req.body.file);
+  } catch (_) {
+    return res.status(400).json({ success: false, error: 'No se pudo guardar el documento.' });
+  }
+  const result = store.registerProviderInvoice(req.params.requestId, req.session.user.id, {
+    ...req.body,
+    ...uploaded
+  });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json(result);
 });
 
 router.get('/verificacion/estado', requireRole('provider'), (req, res) => {

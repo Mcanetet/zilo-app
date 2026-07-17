@@ -4,7 +4,7 @@
     <span class="trust-strip-icon" aria-hidden="true">💰</span>
     <div>
       <strong><%= typeof formatCLP === 'function' ? formatCLP(stats.pendingPayout || 0) : '$0' %></strong>
-      <span>Por cobrar</span>
+      <span><%= stats.nextPayDateLabel ? 'Pago ' + stats.nextPayDateLabel : 'Por cobrar' %></span>
     </div>
   </div>
   <div class="trust-strip-item">

@@ -42,12 +42,16 @@
                 <div class="min-w-0">
                   <strong class="text-sm block truncate"><%= t.name %></strong>
                   <span class="text-xs text-zilo-muted truncate block"><%= t.email %></span>
+                  <span class="text-[10px] <%= t.dossierCheck.ok ? 'text-zilo-success' : 'text-amber-600' %>"><%= t.dossierCheck.ok ? 'Expediente completo' : 'Expediente incompleto' %></span>
                 </div>
               </div>
-              <label class="toggle-ios shrink-0" title="Activar / desactivar">
-                <input type="checkbox" class="tech-toggle" data-id="<%= t.id %>" <%= t.active !== false ? 'checked' : '' %>>
-                <span class="slider"></span>
-              </label>
+              <div class="flex items-center gap-2 shrink-0">
+                <a href="/proveedor/equipo/<%= t.id %>/expediente" class="zilo-btn-ghost !py-1.5 !px-2 !text-[10px]">Expediente</a>
+                <label class="toggle-ios" title="Activar / desactivar">
+                  <input type="checkbox" class="tech-toggle" data-id="<%= t.id %>" <%= t.active !== false ? 'checked' : '' %>>
+                  <span class="slider"></span>
+                </label>
+              </div>
             </div>
           <% }); %>
         </div>

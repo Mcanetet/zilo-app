@@ -12,6 +12,8 @@ function canAccessDocument(req, request) {
   if (!request) return false;
   if (req.session.user?.role === 'admin') return true;
   if (req.session.user?.role === 'client' && request.clientId === req.session.user.id) return true;
+  if (req.session.user?.role === 'provider' && request.providerId === req.session.user.id) return true;
+  if (req.session.user?.role === 'tecnico' && request.technicianId === req.session.user.id) return true;
   return false;
 }
 
@@ -44,6 +46,29 @@ router.get('/comprobantes/:voucherId', (req, res) => {
     message: 'El comprobante aún no está generado.',
     code: 404
   });
+});
+
+router.get('/factura-socio/:requestId', (req, res) => {
+  const request = store.getAllRequests().find((item) => item.id === req.params.requestId);
+  const invoice = request?.providerInvoicePlan;
+  if (!invoice?.filePath || invoice.status !== 'issued' || !canAccessDocument(req, request)) {
+    return res.status(404).render('error', {
+      title: 'Documento no encontrado',
+      message: 'La factura o boleta del socio aún no está disponible.',
+      code: 404
+    });
+  }
+  const allowedRoot = path.resolve(path.join(__dirname, '../data/provider-invoices'));
+  const filePath = path.resolve(invoice.filePath);
+  if (!filePath.startsWith(`${allowedRoot}${path.sep}`) || !fs.existsSync(filePath)) {
+    return res.status(404).render('error', {
+      title: 'Archivo no disponible',
+      message: 'No se encontró el archivo de la factura.',
+      code: 404
+    });
+  }
+  res.type(invoice.mimeType || 'application/pdf');
+  return res.sendFile(filePath);
 });
 
 router.get('/tributarios/:docId', (req, res) => {

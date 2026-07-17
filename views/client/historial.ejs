@@ -27,7 +27,10 @@
             <div class="zilo-divider mb-3"></div>
             <div class="flex justify-between items-center text-xs mb-3">
               <span class="text-zilo-muted"><%= formatDate(req.createdAt, { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
-              <span class="text-zilo-accent font-medium"><%= formatCLP(req.amountDue ?? req.estimatedVisit ?? req.visitPricePaid) %></span>
+              <div class="text-right">
+                <span class="text-zilo-accent font-medium block"><%= formatCLP(req.clientTotals?.grandTotal ?? req.amountDue ?? req.estimatedVisit ?? req.visitPricePaid) %></span>
+                <% if (req.clientTotals?.completed) { %><span class="text-[10px] text-zilo-muted">Total final</span><% } %>
+              </div>
             </div>
             <div class="flex flex-wrap gap-2">
               <% if (['searching','assigned','in_progress'].includes(req.status)) { %>
@@ -36,12 +39,16 @@
               <% if (req.status === 'completed' && mod('client_solicitar')) { %>
                 <a href="/cliente/servicio/<%= req.serviceId %>" class="zilo-btn-ghost !py-2 !px-3 !text-xs flex-1 text-center"><%= t('client.historial.repeat') %></a>
               <% } %>
+              <% if (req.providerInvoicePlan?.status === 'issued' && req.providerInvoicePlan?.url) { %>
+                <a href="<%= req.providerInvoicePlan.url %>" target="_blank" class="zilo-btn-ghost !py-2 !px-3 !text-xs flex-1 text-center">Factura del socio</a>
+              <% } %>
               <% if (req.status === 'completed' && !req.clientReview) { %>
                 <button type="button" class="btn-rate zilo-btn-primary !py-2 !px-3 !text-xs flex-1" data-id="<%= req.id %>" data-service="<%= req.serviceName %>"><%= t('client.historial.rate') %></button>
               <% } else if (req.clientReview) { %>
-                <span class="text-[10px] text-zilo-success flex items-center gap-1 px-2">
-                  ★ <%= req.clientReview.rating %>/5 · <%= t('client.historial.rated') %>
-                </span>
+                <div class="text-[10px] text-zilo-success px-2">
+                  <span>★ <%= req.clientReview.rating %>/5 · <%= t('client.historial.rated') %></span>
+                  <% if (req.clientReview.text) { %><p class="text-zilo-muted mt-1">“<%= req.clientReview.text %>”</p><% } %>
+                </div>
               <% } %>
             </div>
           </article>
@@ -97,6 +104,11 @@
   document.querySelectorAll('.btn-rate').forEach(btn => {
     btn.addEventListener('click', () => openReview(btn.dataset.id, btn.dataset.service));
   });
+  const requestedReview = new URLSearchParams(location.search).get('calificar');
+  const requestedButton = requestedReview
+    ? document.querySelector(`.btn-rate[data-id="${CSS.escape(requestedReview)}"]`)
+    : null;
+  if (requestedButton) openReview(requestedButton.dataset.id, requestedButton.dataset.service);
   document.getElementById('reviewCancel')?.addEventListener('click', closeReview);
   document.getElementById('reviewModalBackdrop')?.addEventListener('click', closeReview);
 

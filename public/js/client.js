@@ -102,12 +102,27 @@
   });
   toggleClientOtherFields();
 
+  function deviceLocalClock() {
+    const now = new Date();
+    const localTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    let timeZone = 'America/Santiago';
+    try {
+      timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || timeZone;
+    } catch (_) { /* fallback Chile */ }
+    return { localTime, timeZone };
+  }
+
   async function updatePricePreview() {
     const visitEl = document.getElementById('displayVisitPrice');
     if (!visitEl) return;
     try {
       const base = selectedActivityBase();
-      const params = new URLSearchParams({ tier: selectedUrgencyTier });
+      const clock = deviceLocalClock();
+      const params = new URLSearchParams({
+        tier: selectedUrgencyTier,
+        localTime: clock.localTime,
+        timeZone: clock.timeZone
+      });
       if (base) params.set('base', String(base));
       const res = await fetch(`/cliente/precio-preview?${params.toString()}`);
       const data = await res.json();
@@ -132,8 +147,11 @@
         if (p.adjustmentAmount !== 0) {
           adjRow.classList.remove('hidden');
           adjRow.classList.add('flex');
+          const horarioLabel = p.tariff?.horarioBand === 'nocturno'
+            ? 'madrugada'
+            : (p.tariff?.horarioBand || '');
           const band = p.tariff
-            ? `${p.tariff.horarioBand || ''} / ${p.tariff.urgenciaBand || ''}`
+            ? `${horarioLabel} / ${p.tariff.urgenciaBand || ''}`
             : p.tier.label;
           document.getElementById('urgencyAdjustmentLabel').textContent =
             p.adjustmentAmount > 0
@@ -639,6 +657,7 @@
         return;
       }
 
+      const clock = deviceLocalClock();
       const res = await fetch('/cliente/solicitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -652,7 +671,9 @@
           clientPhoto,
           urgencyTier: selectedUrgencyTier,
           activityId,
-          customName: activityId === 'otro' ? customName : undefined
+          customName: activityId === 'otro' ? customName : undefined,
+          localTime: clock.localTime,
+          timeZone: clock.timeZone
         })
       });
 

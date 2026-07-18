@@ -22,7 +22,7 @@
   "client.service.service_est": "Servicio estimado",
   "client.service.total_est": "Total estimado",
   "client.service.pay_hint": "Pagas la visita ahora; el servicio se confirma en terreno. Puedes aplicar crédito y puntos en el checkout.",
-  "client.service.pay_hint_dynamic": "El total aplica recargo por horario y por velocidad de llegada. Si solo hay diagnóstico sin trabajo, el mínimo es $50.000.",
+  "client.service.pay_hint_dynamic": "El total aplica recargo según la hora local de tu celular/computador (tarde +25%, madrugada +50%) y la velocidad de llegada. Si solo hay diagnóstico sin trabajo, el mínimo es $50.000.",
   "client.service.dynamic_surcharge": "Recargo horario / urgencia",
   "client.service.guarantees": "¿Qué incluye y garantías?",
   "client.service.g1": "Visita técnica con diagnóstico en tu domicilio",

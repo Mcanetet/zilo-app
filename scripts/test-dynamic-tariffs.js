@@ -87,6 +87,28 @@ function run() {
   });
   assertEqual(edgeNight.horarioBand, 'tarde', '17:01 es horario tarde');
 
+  // Date en UTC: 04:00 UTC = 00:00 Chile (UTC-4 invierno aproximado vía America/Santiago)
+  // Verificamos que no use getHours() del servidor: una hora de madrugada Chile debe ser nocturno.
+  const chileMidnightUtc = new Date('2026-07-18T04:00:00.000Z'); // 00:00 America/Santiago (sin DST típico julio)
+  const byZone = calculateDynamicTariff({
+    valorBase: 100000,
+    horaSolicitud: chileMidnightUtc,
+    tiempoRespuestaMinutos: 45,
+    timeZone: 'America/Santiago'
+  });
+  assertEqual(byZone.horarioBand, 'nocturno', 'Medianoche Chile vía zona IANA → nocturno/madrugada');
+  assertEqual(byZone.horarioMultiplier, 1.5, 'Recargo madrugada 50%');
+  assertEqual(byZone.total, 187500, 'Base 100000 × 1.5 × 1.25 urgencia crítica');
+
+  const deviceLocal = calculateDynamicTariff({
+    valorBase: 100000,
+    horaSolicitud: '02:15',
+    tiempoRespuestaMinutos: 180,
+    timeZone: 'America/Santiago'
+  });
+  assertEqual(deviceLocal.horarioBand, 'nocturno', 'HH:mm local del dispositivo 02:15 → nocturno');
+  assertEqual(deviceLocal.total, 150000, 'Base 100000 × 1.5 madrugada sin urgencia');
+
   const catalogCount = SERVICE_CATALOG.reduce((n, s) => n + s.activities.length, 0);
   if (SERVICE_CATALOG.length < 5) throw new Error('Catálogo debe tener al menos 5 especialidades');
   if (catalogCount < 20) throw new Error(`Catálogo demasiado corto: ${catalogCount}`);

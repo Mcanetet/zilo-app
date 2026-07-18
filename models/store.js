@@ -230,7 +230,9 @@ async function createRequest({
   clientPhotoUrl,
   urgencyTier,
   activityId,
-  customName
+  customName,
+  localTime,
+  timeZone
 }) {
   const service = getServiceById(serviceId);
   const client = getUserById(clientId);
@@ -273,15 +275,24 @@ async function createRequest({
     }
   }
 
+  const resolvedLocalTime = /^\d{1,2}:\d{2}$/.test(String(localTime || '').trim())
+    ? String(localTime).trim()
+    : new Date();
   const visitCalc = isManualOther
     ? calculateVisitPricing(pricing, urgencyTier, {
-      horaSolicitud: new Date(),
-      valorBase: activityMatch.basePrice
+      horaSolicitud: resolvedLocalTime,
+      valorBase: activityMatch.basePrice,
+      timeZone
     })
     : (quoteActivityForRequest(pricing, activityId, {
-      horaSolicitud: new Date(),
-      tierId: urgencyTier
-    }) || calculateVisitPricing(pricing, urgencyTier, { valorBase: activityMatch.basePrice }));
+      horaSolicitud: resolvedLocalTime,
+      tierId: urgencyTier,
+      timeZone
+    }) || calculateVisitPricing(pricing, urgencyTier, {
+      horaSolicitud: resolvedLocalTime,
+      valorBase: activityMatch.basePrice,
+      timeZone
+    }));
   if (!visitCalc) return Promise.reject(new Error('Opción de urgencia no válida'));
 
   let coords;
@@ -338,6 +349,8 @@ async function createRequest({
     urgencyAdjustmentAmount: visitCalc.adjustmentAmount,
     urgencyResponseMinutes: visitCalc.tier.responseMinutes,
     tariffHorarioBand: visitCalc.tariff?.horarioBand || null,
+    tariffLocalTime: visitCalc.tariff?.minutesOfDay || null,
+    tariffTimeZone: visitCalc.tariff?.timeZone || timeZone || null,
     tariffUrgenciaBand: visitCalc.tariff?.urgenciaBand || null,
     visitBasePrice: visitCalc.baseVisit,
     visitTotal: visitCalc.visitTotal,
@@ -974,11 +987,15 @@ function getUrgencyTiersForClient() {
   return getActiveUrgencyTiers(getPricingConfig());
 }
 
-function previewVisitPrice(tierId, valorBase) {
+function previewVisitPrice(tierId, valorBase, { localTime, timeZone } = {}) {
   const opts = {};
   if (valorBase != null && Number.isFinite(valorBase) && valorBase > 0) {
     opts.valorBase = valorBase;
   }
+  if (/^\d{1,2}:\d{2}$/.test(String(localTime || '').trim())) {
+    opts.horaSolicitud = String(localTime).trim();
+  }
+  if (timeZone) opts.timeZone = String(timeZone);
   return calculateVisitPricing(getPricingConfig(), tierId, opts);
 }
 
@@ -2220,8 +2237,9 @@ function proposeActivityChange(requestId, technicianId, {
     toActivityKind = 'correctiva';
     toBasePrice = parsedBase;
     quote = calculateVisitPricing(pricing, request.urgencyTier, {
-      horaSolicitud: request.createdAt || new Date(),
-      valorBase: toBasePrice
+      horaSolicitud: request.tariffLocalTime || request.createdAt || new Date(),
+      valorBase: toBasePrice,
+      timeZone: request.tariffTimeZone
     });
   } else {
     const activities = getActivitiesForAppService(pricing, request.serviceId);
@@ -2233,8 +2251,9 @@ function proposeActivityChange(requestId, technicianId, {
     toActivityKind = next.kind;
     toBasePrice = next.basePrice;
     quote = quoteActivityForRequest(pricing, next.id, {
-      horaSolicitud: request.createdAt || new Date(),
-      tierId: request.urgencyTier
+      horaSolicitud: request.tariffLocalTime || request.createdAt || new Date(),
+      tierId: request.urgencyTier,
+      timeZone: request.tariffTimeZone
     });
   }
 

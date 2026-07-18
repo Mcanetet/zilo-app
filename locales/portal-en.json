@@ -22,7 +22,7 @@
   "client.service.service_est": "Estimated service",
   "client.service.total_est": "Estimated total",
   "client.service.pay_hint": "Pay the visit now; service is confirmed on site. You can apply credits and points at checkout.",
-  "client.service.pay_hint_dynamic": "The total applies schedule and arrival-speed surcharges. Diagnostic-only visits start at $50,000.",
+  "client.service.pay_hint_dynamic": "The total uses your phone/computer local time (evening +25%, late night +50%) and arrival-speed surcharges. Diagnostic-only visits start at $50,000.",
   "client.service.dynamic_surcharge": "Schedule / urgency surcharge",
   "client.service.guarantees": "What's included & guarantees?",
   "client.service.g1": "On-site visit with diagnosis at your home",

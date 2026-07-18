@@ -149,7 +149,10 @@ router.get('/servicio/:id', requireRole('client'), requireModule('client_solicit
 router.get('/precio-preview', requireRole('client'), (req, res) => {
   const base = parseInt(req.query.base, 10);
   const valorBase = Number.isFinite(base) && base > 0 ? base : undefined;
-  const preview = store.previewVisitPrice(req.query.tier || 'scheduled', valorBase);
+  const preview = store.previewVisitPrice(req.query.tier || 'scheduled', valorBase, {
+    localTime: req.query.localTime,
+    timeZone: req.query.timeZone
+  });
   if (!preview) return res.status(400).json({ error: 'Opción de llegada no válida' });
   res.json({
     success: true,
@@ -188,7 +191,7 @@ router.get('/subservicios/:serviceId', requireRole('client'), (req, res) => {
 });
 
 router.post('/solicitar', requireRole('client'), requireModule('client_solicitar'), async (req, res) => {
-  const { serviceId, address, notes, lat, lng, gift, clientPhoto, urgencyTier, activityId, customName } = req.body;
+  const { serviceId, address, notes, lat, lng, gift, clientPhoto, urgencyTier, activityId, customName, localTime, timeZone } = req.body;
   const service = store.getServiceById(serviceId);
   if (!service || !service.enabled) {
     return res.status(400).json({ error: 'Servicio no disponible' });
@@ -220,7 +223,9 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
       clientPhotoUrl,
       urgencyTier: urgencyTier || 'scheduled',
       activityId,
-      customName
+      customName,
+      localTime,
+      timeZone
     });
 
     if (clientPhotoUrl && clientPhotoUrl.includes('/tmp-')) {

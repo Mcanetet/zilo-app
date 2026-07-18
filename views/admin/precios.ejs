@@ -140,13 +140,40 @@
 
       <section class="zilo-card-premium rounded-2xl p-5 border border-gray-200">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-sm font-semibold">Tiempo de llegada</h2>
-          <span class="text-[10px] text-gray-500">Tarifa dinámica</span>
+          <h2 class="text-sm font-semibold">Recargos por horario</h2>
+          <span class="text-[10px] text-gray-500">Hora local del cliente</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">
+          Se aplican sobre el precio base según la hora del celular/computador del cliente.
+          Franjas fijas: 09:00–17:00 normal, 17:01–21:00 tarde, 21:01–08:59 nocturno/madrugada.
+        </p>
+        <% const schedule = pricing.scheduleSurcharges || { normalPercent: 0, tardePercent: 25, nocturnoPercent: 50 }; %>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="text-xs text-gray-500">Normal (09–17) %</label>
+            <input type="number" name="scheduleNormalPercent" value="<%= schedule.normalPercent %>" min="-50" max="200" step="1" class="zilo-input w-full mt-1" required>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Tarde (17:01–21) %</label>
+            <input type="number" name="scheduleTardePercent" value="<%= schedule.tardePercent %>" min="-50" max="200" step="1" class="zilo-input w-full mt-1" required>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Nocturno / madrugada %</label>
+            <input type="number" name="scheduleNocturnoPercent" value="<%= schedule.nocturnoPercent %>" min="-50" max="200" step="1" class="zilo-input w-full mt-1" required>
+            <p class="text-[10px] text-gray-400 mt-1">Default 50%.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="zilo-card-premium rounded-2xl p-5 border border-gray-200">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-sm font-semibold">Tiempo de llegada y recargo</h2>
+          <span class="text-[10px] text-gray-500">Inmediato · Hoy · Mañana · 2 días</span>
         </div>
         <p class="text-xs text-gray-500 mb-4">
           El cliente elige el compromiso de llegada. El precio final se calcula así:
-          <strong>(precio servicio × recargo horario) × recargo urgencia</strong>.
-          Horario: 09–17 normal, 17:01–21 +25%, 21:01–08:59 +50%. Urgencia: &lt;60 min +25%, 60–120 +10%, &gt;120 +0%.
+          <strong>(precio base × recargo horario) × (1 + recargo llegada/100)</strong>.
+          Usa % negativo para descuento (ej. En 2 días = -10).
         </p>
 
         <div class="space-y-3" id="tiersList">
@@ -164,10 +191,15 @@
               <div class="grid gap-2">
                 <input type="text" name="tierLabel" value="<%= tier.label %>" placeholder="Nombre" class="zilo-input w-full !py-2 text-sm" required>
                 <input type="text" name="tierDesc" value="<%= tier.description %>" placeholder="Descripción para el cliente" class="zilo-input w-full !py-2 text-sm">
-                <div class="flex items-center gap-2">
-                  <label class="text-xs text-gray-500 shrink-0">Minutos</label>
-                  <input type="number" name="tierMinutes" value="<%= tier.responseMinutes || 180 %>" min="0" step="15" class="zilo-input flex-1 !py-2 text-sm" required>
-                  <span class="text-xs text-gray-500"><%= tier.responseMinutes || 180 %> min</span>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-500 shrink-0">Minutos</label>
+                    <input type="number" name="tierMinutes" value="<%= tier.responseMinutes || 180 %>" min="0" step="15" class="zilo-input flex-1 !py-2 text-sm" required>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-500 shrink-0">Recargo %</label>
+                    <input type="number" name="tierPercent" value="<%= tier.surchargePercent != null ? tier.surchargePercent : (tier.adjustmentPercent || 0) %>" min="-50" max="200" step="1" class="zilo-input flex-1 !py-2 text-sm" required>
+                  </div>
                 </div>
               </div>
             </div>

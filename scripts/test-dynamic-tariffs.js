@@ -109,6 +109,17 @@ function run() {
   assertEqual(deviceLocal.horarioBand, 'nocturno', 'HH:mm local del dispositivo 02:15 → nocturno');
   assertEqual(deviceLocal.total, 150000, 'Base 100000 × 1.5 madrugada sin urgencia');
 
+  const customNight = calculateDynamicTariff({
+    valorBase: 100000,
+    horaSolicitud: '02:00',
+    tiempoRespuestaMinutos: 180,
+    scheduleSurcharges: { normalPercent: 0, tardePercent: 25, nocturnoPercent: 40 },
+    urgenciaMultiplier: 1.2,
+    urgenciaBand: 'immediate'
+  });
+  assertEqual(customNight.horarioPercent, 40, 'Nocturno configurable desde admin 40%');
+  assertEqual(customNight.total, 168000, '100000 × 1.4 × 1.2');
+
   const catalogCount = SERVICE_CATALOG.reduce((n, s) => n + s.activities.length, 0);
   if (SERVICE_CATALOG.length < 5) throw new Error('Catálogo debe tener al menos 5 especialidades');
   if (catalogCount < 20) throw new Error(`Catálogo demasiado corto: ${catalogCount}`);

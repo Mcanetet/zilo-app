@@ -696,12 +696,14 @@ router.post('/precios', requireRole('admin'), requireAdminPermission('precios.ma
   const tierOrders = Array.isArray(body.tierOrder) ? body.tierOrder : (body.tierOrder ? [body.tierOrder] : []);
 
   for (let i = 0; i < tierIds.length; i++) {
+    const surchargePercent = parseInt(tierPercents[i], 10);
     tiers.push({
       id: tierIds[i],
       label: tierLabels[i] || `Opción ${i + 1}`,
       description: tierDescs[i] || '',
       responseMinutes: parseInt(tierMinutes[i], 10) || 180,
-      adjustmentPercent: parseInt(tierPercents[i], 10) || 0,
+      surchargePercent: Number.isFinite(surchargePercent) ? surchargePercent : 0,
+      adjustmentPercent: Number.isFinite(surchargePercent) ? surchargePercent : 0,
       enabled: enabledSet.has(tierIds[i]),
       sortOrder: parseInt(tierOrders[i], 10) || i + 1
     });
@@ -752,6 +754,11 @@ router.post('/precios', requireRole('admin'), requireAdminPermission('precios.ma
       email: body.bankEmail || ''
     },
     paymentGateways: Object.keys(paymentGateways).length ? paymentGateways : undefined,
+    scheduleSurcharges: {
+      normalPercent: parseInt(body.scheduleNormalPercent, 10),
+      tardePercent: parseInt(body.scheduleTardePercent, 10),
+      nocturnoPercent: parseInt(body.scheduleNocturnoPercent, 10)
+    },
     urgencyTiers: tiers.length ? tiers : undefined,
     catalogPrices
   });

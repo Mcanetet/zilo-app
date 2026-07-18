@@ -967,6 +967,7 @@ function updatePricingConfig(updates) {
     ...current,
     ...updates,
     urgencyTiers: updates.urgencyTiers || current.urgencyTiers,
+    scheduleSurcharges: updates.scheduleSurcharges || current.scheduleSurcharges,
     paymentGateways: updates.paymentGateways || current.paymentGateways,
     catalogPrices: updates.catalogPrices != null ? updates.catalogPrices : current.catalogPrices
   });

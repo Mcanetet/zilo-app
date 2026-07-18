@@ -35,6 +35,8 @@ function serializeJob(request) {
     address: request.address || '',
     notes: request.notes || '',
     clientPhotoUrl: request.clientPhotoUrl || null,
+    clientBrandPhotoUrl: request.clientBrandPhotoUrl || null,
+    brandNotVisible: Boolean(request.brandNotVisible),
     status: request.status,
     techStatus: request.techStatus || 'asignado',
     siteReport: request.siteReport || null,

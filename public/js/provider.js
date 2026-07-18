@@ -208,6 +208,38 @@
     payoutHint.textContent = t('provider.payout_until_complete');
     document.getElementById('modalNotes').textContent = data.request.notes || t('provider.js.no_details');
 
+    const photosEl = document.getElementById('modalClientPhotos');
+    if (photosEl) {
+      const parts = [];
+      if (data.request.clientPhotoUrl) {
+        parts.push(`
+          <div>
+            <p class="zilo-label mb-1">Foto del problema</p>
+            <a href="${data.request.clientPhotoUrl}" target="_blank" rel="noopener">
+              <img src="${data.request.clientPhotoUrl}" alt="Problema" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border">
+            </a>
+          </div>`);
+      }
+      if (data.request.clientBrandPhotoUrl) {
+        parts.push(`
+          <div>
+            <p class="zilo-label mb-1">Foto de la marca</p>
+            <a href="${data.request.clientBrandPhotoUrl}" target="_blank" rel="noopener">
+              <img src="${data.request.clientBrandPhotoUrl}" alt="Marca" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border">
+            </a>
+          </div>`);
+      } else if (data.request.brandNotVisible) {
+        parts.push('<p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Sin marca a la vista</p>');
+      }
+      if (parts.length) {
+        photosEl.innerHTML = parts.join('');
+        photosEl.classList.remove('hidden');
+      } else {
+        photosEl.innerHTML = '';
+        photosEl.classList.add('hidden');
+      }
+    }
+
     let urgencyEl = document.getElementById('modalUrgency');
     if (!urgencyEl) {
       const notesEl = document.getElementById('modalNotes');

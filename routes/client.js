@@ -5,6 +5,7 @@ const { saveRequestFile } = require('../lib/uploads');
 const company = require('../config/company');
 const { getClientOnboardingSteps } = require('../lib/onboarding');
 const { localizeServices } = require('../lib/i18n-admin');
+const { getPhotoTips } = require('../lib/photoTips');
 const { requireRole, requireVerifiedEmail } = require('../middleware/auth');
 const { requireModule } = require('../middleware/modules');
 
@@ -140,6 +141,7 @@ router.get('/servicio/:id', requireRole('client'), requireModule('client_solicit
     pricing,
     urgencyTiers,
     activities,
+    photoTips: getPhotoTips(serviceRaw.id, req.locale),
     trustStats: store.getClientTrustStats(),
     formatCLP: store.formatCLP,
     tracking: req.query.tracking || null
@@ -191,7 +193,10 @@ router.get('/subservicios/:serviceId', requireRole('client'), (req, res) => {
 });
 
 router.post('/solicitar', requireRole('client'), requireModule('client_solicitar'), async (req, res) => {
-  const { serviceId, address, notes, lat, lng, gift, clientPhoto, urgencyTier, activityId, customName, localTime, timeZone } = req.body;
+  const {
+    serviceId, address, notes, lat, lng, gift, clientPhoto, clientBrandPhoto,
+    brandNotVisible, urgencyTier, activityId, customName, localTime, timeZone
+  } = req.body;
   const service = store.getServiceById(serviceId);
   if (!service || !service.enabled) {
     return res.status(400).json({ error: 'Servicio no disponible' });
@@ -202,11 +207,19 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
   if (!clientPhoto) {
     return res.status(400).json({ error: 'La foto del problema es obligatoria.' });
   }
+  const skipBrand = brandNotVisible === true || brandNotVisible === 'true' || brandNotVisible === 1;
+  if (!skipBrand && !clientBrandPhoto) {
+    return res.status(400).json({ error: 'Sube la foto de la marca o marca «Sin marca a la vista».' });
+  }
 
   let clientPhotoUrl = null;
+  let clientBrandPhotoUrl = null;
   try {
     const tempId = `tmp-${Date.now()}`;
     clientPhotoUrl = saveRequestFile(tempId, 'cliente', clientPhoto);
+    if (!skipBrand && clientBrandPhoto) {
+      clientBrandPhotoUrl = saveRequestFile(tempId, 'marca', clientBrandPhoto);
+    }
   } catch (err) {
     console.error('Error guardando foto cliente:', err.message);
     return res.status(400).json({ error: 'No se pudo guardar la foto. Intenta con otra imagen.' });
@@ -221,6 +234,8 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
       coords: lat && lng ? { lat, lng } : null,
       gift: gift?.name ? gift : null,
       clientPhotoUrl,
+      clientBrandPhotoUrl,
+      brandNotVisible: skipBrand,
       urgencyTier: urgencyTier || 'scheduled',
       activityId,
       customName,
@@ -228,26 +243,31 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
       timeZone
     });
 
-    if (clientPhotoUrl && clientPhotoUrl.includes('/tmp-')) {
-      const fs = require('fs');
-      const path = require('path');
-      const oldPath = path.join(__dirname, '../public', clientPhotoUrl);
+    const fs = require('fs');
+    const path = require('path');
+    const moveTempPhoto = async (url, prefix, field) => {
+      if (!url || !url.includes('/tmp-')) return;
+      const oldPath = path.join(__dirname, '../public', url);
       const newDir = path.join(__dirname, '../public/uploads/requests', request.id);
       fs.mkdirSync(newDir, { recursive: true });
-      const newName = `cliente-${Date.now()}${path.extname(oldPath)}`;
+      const newName = `${prefix}-${Date.now()}${path.extname(oldPath)}`;
       const newPath = path.join(newDir, newName);
       if (fs.existsSync(oldPath)) {
         fs.renameSync(oldPath, newPath);
-        request.clientPhotoUrl = `/uploads/requests/${request.id}/${newName}`;
-        await require('../models/repository').saveRequest(request);
+        request[field] = `/uploads/requests/${request.id}/${newName}`;
       }
+    };
+    await moveTempPhoto(clientPhotoUrl, 'cliente', 'clientPhotoUrl');
+    await moveTempPhoto(clientBrandPhotoUrl, 'marca', 'clientBrandPhotoUrl');
+    if (request.clientPhotoUrl !== clientPhotoUrl || request.clientBrandPhotoUrl !== clientBrandPhotoUrl) {
+      await require('../models/repository').saveRequest(request);
     }
 
     res.json({ success: true, request });
   } catch (err) {
     console.error('Error creando solicitud:', err.message);
     const isCoverage = /operamos|comuna|trabajando/i.test(err.message || '');
-    const isUserError = /Describe|foto|subservicio|urgencia|dirección|cobertura|Opción|Selecciona|mínimo/i.test(err.message || '');
+    const isUserError = /Describe|foto|marca|subservicio|urgencia|dirección|cobertura|Opción|Selecciona|mínimo/i.test(err.message || '');
     res.status(isCoverage || isUserError ? 400 : 500).json({
       error: (isCoverage || isUserError)
         ? (err.message || 'No se pudo crear la solicitud')

@@ -228,6 +228,8 @@ async function createRequest({
   coords: inputCoords,
   gift,
   clientPhotoUrl,
+  clientBrandPhotoUrl,
+  brandNotVisible,
   urgencyTier,
   activityId,
   customName,
@@ -243,6 +245,10 @@ async function createRequest({
   if (!notes) return Promise.reject(new Error('Describe el problema para que el técnico sepa qué esperar.'));
   if (!clientPhotoUrl) {
     return Promise.reject(new Error('Sube una foto del problema. Es obligatoria para cotizar y enviar al socio.'));
+  }
+  const noBrand = Boolean(brandNotVisible);
+  if (!noBrand && !clientBrandPhotoUrl) {
+    return Promise.reject(new Error('Sube una foto de la marca o marca «Sin marca a la vista».'));
   }
 
   const activities = getActivitiesForAppService(pricing, serviceId);
@@ -365,6 +371,8 @@ async function createRequest({
     pointsUsed: 0,
     promoCode: null,
     clientPhotoUrl: clientPhotoUrl || null,
+    clientBrandPhotoUrl: noBrand ? null : (clientBrandPhotoUrl || null),
+    brandNotVisible: noBrand,
     billingSnapshot: createBillingSnapshot(client.billing) || null,
     paymentMethod: null,
     paymentSurchargePercent: 0,

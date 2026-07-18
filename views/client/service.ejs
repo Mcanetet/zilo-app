@@ -164,13 +164,35 @@
         <textarea id="notes" rows="3" required placeholder="<%= t('client.service.detail_ph') %>" class="zilo-input resize-none"></textarea>
       </div>
 
-      <div>
-        <label class="zilo-label block mb-1.5"><%= t('client.service.photo') %> *</label>
-        <p class="text-[11px] text-zilo-muted mb-2"><%= t('client.service.photo_required_hint') %></p>
-        <input type="file" id="clientPhoto" accept="image/*" capture="environment" required class="block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
-        <div id="clientPhotoPreview" class="hidden mt-2">
-          <img src="" alt="<%= t('client.service.preview_alt') %>" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+      <div class="space-y-4">
+        <div>
+          <label class="zilo-label block mb-1.5"><%= t('client.service.photo') %> *</label>
+          <p class="text-[11px] text-zilo-muted mb-1"><%= t('client.service.photo_required_hint') %></p>
+          <button type="button" id="btnPhotoHelp" class="text-[11px] text-zilo-accent font-medium hover:underline mb-2">
+            <%= t('client.service.photo_help_link') %>
+          </button>
+          <input type="file" id="clientPhoto" accept="image/*" capture="environment" required class="block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
+          <div id="clientPhotoPreview" class="hidden mt-2">
+            <img src="" alt="<%= t('client.service.preview_alt') %>" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+          </div>
         </div>
+
+        <div id="brandPhotoBlock">
+          <label class="zilo-label block mb-1.5"><%= t('client.service.photo_brand') %> *</label>
+          <p class="text-[11px] text-zilo-muted mb-2"><%= t('client.service.photo_brand_hint') %></p>
+          <input type="file" id="clientBrandPhoto" accept="image/*" capture="environment" class="block w-full text-xs text-zilo-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-zilo-accent/10 file:text-zilo-accent file:text-xs file:font-medium">
+          <div id="clientBrandPhotoPreview" class="hidden mt-2">
+            <img src="" alt="<%= t('client.service.photo_brand') %>" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+          </div>
+        </div>
+
+        <label class="flex items-start gap-2.5 p-3 rounded-xl border border-zilo-border cursor-pointer">
+          <input type="checkbox" id="brandNotVisible" class="mt-0.5 accent-[#2563EB] shrink-0">
+          <span class="text-sm leading-snug">
+            <strong class="block font-medium"><%= t('client.service.brand_not_visible') %></strong>
+            <span class="text-[11px] text-zilo-muted"><%= t('client.service.brand_not_visible_hint') %></span>
+          </span>
+        </label>
       </div>
 
       <button type="button" id="btnRequest" class="zilo-btn-primary"><%= t('client.service.continue') %></button>
@@ -311,6 +333,49 @@
     </section>
   </main>
 </div>
+
+<% if (typeof photoTips !== 'undefined' && photoTips) { %>
+<div id="photoHelpModal" class="hidden fixed inset-0 z-[400]" aria-hidden="true" role="dialog" aria-labelledby="photoHelpTitle">
+  <div id="photoHelpBackdrop" class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+  <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-5 pointer-events-none">
+    <div class="guide-modal-panel w-full max-w-lg max-h-[88vh] sm:max-h-[85vh] overflow-hidden flex flex-col pointer-events-auto animate-slide-up sm:rounded-3xl">
+      <div class="zilo-modal-accent-bar shrink-0"></div>
+      <div class="flex items-center justify-between px-5 py-4 border-b border-zilo-border shrink-0">
+        <div>
+          <p class="zilo-label !text-[9px]"><%= t('client.service.photo_help_eyebrow') %></p>
+          <h2 id="photoHelpTitle" class="text-base font-semibold leading-snug"><%= photoTips.title %></h2>
+        </div>
+        <button type="button" id="photoHelpClose" class="zilo-icon-btn" aria-label="<%= t('client.service.photo_help_close') %>">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+        <% if (photoTips.imageUrl) { %>
+          <figure class="rounded-xl overflow-hidden border border-zilo-border bg-zilo-bg">
+            <img src="<%= photoTips.imageUrl %>" alt="<%= photoTips.imageAlt || photoTips.title %>" class="w-full max-h-48 object-cover" loading="lazy">
+            <figcaption class="px-3 py-2 text-[10px] text-zilo-muted"><%= t('client.service.photo_help_example') %></figcaption>
+          </figure>
+        <% } %>
+        <% (photoTips.steps || []).forEach((step, i) => { %>
+          <article class="flex gap-3">
+            <span class="w-7 h-7 rounded-lg bg-zilo-accent/15 text-zilo-accent text-xs font-bold flex items-center justify-center shrink-0"><%= i + 1 %></span>
+            <p class="text-sm text-zilo-muted leading-relaxed pt-1"><%= step %></p>
+          </article>
+        <% }); %>
+        <% if (photoTips.notes) { %>
+          <div class="p-3 rounded-xl bg-zilo-bg/80 border border-zilo-border">
+            <strong class="text-xs block text-zilo-accent mb-1"><%= t('client.service.photo_help_notes_label') %></strong>
+            <p class="text-xs text-zilo-muted leading-relaxed"><%= photoTips.notes %></p>
+          </div>
+        <% } %>
+      </div>
+      <div class="px-5 py-4 border-t border-zilo-border shrink-0 safe-bottom">
+        <button type="button" id="photoHelpOk" class="zilo-btn-primary !py-3"><%= t('client.service.photo_help_ok') %></button>
+      </div>
+    </div>
+  </div>
+</div>
+<% } %>
 
 <%- include('../partials/footer', { pageScript: '/js/client.js' }) %>
 <% if (typeof mod === 'function' && mod('client_aland')) { %>

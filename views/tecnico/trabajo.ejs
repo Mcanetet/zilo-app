@@ -30,13 +30,27 @@
       <% if (request.notes) { %>
         <p class="text-xs text-zilo-muted italic p-2.5 rounded-lg bg-zilo-bg/80 border border-zilo-border mt-2"><%= request.notes %></p>
       <% } %>
-      <% if (request.clientPhotoUrl) { %>
-        <div class="mt-3">
-          <p class="zilo-label mb-1.5">Foto del cliente</p>
-          <a href="<%= request.clientPhotoUrl %>" target="_blank" rel="noopener">
-            <img src="<%= request.clientPhotoUrl %>" alt="Foto del requerimiento" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
-          </a>
-          <p class="text-[10px] text-zilo-muted mt-1">El cliente subió esta referencia para que lleves posibles repuestos.</p>
+      <% if (request.clientPhotoUrl || request.clientBrandPhotoUrl || request.brandNotVisible) { %>
+        <div class="mt-3 space-y-3">
+          <% if (request.clientPhotoUrl) { %>
+            <div>
+              <p class="zilo-label mb-1.5">Foto del problema</p>
+              <a href="<%= request.clientPhotoUrl %>" target="_blank" rel="noopener">
+                <img src="<%= request.clientPhotoUrl %>" alt="Foto del problema" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+              </a>
+            </div>
+          <% } %>
+          <% if (request.clientBrandPhotoUrl) { %>
+            <div>
+              <p class="zilo-label mb-1.5">Foto de la marca</p>
+              <a href="<%= request.clientBrandPhotoUrl %>" target="_blank" rel="noopener">
+                <img src="<%= request.clientBrandPhotoUrl %>" alt="Foto de la marca" class="w-full max-h-40 object-cover rounded-xl border border-zilo-border">
+              </a>
+              <p class="text-[10px] text-zilo-muted mt-1">Úsala para llevar el repuesto correcto.</p>
+            </div>
+          <% } else if (request.brandNotVisible) { %>
+            <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Sin marca a la vista — el cliente no pudo fotografiar etiqueta ni logo.</p>
+          <% } %>
         </div>
       <% } %>
     </section>

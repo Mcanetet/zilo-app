@@ -170,18 +170,60 @@
 
   const clientPhotoInput = document.getElementById('clientPhoto');
   const clientPhotoPreview = document.getElementById('clientPhotoPreview');
-  if (clientPhotoInput && clientPhotoPreview) {
-    clientPhotoInput.addEventListener('change', () => {
-      const file = clientPhotoInput.files?.[0];
+  const clientBrandPhotoInput = document.getElementById('clientBrandPhoto');
+  const clientBrandPhotoPreview = document.getElementById('clientBrandPhotoPreview');
+  const brandPhotoBlock = document.getElementById('brandPhotoBlock');
+  const brandNotVisibleCheck = document.getElementById('brandNotVisible');
+
+  function wirePhotoPreview(input, preview) {
+    if (!input || !preview) return;
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        clientPhotoPreview.querySelector('img').src = reader.result;
-        clientPhotoPreview.classList.remove('hidden');
+        preview.querySelector('img').src = reader.result;
+        preview.classList.remove('hidden');
       };
       reader.readAsDataURL(file);
     });
   }
+  wirePhotoPreview(clientPhotoInput, clientPhotoPreview);
+  wirePhotoPreview(clientBrandPhotoInput, clientBrandPhotoPreview);
+
+  function syncBrandPhotoRequirement() {
+    const skipBrand = Boolean(brandNotVisibleCheck?.checked);
+    if (brandPhotoBlock) {
+      brandPhotoBlock.classList.toggle('opacity-50', skipBrand);
+      brandPhotoBlock.classList.toggle('pointer-events-none', skipBrand);
+    }
+    if (clientBrandPhotoInput) {
+      clientBrandPhotoInput.disabled = skipBrand;
+      clientBrandPhotoInput.required = !skipBrand;
+      if (skipBrand) {
+        clientBrandPhotoInput.value = '';
+        clientBrandPhotoPreview?.classList.add('hidden');
+      }
+    }
+  }
+  brandNotVisibleCheck?.addEventListener('change', syncBrandPhotoRequirement);
+  syncBrandPhotoRequirement();
+
+  const photoHelpModal = document.getElementById('photoHelpModal');
+  function openPhotoHelp() {
+    if (!photoHelpModal) return;
+    photoHelpModal.classList.remove('hidden');
+    photoHelpModal.setAttribute('aria-hidden', 'false');
+  }
+  function closePhotoHelp() {
+    if (!photoHelpModal) return;
+    photoHelpModal.classList.add('hidden');
+    photoHelpModal.setAttribute('aria-hidden', 'true');
+  }
+  document.getElementById('btnPhotoHelp')?.addEventListener('click', openPhotoHelp);
+  document.getElementById('photoHelpClose')?.addEventListener('click', closePhotoHelp);
+  document.getElementById('photoHelpOk')?.addEventListener('click', closePhotoHelp);
+  document.getElementById('photoHelpBackdrop')?.addEventListener('click', closePhotoHelp);
 
   function fileInputToBase64(input) {
     return new Promise((resolve) => {
@@ -656,6 +698,14 @@
         FundezNotify.show(t('client.js.need_photo'), 'warning');
         return;
       }
+      const brandNotVisible = Boolean(brandNotVisibleCheck?.checked);
+      const clientBrandPhoto = (!brandNotVisible && clientBrandPhotoInput)
+        ? await fileInputToBase64(clientBrandPhotoInput)
+        : null;
+      if (!brandNotVisible && !clientBrandPhoto) {
+        FundezNotify.show(t('client.js.need_brand_photo'), 'warning');
+        return;
+      }
 
       const clock = deviceLocalClock();
       const res = await fetch('/cliente/solicitar', {
@@ -669,6 +719,8 @@
           lng: lngInput.value,
           gift,
           clientPhoto,
+          clientBrandPhoto,
+          brandNotVisible,
           urgencyTier: selectedUrgencyTier,
           activityId,
           customName: activityId === 'otro' ? customName : undefined,

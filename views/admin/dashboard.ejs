@@ -703,6 +703,56 @@ function hasPerm(key) {
       <% } %>
     </section>
 
+    </section>
+
+    <!-- SOLICITUDES / CANALIZACIÓN MANUAL -->
+    <section class="<%= panelClass('solicitudes') %>" data-panel="solicitudes">
+      <h3 class="text-lg font-semibold mb-1"><%= t('admin.solicitudes.title') %></h3>
+      <p class="text-xs text-gray-500 mb-4"><%= t('admin.solicitudes.subtitle') %></p>
+      <% const queue = typeof dispatchQueue !== 'undefined' ? dispatchQueue : []; %>
+      <% if (!queue.length) { %>
+        <p class="text-center py-10 text-gray-500 text-sm"><%= t('admin.solicitudes.empty') %></p>
+      <% } else { %>
+        <div class="space-y-3" id="adminDispatchQueue">
+          <% queue.forEach(r => { %>
+            <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200" data-dispatch-id="<%= r.id %>">
+              <div class="flex justify-between items-start gap-3 mb-2">
+                <div class="min-w-0">
+                  <strong class="text-sm block truncate"><%= r.serviceName || r.serviceId %></strong>
+                  <span class="text-xs text-gray-500 block truncate"><%= r.clientName || 'Cliente' %> · <%= r.address || 'Sin dirección' %></span>
+                </div>
+                <span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-yellow-500/15 text-yellow-700"><%= t('admin.solicitudes.waiting') %></span>
+              </div>
+              <% if (r.notes) { %>
+                <p class="text-[11px] text-gray-500 italic mb-3 line-clamp-2"><%= r.notes %></p>
+              <% } %>
+              <% if (!(r.eligibleProviders || []).length) { %>
+                <p class="text-xs text-amber-600 mb-2"><%= t('admin.solicitudes.no_eligible') %></p>
+              <% } else if (hasPerm('solicitudes.manage')) { %>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <select class="zilo-input !py-2 flex-1 text-sm" data-role="provider-select">
+                    <option value=""><%= t('admin.solicitudes.pick_provider') %></option>
+                    <% r.eligibleProviders.forEach(p => { %>
+                      <option
+                        value="<%= p.id %>"
+                        data-techs="<%= encodeURIComponent(JSON.stringify(p.readyTechs || [])) %>"
+                      ><%= p.name %><%= p.online ? ' · ' + t('admin.solicitudes.online') : '' %> (<%= (p.readyTechs || []).length %> téc.)</option>
+                    <% }); %>
+                  </select>
+                  <select class="zilo-input !py-2 flex-1 text-sm" data-role="tech-select" disabled>
+                    <option value=""><%= t('admin.solicitudes.pick_tech') %></option>
+                  </select>
+                  <button type="button" class="btn-admin-dispatch zilo-btn-primary !py-2 !px-4 !text-sm shrink-0" data-id="<%= r.id %>"><%= t('admin.solicitudes.assign') %></button>
+                </div>
+              <% } else { %>
+                <p class="text-xs text-gray-500"><%= (r.eligibleProviders || []).length %> socio(s) elegible(s)</p>
+              <% } %>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
+    </section>
+
     <!-- PROVEEDORES / PAYOUTS -->
     <section class="<%= panelClass('proveedores') %>" data-panel="proveedores">
       <h3 class="text-lg font-semibold mb-1"><%= t('admin.proveedores.title') %></h3>
@@ -814,6 +864,20 @@ function hasPerm(key) {
     <section class="<%= panelClass('datos') %>" data-panel="datos">
       <h3 class="text-lg font-semibold mb-1"><%= t('admin.datos.title') %></h3>
       <p class="text-xs text-gray-500 mb-4"><%= t('admin.datos.subtitle', { email: company.dpoEmail }) %></p>
+
+      <% if (hasPerm('solicitudes.manage')) { %>
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <h4 class="text-sm font-semibold mb-1">Verificación de correo</h4>
+        <p class="text-xs text-gray-500 mb-3">Si un usuario no recibe el código (p. ej. Gmail), reenvía o verifica manualmente con su correo.</p>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="email" id="adminVerifyEmail" class="zilo-input !py-2 flex-1 text-sm" placeholder="usuario@gmail.com" autocomplete="off">
+          <button type="button" id="btnAdminResendVerify" class="zilo-btn-ghost !py-2 !px-4 !text-sm">Reenviar código</button>
+          <button type="button" id="btnAdminForceVerify" class="zilo-btn-primary !py-2 !px-4 !text-sm">Verificar manualmente</button>
+        </div>
+        <p id="adminVerifyFeedback" class="text-xs text-gray-500 mt-2 hidden"></p>
+      </div>
+      <% } %>
+
       <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
         <div class="flex justify-between text-sm mb-2">
           <span><%= t('admin.datos.consent_rate') %></span>

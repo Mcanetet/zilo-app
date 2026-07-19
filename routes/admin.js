@@ -263,6 +263,7 @@ router.get('/', requireRole('admin'), async (req, res) => {
     payments: store.getPayments(),
     payouts: store.getProviderPayouts(),
     pendingTransfers: store.getAllRequests().filter(r => r.paymentStatus === 'pending_transfer'),
+    dispatchQueue: store.getAdminDispatchQueue(req.locale || 'es'),
     complaints: store.COMPLAINTS,
     chats: store.CHATS,
     consents: store.consentRecords.slice(0, 20),
@@ -811,6 +812,105 @@ router.post('/transfer/:requestId/aprobar', requireRole('admin'), requireAdminPe
   const io = req.app.get('io');
   if (io) require('../lib/dispatch').notifyProvidersForRequest(io, request);
   res.json({ success: true, requestId: request.id });
+});
+
+router.get('/solicitudes/elegibles/:requestId', requireRole('admin'), requireAdminPermission('solicitudes.view'), (req, res) => {
+  const request = store.getAllRequests().find((r) => r.id === req.params.requestId);
+  if (!request) return res.status(404).json({ success: false, error: 'Solicitud no encontrada' });
+  res.json({
+    success: true,
+    requestId: request.id,
+    providers: store.getEligibleProvidersForRequest(request.id)
+  });
+});
+
+router.post('/solicitudes/:requestId/asignar', requireRole('admin'), requireAdminPermission('solicitudes.manage'), (req, res) => {
+  const { providerId, technicianId } = req.body || {};
+  if (!providerId) {
+    return res.status(400).json({ success: false, error: 'Selecciona un socio.' });
+  }
+
+  const result = store.assignProvider(req.params.requestId, providerId, {
+    technicianId: technicianId || null,
+    actorRole: 'admin'
+  });
+  if (result.error) {
+    return res.status(400).json({ success: false, error: result.error });
+  }
+
+  store.logSecurityEvent(
+    'solicitud_canalizada',
+    `${req.params.requestId} -> ${providerId}${technicianId ? ` / ${technicianId}` : ''}`,
+    req
+  );
+
+  const io = req.app.get('io');
+  const { broadcastRequestTaken } = require('../lib/dispatch');
+  if (io) {
+    broadcastRequestTaken(io, result.request.id, providerId);
+    const publicProvider = store.getPublicProviderProfile(result.provider);
+    io.emit(`request_update_${result.request.id}`, {
+      request: result.request,
+      provider: publicProvider
+    });
+    if (result.tecnico) {
+      const techSocket = store.technicianSockets.get(result.tecnico.id);
+      if (techSocket) {
+        io.to(techSocket).emit(`tecnico_assignment_${result.tecnico.id}`, {
+          requestId: result.request.id,
+          request: result.request
+        });
+      }
+    }
+  }
+
+  res.json({
+    success: true,
+    request: {
+      id: result.request.id,
+      status: result.request.status,
+      providerId: result.request.providerId,
+      technicianId: result.request.technicianId || null,
+      technicianName: result.request.technicianName || null
+    }
+  });
+});
+
+router.post('/usuarios/verificar-email/reenviar', requireRole('admin'), requireAdminPermission('solicitudes.manage'), async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ success: false, error: 'Ingresa un correo.' });
+  const user = store.getUserByEmail(email);
+  if (!user) return res.status(404).json({ success: false, error: 'No hay cuenta con ese correo.' });
+  if (store.isEmailVerified(user)) {
+    return res.json({ success: true, already: true, message: 'Ese correo ya está verificado.' });
+  }
+  const result = await store.issueEmailVerification(user.id, { locale: req.locale || 'es' });
+  if (result.error) {
+    return res.status(502).json({ success: false, error: result.error, demo: result.demo || false });
+  }
+  store.logSecurityEvent('admin_resend_verify', email, req);
+  res.json({
+    success: true,
+    demo: Boolean(result.demo),
+    message: result.demo
+      ? 'Modo demo: el código está en los logs del servidor.'
+      : `Código reenviado a ${email}. Pide revisar spam/promociones.`
+  });
+});
+
+router.post('/usuarios/verificar-email/forzar', requireRole('admin'), requireAdminPermission('solicitudes.manage'), async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ success: false, error: 'Ingresa un correo.' });
+  const user = store.getUserByEmail(email);
+  if (!user) return res.status(404).json({ success: false, error: 'No hay cuenta con ese correo.' });
+  const result = await store.forceVerifyEmail(user.id, { actorId: req.session.user.id });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  store.logSecurityEvent('admin_force_verify', email, req);
+  res.json({
+    success: true,
+    already: Boolean(result.already),
+    message: result.already ? 'Ya estaba verificado.' : `Correo verificado manualmente: ${email}`
+  });
 });
 
 module.exports = router;

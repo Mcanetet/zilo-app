@@ -11,6 +11,12 @@ data/dte/
 data/vouchers/
 zilo-hostinger.zip
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # Documentos subidos por proveedores (KYC) — no van a GitHub
 public/uploads/providers/*
 !public/uploads/providers/.gitkeep

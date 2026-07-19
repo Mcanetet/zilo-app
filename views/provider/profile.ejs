@@ -174,9 +174,16 @@
     </a>
 
     <div class="p-3 rounded-xl zilo-card-premium">
-      <span class="zilo-label block mb-2">Especialidades</span>
+      <div class="flex items-center justify-between mb-2">
+        <span class="zilo-label block mb-0">Servicios activos</span>
+        <a href="/proveedor/equipo" class="text-xs text-zilo-accent font-medium">Gestionar</a>
+      </div>
+      <p class="text-[11px] text-zilo-muted mb-2">Servicios de la empresa. En Mi equipo los asignas a cada técnico (pueden tener varios).</p>
       <div class="flex flex-wrap gap-2">
-        <% provider.specialties.forEach(s => {
+        <% if (!provider.specialties || !provider.specialties.length) { %>
+          <p class="text-xs text-zilo-muted">Ningún servicio activo todavía.</p>
+        <% } %>
+        <% (provider.specialties || []).forEach(s => {
           const svc = services.find(x => x.id === s);
         %>
           <span class="zilo-tag">

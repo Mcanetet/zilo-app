@@ -940,6 +940,9 @@ function markAdditionalPaymentApproved(requestId, paymentId) {
 function activateRequest(requestId) {
   const request = requests.find(r => r.id === requestId);
   if (!request) return null;
+  if (request.status === 'searching') return request;
+  if (['assigned', 'in_progress', 'completed', 'cancelled'].includes(request.status)) return null;
+  if (request.paymentStatus !== 'approved') return null;
   request.status = 'searching';
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   afterEvent((ev) => ev.onServiceSearching(request));
@@ -1680,7 +1683,102 @@ async function registerUser({
   return { success: true, user };
 }
 
-async function createTechnician(socioId, { name, email, password, phone } = {}) {
+function normalizeSpecialtyIds(raw) {
+  const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  const unique = [...new Set(list.map((id) => String(id || '').trim()).filter(Boolean))];
+  return unique.filter((id) => SERVICES.some((s) => s.id === id && s.enabled !== false));
+}
+
+function getReadyTechniciansForService(socioId, serviceId) {
+  return getTechniciansByProvider(socioId).filter((t) => {
+    if (t.active === false) return false;
+    if (!Array.isArray(t.specialties) || !t.specialties.includes(serviceId)) return false;
+    return canTechnicianOperate(t).ok;
+  });
+}
+
+function hasTechnicianCoverage(socioId, serviceId) {
+  return getReadyTechniciansForService(socioId, serviceId).length > 0;
+}
+
+/** Especialidades del técnico limitadas a las que ofrece el socio. */
+function filterSpecialtiesToProvider(socio, specialtyIds) {
+  const allowed = new Set(Array.isArray(socio?.specialties) ? socio.specialties : []);
+  return normalizeSpecialtyIds(specialtyIds).filter((id) => allowed.has(id));
+}
+
+function syncTechniciansToProviderServices(socioId) {
+  const socio = getUserById(socioId);
+  if (!socio || socio.role !== 'provider') return;
+  const allowed = new Set(Array.isArray(socio.specialties) ? socio.specialties : []);
+  for (const tecnico of getTechniciansByProvider(socioId)) {
+    const current = Array.isArray(tecnico.specialties) ? tecnico.specialties : [];
+    const next = current.filter((id) => allowed.has(id));
+    if (next.length !== current.length) {
+      tecnico.specialties = next;
+      repository.persist(() => repository.saveUser(tecnico), `sync especialidades técnico ${tecnico.id}`);
+    }
+  }
+}
+
+function getProviderServicesStatus(providerId) {
+  const provider = getUserById(providerId);
+  if (!provider || provider.role !== 'provider') return [];
+  const enabled = new Set(Array.isArray(provider.specialties) ? provider.specialties : []);
+  return SERVICES.filter((s) => s.enabled !== false).map((s) => {
+    const readyTechs = getReadyTechniciansForService(providerId, s.id);
+    return {
+      id: s.id,
+      name: s.name,
+      icon: s.icon,
+      enabled: enabled.has(s.id),
+      covered: readyTechs.length > 0,
+      readyCount: readyTechs.length,
+      readyTechs: readyTechs.map((t) => ({ id: t.id, name: t.name }))
+    };
+  });
+}
+
+function updateProviderSpecialties(providerId, specialtyIds) {
+  const provider = getUserById(providerId);
+  if (!provider || provider.role !== 'provider') return { error: 'Cuenta de socio no válida.' };
+
+  const wanted = normalizeSpecialtyIds(specialtyIds);
+  provider.specialties = wanted;
+  repository.persist(() => repository.saveUser(provider), `servicios socio ${providerId}`);
+  syncTechniciansToProviderServices(providerId);
+  return { success: true, specialties: provider.specialties, services: getProviderServicesStatus(providerId) };
+}
+
+function updateTechnicianSpecialties(socioId, tecnicoId, specialtyIds) {
+  const tecnico = getTechnicianForProvider(socioId, tecnicoId);
+  if (!tecnico) return { error: 'Técnico no encontrado.' };
+
+  const socio = getUserById(socioId);
+  if (!socio || !Array.isArray(socio.specialties) || !socio.specialties.length) {
+    return { error: 'Primero activa los servicios de tu empresa. Luego asigna especialidades al técnico.' };
+  }
+
+  const wanted = filterSpecialtiesToProvider(socio, specialtyIds);
+  if (!wanted.length) {
+    return {
+      error: 'El técnico debe tener al menos una especialidad de los servicios que ofrece tu empresa.'
+    };
+  }
+
+  tecnico.specialties = wanted;
+  repository.persist(() => repository.saveUser(tecnico), `especialidades técnico ${tecnicoId}`);
+
+  return {
+    success: true,
+    tecnico,
+    specialties: tecnico.specialties,
+    providerSpecialties: socio.specialties,
+    services: getProviderServicesStatus(socioId)
+  };
+}
+
+async function createTechnician(socioId, { name, email, password, phone, specialties } = {}) {
   const socio = getUserById(socioId);
   if (!socio || socio.role !== 'provider') return { error: 'Cuenta de socio no válida.' };
 
@@ -1693,6 +1791,17 @@ async function createTechnician(socioId, { name, email, password, phone } = {}) 
   if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres.' };
   if (getUserByEmail(email)) return { error: 'Ya existe una cuenta con ese correo.' };
 
+  if (!Array.isArray(socio.specialties) || !socio.specialties.length) {
+    return { error: 'Primero activa al menos un servicio de tu empresa para asignárselo al técnico.' };
+  }
+
+  let cleanSpecialties = filterSpecialtiesToProvider(socio, specialties);
+  if (!cleanSpecialties.length) {
+    return {
+      error: 'Selecciona al menos una especialidad alineada con los servicios de tu empresa.'
+    };
+  }
+
   const hashedPassword = await hashPassword(password);
   const tecnico = {
     id: `tecnico-${uuidv4().slice(0, 8)}`,
@@ -1702,7 +1811,7 @@ async function createTechnician(socioId, { name, email, password, phone } = {}) 
     role: 'tecnico',
     parentId: socioId,
     phone: (phone || '').trim() || null,
-    specialties: Array.isArray(socio.specialties) ? [...socio.specialties] : [],
+    specialties: cleanSpecialties,
     rating: null,
     reviewsCount: 0,
     online: false,
@@ -1989,15 +2098,24 @@ function getDemoAccounts() {
 
 function getOnlineProviders(serviceId) {
   return USERS.filter(
-    u => u.role === 'provider' && u.online && u.specialties.includes(serviceId)
+    (u) =>
+      u.role === 'provider' &&
+      u.online &&
+      Array.isArray(u.specialties) &&
+      u.specialties.includes(serviceId) &&
+      hasTechnicianCoverage(u.id, serviceId)
   );
 }
 
 function getOnlineTechnicians(serviceId) {
-  return USERS.filter(
-    u => u.role === 'tecnico' && u.online && u.active !== false
-      && Array.isArray(u.specialties) && u.specialties.includes(serviceId)
-  );
+  return USERS.filter((u) => {
+    if (u.role !== 'tecnico' || !u.online || u.active === false) return false;
+    if (!Array.isArray(u.specialties) || !u.specialties.includes(serviceId)) return false;
+    if (!canTechnicianOperate(u).ok) return false;
+    const socio = u.parentId ? getUserById(u.parentId) : null;
+    if (!socio || !Array.isArray(socio.specialties) || !socio.specialties.includes(serviceId)) return false;
+    return true;
+  });
 }
 
 function getWorkWallItems(userId) {
@@ -2008,7 +2126,17 @@ function getWorkWallItems(userId) {
     .filter((r) => {
       if (r.status !== 'searching' || !specs.includes(r.serviceId)) return false;
       if (r.clientId === userId) return false;
-      if (user.role === 'tecnico' && user.parentId && r.clientId === user.parentId) return false;
+      if (user.role === 'provider') {
+        return hasTechnicianCoverage(user.id, r.serviceId);
+      }
+      if (user.role === 'tecnico') {
+        if (user.parentId && r.clientId === user.parentId) return false;
+        if (!canTechnicianOperate(user).ok) return false;
+        const socio = user.parentId ? getUserById(user.parentId) : null;
+        if (!socio || !Array.isArray(socio.specialties) || !socio.specialties.includes(r.serviceId)) {
+          return false;
+        }
+      }
       return true;
     })
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
@@ -2031,8 +2159,13 @@ function tryAcceptRequest(requestId, userId) {
   }
 
   if (user.role === 'provider') {
-    if (!user.specialties.includes(request.serviceId)) {
-      return { error: 'No tienes esta especialidad' };
+    if (!Array.isArray(user.specialties) || !user.specialties.includes(request.serviceId)) {
+      return { error: 'No ofreces este servicio. Actívalo en Mi equipo.' };
+    }
+    if (!hasTechnicianCoverage(user.id, request.serviceId)) {
+      return {
+        error: 'Necesitas un técnico con expediente completo para este servicio antes de aceptar el pedido.'
+      };
     }
     request.providerId = user.id;
     request.status = 'assigned';
@@ -2046,6 +2179,9 @@ function tryAcceptRequest(requestId, userId) {
     if (!operational.ok) return { error: `Expediente incompleto: ${operational.missing.join(', ')}` };
     const socio = getUserById(user.parentId);
     if (!socio) return { error: 'Socio no encontrado' };
+    if (!Array.isArray(socio.specialties) || !socio.specialties.includes(request.serviceId)) {
+      return { error: 'Tu socio no ofrece este servicio actualmente.' };
+    }
 
     request.providerId = socio.id;
     request.technicianId = user.id;
@@ -2067,15 +2203,107 @@ function tryAcceptRequest(requestId, userId) {
   return { success: true, request };
 }
 
-function assignProvider(requestId, providerId) {
+function assignProvider(requestId, providerId, { technicianId = null, actorRole = 'admin' } = {}) {
   const request = requests.find(r => r.id === requestId);
-  if (!request) return null;
-  request.providerId = providerId;
+  if (!request) return { error: 'Solicitud no encontrada.' };
+  if (request.status !== 'searching') {
+    return { error: 'La solicitud ya no está en búsqueda. Solo se puede canalizar mientras busca socio.' };
+  }
+  if (request.paymentStatus !== 'approved') {
+    return { error: 'La solicitud aún no tiene el pago aprobado.' };
+  }
+
+  const provider = getUserById(providerId);
+  if (!provider || provider.role !== 'provider') {
+    return { error: 'Socio no válido.' };
+  }
+  if (provider.active === false) {
+    return { error: 'El socio está desactivado.' };
+  }
+  if (request.clientId === provider.id) {
+    return { error: 'No se puede asignar al mismo usuario que solicitó el servicio.' };
+  }
+  if (!Array.isArray(provider.specialties) || !provider.specialties.includes(request.serviceId)) {
+    return { error: 'Este socio no ofrece ese servicio.' };
+  }
+  if (!hasTechnicianCoverage(provider.id, request.serviceId)) {
+    return {
+      error: 'El socio no tiene un técnico con expediente completo para este servicio.'
+    };
+  }
+
+  let tecnico = null;
+  if (technicianId) {
+    tecnico = getTechnicianForProvider(provider.id, technicianId);
+    if (!tecnico) return { error: 'Técnico no válido para este socio.' };
+    if (tecnico.active === false) return { error: 'El técnico está desactivado.' };
+    const operational = canTechnicianOperate(tecnico);
+    if (!operational.ok) {
+      return { error: `Expediente incompleto del técnico: ${operational.missing.join(', ')}.` };
+    }
+    if (!Array.isArray(tecnico.specialties) || !tecnico.specialties.includes(request.serviceId)) {
+      return { error: 'El técnico no está habilitado para este servicio.' };
+    }
+  }
+
+  request.providerId = provider.id;
   request.status = 'assigned';
   request.assignedAt = new Date().toISOString();
+  request.assignedBy = actorRole;
+  if (tecnico) {
+    request.technicianId = tecnico.id;
+    request.technicianName = tecnico.name;
+    request.technicianPhone = tecnico.phone || null;
+    request.technicianAssignedAt = new Date().toISOString();
+    request.techStatus = 'asignado';
+  } else {
+    request.technicianId = null;
+    request.technicianName = null;
+    request.technicianPhone = null;
+    request.technicianAssignedAt = null;
+    request.techStatus = null;
+  }
+
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
-  afterEvent((ev) => ev.onProviderAssigned(request));
-  return request;
+  afterEvent((ev) => {
+    ev.onProviderAssigned(request);
+    if (request.technicianId) ev.onTechnicianAssigned(request);
+  });
+  return { success: true, request, provider, tecnico };
+}
+
+function getEligibleProvidersForRequest(requestId) {
+  const request = requests.find(r => r.id === requestId);
+  if (!request) return [];
+  return USERS
+    .filter((u) => {
+      if (u.role !== 'provider' || u.active === false) return false;
+      if (u.id === request.clientId) return false;
+      if (!Array.isArray(u.specialties) || !u.specialties.includes(request.serviceId)) return false;
+      return hasTechnicianCoverage(u.id, request.serviceId);
+    })
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      online: Boolean(u.online),
+      readyTechs: getReadyTechniciansForService(u.id, request.serviceId).map((t) => ({
+        id: t.id,
+        name: t.name,
+        phone: t.phone || null
+      }))
+    }))
+    .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name));
+}
+
+function getAdminDispatchQueue(locale = 'es') {
+  return requests
+    .filter((r) => r.status === 'searching' && r.paymentStatus === 'approved')
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+    .map((r) => ({
+      ...enrichRequestForProvider(r, locale),
+      eligibleProviders: getEligibleProvidersForRequest(r.id)
+    }));
 }
 
 function assignPayoutSchedule(request) {
@@ -2166,6 +2394,13 @@ function assignTechnician(requestId, socioId, technicianId) {
   const operational = canTechnicianOperate(tecnico);
   if (!operational.ok) {
     return { error: `Completa el expediente del técnico: ${operational.missing.join(', ')}.` };
+  }
+  if (!Array.isArray(tecnico.specialties) || !tecnico.specialties.includes(request.serviceId)) {
+    return { error: 'Este técnico no está habilitado para este servicio.' };
+  }
+  const socio = getUserById(socioId);
+  if (!socio || !Array.isArray(socio.specialties) || !socio.specialties.includes(request.serviceId)) {
+    return { error: 'Tu empresa no ofrece este servicio actualmente.' };
   }
 
   request.technicianId = tecnico.id;
@@ -2816,9 +3051,7 @@ function getAllRequests() {
 function getPendingRequestsForProvider(providerId) {
   const provider = getUserById(providerId);
   if (!provider) return [];
-  return requests.filter(
-    r => r.status === 'searching' && provider.specialties.includes(r.serviceId)
-  );
+  return getWorkWallItems(providerId);
 }
 
 function isEmailVerified(user) {
@@ -2873,6 +3106,22 @@ async function verifyEmailCode(userId, code) {
     return { error: 'No se pudo confirmar la verificación.' };
   }
   return { success: true };
+}
+
+async function forceVerifyEmail(userId, { actorId = null } = {}) {
+  const user = getUserById(userId);
+  if (!user) return { error: 'Usuario no encontrado.' };
+  if (isEmailVerified(user)) return { success: true, already: true, user };
+  user.emailVerifiedAt = new Date().toISOString();
+  user.emailVerificationCodeHash = null;
+  user.emailVerificationExpiresAt = null;
+  try {
+    await repository.saveUser(user);
+  } catch (err) {
+    console.error('Error forzando verificación:', err.message);
+    return { error: 'No se pudo verificar el correo.' };
+  }
+  return { success: true, user, actorId };
 }
 
 async function resendEmailVerification(userId, { locale = 'es' } = {}) {
@@ -3316,6 +3565,11 @@ module.exports = {
   getTechnicianForProvider,
   canTechnicianOperate,
   saveTechnicianDocument,
+  getReadyTechniciansForService,
+  hasTechnicianCoverage,
+  getProviderServicesStatus,
+  updateProviderSpecialties,
+  updateTechnicianSpecialties,
   setUserActive,
   getAdminTeamUsers,
   createAdminUser,
@@ -3339,6 +3593,8 @@ module.exports = {
   markAdditionalPaymentApproved,
   activateRequest,
   assignProvider,
+  getEligibleProvidersForRequest,
+  getAdminDispatchQueue,
   updateRequestStatus,
   assignTechnician,
   updateTechStatus,
@@ -3392,6 +3648,7 @@ module.exports = {
   issueEmailVerification,
   verifyEmailCode,
   resendEmailVerification,
+  forceVerifyEmail,
   POLICY_VERSION,
   get consentRecords() { return consentRecords; },
   get securityLogs() { return securityLogs; },

@@ -32,6 +32,7 @@ router.get('/mensajes', requireRole('provider'), requireModule('provider_mensaje
 
 router.get('/', requireRole('provider'), (req, res) => {
   const provider = store.getUserById(req.session.user.id);
+  store.getProviderServicesStatus(provider.id);
   const myRequests = store.getRequestsByProvider(req.session.user.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 10)
@@ -322,6 +323,7 @@ router.get('/equipo', requireRole('provider'), requireModule('provider_equipo'),
     provider,
     technicians,
     services: store.SERVICES,
+    serviceStatus: store.getProviderServicesStatus(provider.id),
     error: null,
     ok: null
   });
@@ -330,11 +332,15 @@ router.get('/equipo', requireRole('provider'), requireModule('provider_equipo'),
 router.get('/equipo/:id/expediente', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
   const tecnico = store.getTechnicianForProvider(req.session.user.id, req.params.id);
   if (!tecnico) return res.redirect('/proveedor/equipo');
+  const provider = store.getUserById(req.session.user.id);
+  const companyServiceIds = new Set(Array.isArray(provider.specialties) ? provider.specialties : []);
   res.render('provider/tecnico-expediente', {
     title: `Expediente — ${tecnico.name}`,
     user: req.session.user,
     tecnico,
-    check: store.canTechnicianOperate(tecnico)
+    check: store.canTechnicianOperate(tecnico),
+    services: store.SERVICES.filter((s) => s.enabled !== false && companyServiceIds.has(s.id)),
+    providerSpecialties: provider.specialties || []
   });
 });
 
@@ -361,9 +367,36 @@ router.post('/equipo/:id/expediente/documento', requireRole('provider'), require
   }
 });
 
+router.post('/equipo/:id/especialidades', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
+  const raw = req.body.specialties || [];
+  const specialties = Array.isArray(raw) ? raw : [raw];
+  const result = store.updateTechnicianSpecialties(req.session.user.id, req.params.id, specialties);
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  store.logSecurityEvent('tecnico_especialidades', `${req.params.id}`, req);
+  res.json({
+    success: true,
+    specialties: result.specialties,
+    providerSpecialties: result.providerSpecialties,
+    services: result.services
+  });
+});
+
+router.post('/servicios', requireRole('provider'), requireModule('provider_equipo'), (req, res) => {
+  const raw = req.body.specialties || [];
+  const specialties = Array.isArray(raw) ? raw : [raw];
+  const result = store.updateProviderSpecialties(req.session.user.id, specialties);
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  store.logSecurityEvent('socio_servicios', specialties.join(','), req);
+  res.json({ success: true, specialties: result.specialties, services: result.services });
+});
+
 router.post('/equipo', requireRole('provider'), requireModule('provider_equipo'), async (req, res) => {
   const { name, email, password, phone } = req.body;
-  const result = await store.createTechnician(req.session.user.id, { name, email, password, phone });
+  const rawSpecs = req.body.specialties || [];
+  const specialties = Array.isArray(rawSpecs) ? rawSpecs : [rawSpecs];
+  const result = await store.createTechnician(req.session.user.id, {
+    name, email, password, phone, specialties
+  });
 
   if (result.error) {
     const isJson = req.xhr || (req.get('accept') || '').includes('application/json');
@@ -378,6 +411,7 @@ router.post('/equipo', requireRole('provider'), requireModule('provider_equipo')
         dossierCheck: store.canTechnicianOperate(tecnico)
       })),
       services: store.SERVICES,
+      serviceStatus: store.getProviderServicesStatus(provider.id),
       error: result.error,
       ok: null
     });
@@ -389,7 +423,14 @@ router.post('/equipo', requireRole('provider'), requireModule('provider_equipo')
   if (isJson) {
     return res.json({
       success: true,
-      tecnico: { id: result.tecnico.id, name: result.tecnico.name, email: result.tecnico.email, phone: result.tecnico.phone, active: true }
+      tecnico: {
+        id: result.tecnico.id,
+        name: result.tecnico.name,
+        email: result.tecnico.email,
+        phone: result.tecnico.phone,
+        specialties: result.tecnico.specialties,
+        active: true
+      }
     });
   }
   res.redirect('/proveedor/equipo');
@@ -401,7 +442,12 @@ router.post('/equipo/:id/toggle', requireRole('provider'), requireModule('provid
 
   const active = req.body.active === 'true' || req.body.active === true;
   store.setUserActive(tecnico.id, active);
-  res.json({ success: true, id: tecnico.id, active });
+  res.json({
+    success: true,
+    id: tecnico.id,
+    active,
+    services: store.getProviderServicesStatus(req.session.user.id)
+  });
 });
 
 router.get('/mando', requireRole('provider'), requireModule('provider_mando'), (req, res) => {

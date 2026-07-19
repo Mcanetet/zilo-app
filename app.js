@@ -65,7 +65,7 @@ app.get('/health', async (req, res) => {
     smtpOk = check.ok;
     if (!check.ok) smtp.verifyError = check.reason;
   }
-  res.status(200).json({
+  res.json({
     ok: store.isReady() && dbOk,
     app: 'fundez',
     version: version.version,
@@ -74,6 +74,7 @@ app.get('/health', async (req, res) => {
     database: dbOk ? 'connected' : (dbConfigured ? 'connecting' : 'not_configured'),
     dbHost: process.env.DB_HOST || null,
     dbName: process.env.DB_NAME || null,
+    appUrl: require('./lib/seo').getSiteUrl(),
     missingVars,
     smtp: {
       ...smtp,

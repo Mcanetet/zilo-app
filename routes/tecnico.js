@@ -113,9 +113,13 @@ router.post('/accept/:requestId', requireRole('tecnico'), (req, res) => {
   }
 
   const request = result.request;
+  const socio = store.getUserById(request.providerId);
   const io = req.app.get('io');
   broadcastRequestTaken(io, request.id, req.session.user.id);
-  io.emit(`request_update_${request.id}`, { request });
+  io.emit(`request_update_${request.id}`, {
+    request,
+    provider: store.getPublicProviderProfile(socio)
+  });
   io.to(store.technicianSockets.get(req.session.user.id) || '').emit(`tecnico_assignment_${req.session.user.id}`, { request: serializeJob(request) });
 
   res.json({ success: true, request: serializeJob(request) });

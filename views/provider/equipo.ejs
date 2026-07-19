@@ -8,7 +8,7 @@
       </a>
       <div>
         <p class="zilo-label !text-[9px]">Socio Fundez</p>
-        <h1 class="text-base font-semibold">Mi equipo</h1>
+        <h1 class="text-base font-semibold">Servicios y equipo</h1>
       </div>
     </div>
   </header>
@@ -17,16 +17,52 @@
     <div class="mb-5 p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15">
       <p class="zilo-label mb-1">Tu equipo</p>
       <p class="text-2xl font-bold text-zilo-accent"><%= technicians.length %></p>
-      <p class="text-xs text-zilo-muted">técnicos registrados · asigna trabajos desde el cuadro de mando</p>
+      <p class="text-xs text-zilo-muted">técnicos registrados · cada servicio activo necesita un técnico con expediente completo</p>
     </div>
 
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="mb-4 p-3 rounded-xl border border-zilo-danger/30 bg-zilo-danger/10 text-sm text-zilo-danger"><%= error %></div>
     <% } %>
 
+    <section class="mb-6 zilo-card-premium rounded-2xl p-5" id="servicesSection">
+      <p class="zilo-label mb-1">Servicios de la empresa</p>
+      <p class="text-xs text-zilo-muted mb-4">Elige qué servicios ofrece tu empresa. Luego asigna a cada técnico uno o más de esos mismos servicios (ej. eléctrico y gasfitería).</p>
+      <div class="space-y-2" id="serviceToggles">
+        <% (typeof serviceStatus !== 'undefined' ? serviceStatus : []).forEach(svc => { %>
+          <label class="flex items-center justify-between gap-3 p-3 rounded-xl border border-zilo-border bg-zilo-bg/40">
+            <div class="min-w-0 flex items-center gap-2">
+              <% if (svc.icon) { %><%- include('../partials/service-icon', { icon: svc.icon, size: 'xs' }) %><% } %>
+              <div class="min-w-0">
+                <span class="text-sm font-medium block truncate"><%= svc.name %></span>
+                <span class="text-[10px] <%= svc.enabled ? (svc.covered ? 'text-zilo-success' : 'text-amber-600') : 'text-zilo-muted' %>">
+                  <% if (!svc.enabled) { %>
+                    No ofrecido por la empresa
+                  <% } else if (svc.covered) { %>
+                    <%= svc.readyCount === 1 ? '1 técnico listo' : svc.readyCount + ' técnicos listos' %>
+                  <% } else { %>
+                    Activo · falta técnico con expediente
+                  <% } %>
+                </span>
+              </div>
+            </div>
+            <span class="toggle-ios shrink-0" title="Activar / desactivar servicio de la empresa">
+              <input
+                type="checkbox"
+                class="service-toggle"
+                data-service-id="<%= svc.id %>"
+                <%= svc.enabled ? 'checked' : '' %>
+              >
+              <span class="slider"></span>
+            </span>
+          </label>
+        <% }); %>
+      </div>
+      <p id="servicesFeedback" class="text-[11px] text-zilo-muted mt-3 hidden"></p>
+    </section>
+
     <section class="mb-6 zilo-page-enter">
       <p class="zilo-label mb-2">Técnicos</p>
-      <p class="text-xs text-zilo-muted mb-4">Crea cuentas para tus técnicos. Ellos podrán iniciar sesión, aceptar los trabajos que les asignes y compartir su ubicación en terreno.</p>
+      <p class="text-xs text-zilo-muted mb-4">Ingresa a cada técnico con su información y especialidades. Así podrás delegarle los pedidos desde el cuadro de mando.</p>
 
       <% if (technicians.length === 0) { %>
         <div class="zilo-empty zilo-card-premium rounded-2xl">
@@ -35,13 +71,21 @@
         </div>
       <% } else { %>
         <div class="space-y-2" id="techList">
-          <% technicians.forEach(t => { %>
+          <% technicians.forEach(t => {
+            const techSpecs = (t.specialties || []).map(id => {
+              const svc = (services || []).find(s => s.id === id);
+              return svc ? svc.name : id;
+            });
+          %>
             <div class="flex items-center justify-between p-4 rounded-xl zilo-card-premium" data-tech-id="<%= t.id %>">
               <div class="flex items-center gap-3 min-w-0">
                 <div class="w-10 h-10 rounded-xl bg-zilo-accent/15 border border-zilo-accent/25 flex items-center justify-center text-xs font-semibold text-zilo-accent shrink-0"><%= t.avatar %></div>
                 <div class="min-w-0">
                   <strong class="text-sm block truncate"><%= t.name %></strong>
                   <span class="text-xs text-zilo-muted truncate block"><%= t.email %></span>
+                  <% if (techSpecs.length) { %>
+                    <span class="text-[10px] text-zilo-muted truncate block mt-0.5"><%= techSpecs.join(' · ') %></span>
+                  <% } %>
                   <span class="text-[10px] <%= t.dossierCheck.ok ? 'text-zilo-success' : 'text-amber-600' %>"><%= t.dossierCheck.ok ? 'Expediente completo' : 'Expediente incompleto' %></span>
                 </div>
               </div>
@@ -77,9 +121,26 @@
           <label class="text-xs text-zilo-muted">Contraseña</label>
           <input type="password" name="password" required minlength="6" class="zilo-input w-full mt-1" placeholder="Mínimo 6 caracteres">
         </div>
-        <button type="submit" class="w-full py-3 rounded-xl zilo-btn-primary">Crear técnico</button>
+        <div>
+          <span class="text-xs text-zilo-muted block mb-2">Especialidades del técnico</span>
+          <p class="text-[10px] text-zilo-muted mb-2">Solo puedes asignar servicios que la empresa ya activó arriba. Un técnico puede tener varios (eléctrico, gasfitería, etc.).</p>
+          <% const companyServices = (typeof serviceStatus !== 'undefined' ? serviceStatus : []).filter(s => s.enabled); %>
+          <% if (!companyServices.length) { %>
+            <p class="text-xs text-amber-600 p-3 rounded-xl border border-amber-200 bg-amber-50">Activa primero los servicios de la empresa para poder asignárselos al técnico.</p>
+          <% } else { %>
+            <div class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+              <% companyServices.forEach(s => { %>
+                <label class="flex items-center gap-2 text-sm p-2 rounded-lg border border-zilo-border">
+                  <input type="checkbox" name="specialties" value="<%= s.id %>" class="rounded accent-[#2563EB] shrink-0">
+                  <span class="truncate"><%= s.name %></span>
+                </label>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl zilo-btn-primary" <%= companyServices.length ? '' : 'disabled' %>>Crear técnico</button>
       </form>
-      <p class="text-[11px] text-zilo-muted mt-3">El técnico hereda tus especialidades. Comparte con él el correo y la contraseña para que inicie sesión.</p>
+      <p class="text-[11px] text-zilo-muted mt-3">Comparte con el técnico el correo y la contraseña. Completa su expediente (foto, carnet, antecedentes y estudios) para poder delegarle pedidos.</p>
     </section>
   </main>
 </div>

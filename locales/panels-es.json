@@ -95,6 +95,17 @@
   "admin.pagos.commission": "Comisión",
   "admin.pagos.provider_payout": "Proveedor",
 
+  "admin.solicitudes.title": "Canalizar solicitudes",
+  "admin.solicitudes.subtitle": "Pedidos pagados en búsqueda. Asigna manualmente a un socio con técnico listo para el servicio.",
+  "admin.solicitudes.empty": "No hay solicitudes en búsqueda ahora.",
+  "admin.solicitudes.assign": "Canalizar",
+  "admin.solicitudes.pick_provider": "Elegir socio…",
+  "admin.solicitudes.pick_tech": "Técnico (opcional)…",
+  "admin.solicitudes.no_eligible": "Sin socios elegibles (servicio + técnico con expediente)",
+  "admin.solicitudes.success": "Solicitud canalizada al socio",
+  "admin.solicitudes.online": "en línea",
+  "admin.solicitudes.waiting": "En búsqueda",
+
   "admin.proveedores.title": "Liquidación proveedores",
   "admin.proveedores.subtitle": "Comisión Fundez: {{labor}}% mano de obra · {{materials}}% materiales · Pago pendiente tras servicio completado",
   "admin.proveedores.to_pay": "Por pagar",

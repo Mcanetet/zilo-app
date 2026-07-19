@@ -47,6 +47,7 @@
         <%= t('verify.resend') %><span id="resendTimer"><%= cooldown > 0 ? ` (${cooldown}s)` : '' %></span>
       </button>
       <p class="text-[11px] text-zilo-muted"><%= t('verify.hint') %></p>
+      <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5"><%= t('verify.gmail_hint') %></p>
       <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5"><%= t('verify.hotmail_hint') %></p>
       <a href="/logout" class="text-xs text-zilo-muted hover:text-zilo-accent block"><%= t('verify.other_email') %></a>
     </div>

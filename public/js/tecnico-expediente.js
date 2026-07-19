@@ -14,6 +14,28 @@
     });
   }
 
+  const saveSpecsBtn = document.getElementById('btnSaveTechSpecialties');
+  if (saveSpecsBtn) {
+    saveSpecsBtn.addEventListener('click', async () => {
+      const specialties = Array.from(document.querySelectorAll('.tech-specialty:checked')).map((el) => el.value);
+      saveSpecsBtn.disabled = true;
+      try {
+        const res = await fetch(`/proveedor/equipo/${page.dataset.techId}/especialidades`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ specialties })
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) throw new Error(result.error || 'No se pudo guardar');
+        FundezNotify.show('Especialidades actualizadas', 'success');
+      } catch (err) {
+        FundezNotify.show(err.message || 'No se pudo guardar', 'error');
+      } finally {
+        saveSpecsBtn.disabled = false;
+      }
+    });
+  }
+
   document.querySelectorAll('[data-upload]').forEach((button) => {
     button.addEventListener('click', async () => {
       const type = button.dataset.upload;

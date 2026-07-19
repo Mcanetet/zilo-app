@@ -112,6 +112,21 @@
     }
   }
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function truncateText(value, max = 110) {
+    const text = String(value || '').trim().replace(/\s+/g, ' ');
+    if (!text) return '';
+    return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  }
+
   function renderWorkWall() {
     if (!workWallList) return;
     const items = [...wallItems.values()];
@@ -121,35 +136,67 @@
     syncStickyBar();
 
     items.forEach(data => {
-      const urgency = data.request.urgencyTierLabel
-        ? `<p class="text-[10px] text-orange-600 mb-1">${t('provider.js.urgency')}: ${data.request.urgencyTierLabel}</p>`
+      const req = data.request || {};
+      const urgency = req.urgencyTierLabel
+        ? `<p class="text-[10px] text-orange-600 mb-1">${t('provider.js.urgency')}: ${escapeHtml(req.urgencyTierLabel)}</p>`
         : '';
-      const gift = data.request.isGift
-        ? `<span class="text-[10px] text-zilo-accent block mb-1">${t('provider.js.gift')} · ${data.request.beneficiaryName || t('provider.js.beneficiary_fallback')}</span>`
+      const gift = req.isGift
+        ? `<span class="text-[10px] text-zilo-accent block mb-1">${t('provider.js.gift')} · ${escapeHtml(req.beneficiaryName || t('provider.js.beneficiary_fallback'))}</span>`
         : '';
+      const notesPreview = truncateText(req.notes, 110);
+      const notesHtml = notesPreview
+        ? `<p class="text-[11px] text-zilo-muted italic mb-2 line-clamp-2">${escapeHtml(notesPreview)}</p>`
+        : '';
+      const thumbUrl = req.clientPhotoUrl || req.clientBrandPhotoUrl || '';
+      const thumbHtml = thumbUrl
+        ? `<img src="${escapeHtml(thumbUrl)}" alt="" class="w-14 h-14 rounded-xl object-cover border border-zilo-border shrink-0" loading="lazy">`
+        : '';
+
       const card = document.createElement('article');
       card.className = 'p-4 rounded-2xl zilo-card-premium border border-zilo-accent/15 provider-wall-card';
-      card.dataset.requestId = data.request.id;
+      card.dataset.requestId = req.id;
       card.innerHTML = `
         <div class="flex items-start justify-between gap-3 mb-2">
-          <div class="min-w-0">
-            <strong class="text-sm block">${data.service.name}</strong>
-            <span class="text-xs text-zilo-muted block truncate">${data.client.name}</span>
+          <div class="min-w-0 flex-1">
+            <strong class="text-sm block">${escapeHtml(data.service.name)}</strong>
+            <span class="text-xs text-zilo-muted block truncate">${escapeHtml(data.client.name)}</span>
             ${gift}
           </div>
-          <span class="zilo-badge zilo-badge-success shrink-0">${t('provider.js.available')}</span>
+          <div class="flex items-start gap-2 shrink-0">
+            ${thumbHtml}
+            <span class="zilo-badge zilo-badge-success">${t('provider.js.available')}</span>
+          </div>
         </div>
-        <p class="text-xs text-zilo-muted mb-1 truncate">${data.request.address}</p>
+        <p class="text-xs text-zilo-muted mb-1 truncate">${escapeHtml(req.address)}</p>
         ${urgency}
-        <p class="text-xs font-semibold text-zilo-success mb-3">${t('provider.js.your_payout')}: ${fmt(data.request.providerPayout ?? data.request.estimatedVisit)}</p>
-        <button type="button" class="w-full py-2.5 rounded-xl zilo-modal-accept !text-sm" data-take="${data.request.id}">${t('provider.js.take_job')}</button>
+        ${notesHtml}
+        <p class="text-xs font-semibold text-zilo-success mb-3">${t('provider.js.your_payout')}: ${fmt(req.providerPayout ?? req.estimatedVisit)}</p>
+        <div class="flex gap-2">
+          <button type="button" class="flex-1 py-2.5 rounded-xl zilo-btn-ghost !text-sm" data-detail="${escapeHtml(req.id)}">${t('provider.js.view_details')}</button>
+          <button type="button" class="flex-1 py-2.5 rounded-xl zilo-modal-accept !text-sm" data-take="${escapeHtml(req.id)}">${t('provider.js.take_job')}</button>
+        </div>
       `;
       workWallList.appendChild(card);
     });
 
+    workWallList.querySelectorAll('[data-detail]').forEach(btn => {
+      btn.addEventListener('click', () => openWallDetails(btn.dataset.detail));
+    });
     workWallList.querySelectorAll('[data-take]').forEach(btn => {
       btn.addEventListener('click', () => acceptRequest(btn.dataset.take, btn));
     });
+  }
+
+  function openWallDetails(requestId) {
+    const data = wallItems.get(requestId);
+    if (!data) return;
+    fillModal(data);
+    const title = requestModal.querySelector('.zilo-display.text-xl');
+    if (title) title.textContent = t('provider.js.job_details_title');
+    const subtitle = title?.parentElement?.querySelector('.text-xs.text-zilo-muted');
+    if (subtitle) subtitle.textContent = t('provider.js.job_details_sub');
+    requestModal.classList.remove('hidden');
+    stopRepeatingAlert();
   }
 
   function upsertWallItem(data) {
@@ -271,6 +318,10 @@
   function showRequestModal(data) {
     upsertWallItem(data);
     fillModal(data);
+    const title = requestModal.querySelector('.zilo-display.text-xl');
+    if (title) title.textContent = t('provider.dashboard.new_request') || 'Nueva solicitud';
+    const subtitle = title?.parentElement?.querySelector('.text-xs.text-zilo-muted');
+    if (subtitle) subtitle.textContent = t('provider.js.new_request_sub');
     requestModal.classList.remove('hidden');
     playAlertSound();
     startRepeatingAlert();

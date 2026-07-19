@@ -13,6 +13,7 @@
     servicios: 'Servicios',
     demo: 'Cuentas demo',
     pagos: 'Pagos',
+    solicitudes: 'Solicitudes',
     proveedores: 'Socios',
     reclamos: 'Reclamos',
     whatsapp: 'WhatsApp',
@@ -646,6 +647,92 @@
         FundezNotify.show(data.error || 'No se pudo confirmar', 'error');
       }
     });
+  });
+
+  document.querySelectorAll('[data-dispatch-id]').forEach((card) => {
+    const providerSelect = card.querySelector('[data-role="provider-select"]');
+    const techSelect = card.querySelector('[data-role="tech-select"]');
+    if (providerSelect && techSelect) {
+      providerSelect.addEventListener('change', () => {
+        const option = providerSelect.selectedOptions[0];
+        let techs = [];
+        try {
+          techs = JSON.parse(decodeURIComponent(option?.dataset.techs || '%5B%5D'));
+        } catch (_) {
+          techs = [];
+        }
+        techSelect.innerHTML = `<option value="">${ADMIN_JS.pickTech || 'Técnico (opcional)…'}</option>`;
+        techs.forEach((t) => {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name;
+          techSelect.appendChild(opt);
+        });
+        techSelect.disabled = !techs.length;
+      });
+    }
+  });
+
+  document.querySelectorAll('.btn-admin-dispatch').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('[data-dispatch-id]');
+      const providerId = card?.querySelector('[data-role="provider-select"]')?.value;
+      const technicianId = card?.querySelector('[data-role="tech-select"]')?.value || null;
+      if (!providerId) {
+        FundezNotify.show('Selecciona un socio', 'warning');
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/admin/solicitudes/${btn.dataset.id}/asignar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ providerId, technicianId })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo canalizar');
+        FundezNotify.show(ADMIN_JS.dispatchSuccess || 'Solicitud canalizada al socio', 'success');
+        card.remove();
+        const queue = document.getElementById('adminDispatchQueue');
+        if (queue && !queue.children.length) location.reload();
+      } catch (err) {
+        btn.disabled = false;
+        FundezNotify.show(err.message || 'No se pudo canalizar', 'error');
+      }
+    });
+  });
+
+  const adminVerifyEmail = document.getElementById('adminVerifyEmail');
+  const adminVerifyFeedback = document.getElementById('adminVerifyFeedback');
+  async function adminVerifyAction(url, successType) {
+    const email = (adminVerifyEmail?.value || '').trim();
+    if (!email) {
+      FundezNotify.show('Ingresa el correo del usuario', 'warning');
+      return;
+    }
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo completar');
+      FundezNotify.show(data.message || 'Listo', successType || 'success');
+      if (adminVerifyFeedback) {
+        adminVerifyFeedback.textContent = data.message || 'OK';
+        adminVerifyFeedback.classList.remove('hidden');
+      }
+    } catch (err) {
+      FundezNotify.show(err.message || 'Error', 'error');
+    }
+  }
+  document.getElementById('btnAdminResendVerify')?.addEventListener('click', () => {
+    adminVerifyAction('/admin/usuarios/verificar-email/reenviar', 'success');
+  });
+  document.getElementById('btnAdminForceVerify')?.addEventListener('click', () => {
+    if (!confirm('¿Verificar manualmente este correo sin código?')) return;
+    adminVerifyAction('/admin/usuarios/verificar-email/forzar', 'success');
   });
 
   const socket = io();

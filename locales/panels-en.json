@@ -95,6 +95,17 @@
   "admin.pagos.commission": "Commission",
   "admin.pagos.provider_payout": "Partner",
 
+  "admin.solicitudes.title": "Route requests",
+  "admin.solicitudes.subtitle": "Paid requests searching for a partner. Manually assign to a partner with a ready technician for that service.",
+  "admin.solicitudes.empty": "No requests currently searching.",
+  "admin.solicitudes.assign": "Assign",
+  "admin.solicitudes.pick_provider": "Choose partner…",
+  "admin.solicitudes.pick_tech": "Technician (optional)…",
+  "admin.solicitudes.no_eligible": "No eligible partners (service + technician with complete dossier)",
+  "admin.solicitudes.success": "Request assigned to partner",
+  "admin.solicitudes.online": "online",
+  "admin.solicitudes.waiting": "Searching",
+
   "admin.proveedores.title": "Partner settlements",
   "admin.proveedores.subtitle": "Fundez commission: {{labor}}% labor · {{materials}}% materials · Payment pending after completed service",
   "admin.proveedores.to_pay": "To pay",

@@ -70,14 +70,15 @@
                   <% } %>
                 </div>
               <% } else if (technicians.length > 0) { %>
+                <% const eligibleTechs = technicians.filter(t => Array.isArray(t.specialties) && t.specialties.includes(r.serviceId)); %>
                 <div class="flex items-center gap-2">
                   <select class="zilo-input !py-2 flex-1 text-sm" data-role="tech-select">
-                    <option value="">Elegir técnico…</option>
-                    <% technicians.forEach(t => { %>
+                    <option value=""><%= eligibleTechs.length ? 'Elegir técnico…' : 'Sin técnico para este servicio' %></option>
+                    <% eligibleTechs.forEach(t => { %>
                       <option value="<%= t.id %>"><%= t.name %></option>
                     <% }); %>
                   </select>
-                  <button type="button" class="zilo-btn-primary !py-2 !px-4 !text-sm" data-role="assign-btn" data-id="<%= r.id %>">Asignar</button>
+                  <button type="button" class="zilo-btn-primary !py-2 !px-4 !text-sm" data-role="assign-btn" data-id="<%= r.id %>" <%= eligibleTechs.length ? '' : 'disabled' %>>Asignar</button>
                 </div>
               <% } else { %>
                 <a href="/proveedor/equipo" class="block text-center zilo-btn-ghost !py-2 !text-xs">Agregar técnico para asignar</a>

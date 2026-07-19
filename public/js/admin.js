@@ -394,6 +394,108 @@
     });
   });
 
+  function resetPromoForm() {
+    const form = document.getElementById('promoForm');
+    if (!form) return;
+    form.reset();
+    document.getElementById('promoEditId').value = '';
+    document.getElementById('promoColor').value = '#2563EB';
+    document.getElementById('promoShowBanner').checked = true;
+    document.getElementById('promoCheckout').checked = true;
+    document.getElementById('promoEnabled').checked = true;
+  }
+
+  document.getElementById('promoFormReset')?.addEventListener('click', resetPromoForm);
+
+  document.getElementById('promoForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      id: document.getElementById('promoEditId').value || undefined,
+      title: document.getElementById('promoTitle').value.trim(),
+      desc: document.getElementById('promoDesc').value.trim(),
+      code: document.getElementById('promoCodeInput').value.trim(),
+      color: document.getElementById('promoColor').value.trim(),
+      discountPercent: document.getElementById('promoDiscount').value,
+      showBanner: document.getElementById('promoShowBanner').checked,
+      checkoutEnabled: document.getElementById('promoCheckout').checked,
+      enabled: document.getElementById('promoEnabled').checked
+    };
+    try {
+      const res = await fetch('/admin/promos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.success) {
+        FundezNotify.show(data.error || 'No se pudo guardar', 'error');
+        return;
+      }
+      FundezNotify.show('Promoción guardada', 'success');
+      window.location.href = '/admin?tab=promos';
+    } catch (_) {
+      FundezNotify.show('Error al guardar promoción', 'error');
+    }
+  });
+
+  document.querySelectorAll('.promo-edit').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById('promoEditId').value = btn.dataset.id || '';
+      document.getElementById('promoTitle').value = btn.dataset.title || '';
+      document.getElementById('promoDesc').value = btn.dataset.desc || '';
+      document.getElementById('promoCodeInput').value = btn.dataset.code || '';
+      document.getElementById('promoColor').value = btn.dataset.color || '#2563EB';
+      document.getElementById('promoDiscount').value = btn.dataset.discount || '';
+      document.getElementById('promoShowBanner').checked = btn.dataset.banner === '1';
+      document.getElementById('promoCheckout').checked = btn.dataset.checkout === '1';
+      document.getElementById('promoEnabled').checked = btn.dataset.enabled === '1';
+      document.getElementById('promoForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  document.querySelectorAll('.promo-toggle').forEach((toggle) => {
+    toggle.addEventListener('change', async () => {
+      const enabled = toggle.checked;
+      try {
+        const res = await fetch(`/admin/promos/${toggle.dataset.id}/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          toggle.checked = !enabled;
+          FundezNotify.show(data.error || 'No se pudo actualizar', 'error');
+          return;
+        }
+        const item = toggle.closest('.promo-item');
+        item?.classList.toggle('opacity-50', !enabled);
+        FundezNotify.show(enabled ? 'Promoción activada' : 'Promoción desactivada', enabled ? 'success' : 'warning');
+      } catch (_) {
+        toggle.checked = !enabled;
+        FundezNotify.show('Error al actualizar promoción', 'error');
+      }
+    });
+  });
+
+  document.querySelectorAll('.promo-delete').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar esta promoción?')) return;
+      try {
+        const res = await fetch(`/admin/promos/${btn.dataset.id}/delete`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          FundezNotify.show(data.error || 'No se pudo eliminar', 'error');
+          return;
+        }
+        FundezNotify.show('Promoción eliminada', 'success');
+        window.location.href = '/admin?tab=promos';
+      } catch (_) {
+        FundezNotify.show('Error al eliminar promoción', 'error');
+      }
+    });
+  });
+
   document.querySelectorAll('.coverage-toggle').forEach(toggle => {
     toggle.addEventListener('change', async (e) => {
       e.stopPropagation();

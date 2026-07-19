@@ -42,10 +42,12 @@
         <p class="text-xs text-zilo-muted">Modo Guardián incluido para tu familia</p>
       </a>
       <% } %>
+      <% if (typeof canUseWelcome !== 'undefined' && canUseWelcome) { %>
       <div class="p-4 rounded-xl zilo-card-premium">
         <strong class="text-sm block mb-1">10% primer servicio</strong>
-        <p class="text-xs text-zilo-muted">Código <span class="font-mono text-zilo-accent">BIENVENIDO</span> · una vez por correo y teléfono</p>
+        <p class="text-xs text-zilo-muted">Usa el código promocional <span class="font-mono text-zilo-accent">BIENVENIDO</span> al pagar tu primer servicio.</p>
       </div>
+      <% } %>
     </section>
   </main>
 

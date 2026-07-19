@@ -45,9 +45,9 @@ const SEED_MODULES = [
 ];
 
 const SEED_PROMOS = [
-  { id: 'first', title: '10% en tu 1er servicio', desc: 'Código BIENVENIDO al pagar · una vez por correo y teléfono', code: 'BIENVENIDO', color: '#B8956B', sortOrder: 1, enabled: true },
-  { id: 'refer', title: 'Invita y gana $5.000', desc: 'Tú y tu amigo reciben crédito', code: null, color: '#8B7355', sortOrder: 2, enabled: true },
-  { id: 'gift', title: 'Regala un servicio', desc: 'Modo Guardián para tu familia', code: null, color: '#A67C52', sortOrder: 3, enabled: true }
+  { id: 'first', title: '10% en tu 1er servicio', desc: 'Código BIENVENIDO · 10% en tu primer servicio', code: 'BIENVENIDO', color: '#B8956B', sortOrder: 1, enabled: true, discountPercent: 10, showBanner: true, checkoutEnabled: true },
+  { id: 'refer', title: 'Invita y gana $5.000', desc: 'Tú y tu amigo reciben crédito', code: null, color: '#8B7355', sortOrder: 2, enabled: true, discountPercent: null, showBanner: true, checkoutEnabled: false },
+  { id: 'gift', title: 'Regala un servicio', desc: 'Modo Guardián para tu familia', code: null, color: '#A67C52', sortOrder: 3, enabled: true, discountPercent: null, showBanner: true, checkoutEnabled: false }
 ];
 
 function defaultProviderVerification() {
@@ -397,7 +397,10 @@ function rowToPromo(row) {
     code: row.code,
     color: row.color,
     sortOrder: row.sort_order || 0,
-    enabled: Boolean(row.enabled)
+    enabled: Boolean(row.enabled),
+    discountPercent: row.discount_percent == null ? null : Number(row.discount_percent),
+    showBanner: row.show_banner == null ? true : Boolean(row.show_banner),
+    checkoutEnabled: Boolean(row.checkout_enabled)
   };
 }
 
@@ -483,6 +486,33 @@ async function migrate() {
   try {
     await db.raw('SET FOREIGN_KEY_CHECKS = 1');
   } catch (_) { /* noop */ }
+
+  await ensurePromoExtraColumns();
+}
+
+async function ensurePromoExtraColumns() {
+  const alters = [
+    'ALTER TABLE promos ADD COLUMN discount_percent INT NULL DEFAULT NULL',
+    'ALTER TABLE promos ADD COLUMN show_banner TINYINT(1) NOT NULL DEFAULT 1',
+    'ALTER TABLE promos ADD COLUMN checkout_enabled TINYINT(1) NOT NULL DEFAULT 0'
+  ];
+  for (const statement of alters) {
+    try {
+      await db.raw(statement);
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
+  try {
+    await db.query(
+      `UPDATE promos
+       SET discount_percent = COALESCE(discount_percent, 10),
+           checkout_enabled = 1,
+           description = ?
+       WHERE id = 'first' OR UPPER(IFNULL(code, '')) = 'BIENVENIDO'`,
+      ['Código BIENVENIDO · 10% en tu primer servicio']
+    );
+  } catch (_) { /* tabla aún no existe en algún entorno */ }
 }
 
 async function upsertSeedUser(user) {
@@ -981,15 +1011,21 @@ async function savePromo(promo, { preserveEnabled = false } = {}) {
   const updateEnabled = preserveEnabled
     ? ''
     : ', enabled = VALUES(enabled)';
+  const discountPercent = promo.discountPercent == null || promo.discountPercent === ''
+    ? null
+    : Math.max(0, Math.min(100, Math.round(Number(promo.discountPercent))));
   await db.query(
-    `INSERT INTO promos (id, title, description, code, color, sort_order, enabled)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO promos (id, title, description, code, color, sort_order, enabled, discount_percent, show_banner, checkout_enabled)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        title = VALUES(title),
        description = VALUES(description),
        code = VALUES(code),
        color = VALUES(color),
-       sort_order = VALUES(sort_order)${updateEnabled}`,
+       sort_order = VALUES(sort_order),
+       discount_percent = VALUES(discount_percent),
+       show_banner = VALUES(show_banner),
+       checkout_enabled = VALUES(checkout_enabled)${updateEnabled}`,
     [
       promo.id,
       promo.title,
@@ -997,9 +1033,16 @@ async function savePromo(promo, { preserveEnabled = false } = {}) {
       promo.code || null,
       promo.color || null,
       promo.sortOrder || 0,
-      promo.enabled !== false ? 1 : 0
+      promo.enabled !== false ? 1 : 0,
+      discountPercent,
+      promo.showBanner === false ? 0 : 1,
+      promo.checkoutEnabled ? 1 : 0
     ]
   );
+}
+
+async function deletePromo(id) {
+  await db.query('DELETE FROM promos WHERE id = ?', [id]);
 }
 
 async function savePricingConfig(config) {
@@ -1226,6 +1269,7 @@ module.exports = {
   saveCoverageCommune,
   saveCoverageRegion,
   savePromo,
+  deletePromo,
   savePricingConfig,
   saveRequest,
   saveLogbookEntry,

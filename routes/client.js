@@ -24,7 +24,7 @@ router.get('/', requireRole('client'), (req, res) => {
     user: req.session.user,
     profile,
     services: localizeServices(store.getActiveServices(), req.t),
-    promos: store.PROMOS,
+    promos: store.getPromosForClient(req.session.user.id),
     referral: store.getReferralStats(req.session.user.id),
     passport: store.getHomePassport(req.session.user.id),
     referralBonus,
@@ -108,6 +108,7 @@ router.get('/invitar', requireRole('client'), requireModule('client_referidos'),
     referral,
     shareUrl,
     giftServiceId: giftService?.id || null,
+    canUseWelcome: store.canUseWelcomePromo(profile),
     formatCLP: store.formatCLP,
     navActive: 'invitar'
   });

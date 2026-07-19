@@ -239,7 +239,7 @@
   "client.guide.step1_body": "En el inicio elige el servicio que necesitas (gásfiter, eléctrico, cerrajero, etc.). Ingresa la dirección, confirma en el mapa y describe el problema.",
   "client.guide.step1_tip": "Puedes activar \"Regalar servicio\" si otra persona recibirá la visita en su domicilio.",
   "client.guide.step2_title": "Pagar en el checkout",
-  "client.guide.step2_body": "Revisa el total, aplica tu crédito Fundez, canjea puntos o usa el código BIENVENIDO (10% una sola vez por correo y teléfono) en tu primer servicio. Luego confirma el pago.",
+  "client.guide.step2_body": "Revisa el total, aplica tu crédito Fundez, canjea puntos o ingresa un código promocional si tienes uno. Luego confirma el pago.",
   "client.guide.step2_tip": "Si el total queda en $0, el servicio se confirma automáticamente.",
   "client.guide.step3_title": "Seguimiento en vivo",
   "client.guide.step3_body": "Tras pagar verás el estado en tiempo real: búsqueda de técnico, asignación, en camino y llegada. Puedes llamar al proveedor desde la app.",

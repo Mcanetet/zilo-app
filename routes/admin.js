@@ -254,6 +254,7 @@ router.get('/', requireRole('admin'), async (req, res) => {
     stats,
     services: localizeServices(store.SERVICES, req.t),
     modules: store.getModules(),
+    promos: store.getAllPromos(),
     clientModules: localizeModules(store.getModulesByAudience('client'), req.t),
     providerModules: localizeModules(store.getModulesByAudience('provider'), req.t),
     coverageRegions: store.getCoverageForAdmin(),
@@ -460,6 +461,38 @@ router.post('/toggle-module', requireRole('admin'), requireAdminPermission('modu
   store.logSecurityEvent('module_toggle', `${moduleId}=${enabled}`, req);
   req.app.get('io').emit('modules_updated', { modules: store.MODULES });
   res.json({ success: true, module: mod });
+});
+
+router.post('/promos', requireRole('admin'), requireAdminPermission('promos.manage'), (req, res) => {
+  const result = store.upsertPromo({
+    id: req.body.id,
+    title: req.body.title,
+    desc: req.body.desc || req.body.description,
+    code: req.body.code,
+    color: req.body.color,
+    sortOrder: req.body.sortOrder,
+    enabled: req.body.enabled,
+    discountPercent: req.body.discountPercent,
+    showBanner: req.body.showBanner,
+    checkoutEnabled: req.body.checkoutEnabled
+  });
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('promo_upsert', result.promo.id, req);
+  res.json({ success: true, promo: result.promo, promos: store.getAllPromos() });
+});
+
+router.post('/promos/:id/toggle', requireRole('admin'), requireAdminPermission('promos.manage'), (req, res) => {
+  const promo = store.togglePromo(req.params.id, req.body.enabled === true || req.body.enabled === 'true');
+  if (!promo) return res.status(404).json({ error: 'Promoción no encontrada' });
+  store.logSecurityEvent('promo_toggle', `${promo.id}=${promo.enabled}`, req);
+  res.json({ success: true, promo, promos: store.getAllPromos() });
+});
+
+router.post('/promos/:id/delete', requireRole('admin'), requireAdminPermission('promos.manage'), (req, res) => {
+  const result = store.deletePromo(req.params.id);
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('promo_delete', req.params.id, req);
+  res.json({ success: true, promos: store.getAllPromos() });
 });
 
 router.post('/toggle-coverage', requireRole('admin'), requireAdminPermission('cobertura.manage'), (req, res) => {

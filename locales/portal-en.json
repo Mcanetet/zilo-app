@@ -239,7 +239,7 @@
   "client.guide.step1_body": "On the home screen choose the service you need (plumber, electrician, locksmith, etc.). Enter the address, confirm on the map and describe the problem.",
   "client.guide.step1_tip": "You can enable \"Gift service\" if someone else will receive the visit at their home.",
   "client.guide.step2_title": "Pay at checkout",
-  "client.guide.step2_body": "Review the total, apply your Fundez credit, redeem points or use code BIENVENIDO (10% once per email and phone) on your first service. Then confirm payment.",
+  "client.guide.step2_body": "Review the total, apply your Fundez credit, redeem points or enter a promo code if you have one. Then confirm payment.",
   "client.guide.step2_tip": "If the total is $0, the service is confirmed automatically.",
   "client.guide.step3_title": "Live tracking",
   "client.guide.step3_body": "After paying you'll see real-time status: finding technician, assignment, on the way and arrival. You can call the provider from the app.",

@@ -460,6 +460,94 @@ function hasPerm(key) {
       </div>
     </section>
 
+    <!-- PROMOCIONES -->
+    <section class="<%= panelClass('promos') %>" data-panel="promos">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-semibold">Códigos promocionales</h3>
+        <span class="text-xs text-gray-500"><%= (promos || []).filter(p => p.enabled !== false).length %> activos</span>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">Crea códigos con % de descuento para el checkout. BIENVENIDO es especial: solo aplica en el primer servicio y se valida internamente por correo/teléfono (el cliente solo ve “código no disponible” si ya se usó).</p>
+
+      <% if (hasPerm('promos.manage')) { %>
+      <form id="promoForm" class="p-4 rounded-2xl bg-zilo-card border border-gray-200 space-y-3 mb-5">
+        <input type="hidden" name="id" id="promoEditId" value="">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1">Título</label>
+            <input type="text" name="title" id="promoTitle" required class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Promo verano">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1">Código</label>
+            <input type="text" name="code" id="promoCodeInput" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm uppercase font-mono" placeholder="VERANO10" maxlength="24">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1">Descuento %</label>
+            <input type="number" name="discountPercent" id="promoDiscount" min="0" max="100" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="10">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1">Color</label>
+            <input type="text" name="color" id="promoColor" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" value="#2563EB" placeholder="#2563EB">
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] text-gray-500 uppercase block mb-1">Descripción (banner)</label>
+          <input type="text" name="desc" id="promoDesc" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Texto corto para el inicio del cliente">
+        </div>
+        <div class="flex flex-wrap gap-4 text-sm">
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="showBanner" id="promoShowBanner" class="accent-[#2563EB]" checked> Mostrar banner</label>
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="checkoutEnabled" id="promoCheckout" class="accent-[#2563EB]" checked> Usar en checkout</label>
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="enabled" id="promoEnabled" class="accent-[#2563EB]" checked> Activa</label>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="zilo-btn-primary !py-2.5 !px-4 !w-auto text-sm">Guardar promoción</button>
+          <button type="button" id="promoFormReset" class="zilo-btn-ghost !py-2.5 !px-4 !w-auto text-sm">Limpiar</button>
+        </div>
+      </form>
+      <% } %>
+
+      <div id="promosList" class="space-y-2">
+        <% (promos || []).forEach(function(p) { %>
+          <div class="promo-item flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-zilo-card border border-gray-200 <%= p.enabled !== false ? '' : 'opacity-50' %>" data-promo-id="<%= p.id %>">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <strong class="text-sm"><%= p.title %></strong>
+                <% if (p.code) { %><span class="text-[10px] font-mono px-2 py-0.5 rounded border border-zilo-accent/20 text-zilo-accent"><%= p.code %></span><% } %>
+                <% if (p.discountPercent) { %><span class="text-[10px] text-emerald-700"><%= p.discountPercent %>% dto.</span><% } %>
+              </div>
+              <p class="text-xs text-gray-500 mt-0.5"><%= p.desc || '—' %></p>
+              <p class="text-[10px] text-gray-400 mt-1">
+                <%= p.showBanner !== false ? 'Banner' : 'Sin banner' %>
+                · <%= (p.checkoutEnabled || p.discountPercent) ? 'Checkout' : 'Solo banner' %>
+              </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <% if (hasPerm('promos.manage')) { %>
+                <button type="button" class="promo-edit text-xs px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  data-id="<%= p.id %>"
+                  data-title="<%= p.title %>"
+                  data-desc="<%= p.desc || '' %>"
+                  data-code="<%= p.code || '' %>"
+                  data-color="<%= p.color || '#2563EB' %>"
+                  data-discount="<%= p.discountPercent == null ? '' : p.discountPercent %>"
+                  data-banner="<%= p.showBanner !== false ? '1' : '0' %>"
+                  data-checkout="<%= (p.checkoutEnabled || p.discountPercent) ? '1' : '0' %>"
+                  data-enabled="<%= p.enabled !== false ? '1' : '0' %>">Editar</button>
+                <label class="toggle-ios">
+                  <input type="checkbox" class="promo-toggle" data-id="<%= p.id %>" <%= p.enabled !== false ? 'checked' : '' %>>
+                  <span class="slider"></span>
+                </label>
+                <% if (!['first','refer','gift'].includes(p.id)) { %>
+                  <button type="button" class="promo-delete text-xs px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-600" data-id="<%= p.id %>">Eliminar</button>
+                <% } %>
+              <% } else { %>
+                <span class="text-[10px] font-bold uppercase <%= p.enabled !== false ? 'text-emerald-600' : 'text-red-600' %>"><%= p.enabled !== false ? as.status.on : as.status.off %></span>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </section>
+
     <!-- COBERTURA -->
     <section class="<%= panelClass('cobertura') %>" data-panel="cobertura">
       <div class="flex justify-between items-center mb-3">

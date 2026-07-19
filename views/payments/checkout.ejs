@@ -2,7 +2,6 @@
 
 <div class="max-w-lg mx-auto min-h-screen flex flex-col pb-8 zilo-page-enter" id="checkoutPage"
   data-request-id="<%= request.id %>"
-  data-can-welcome="<%= summary.canUseWelcome %>"
   data-card-enabled="<%= summary.cardEnabled %>"
   data-transfer-enabled="<%= summary.transferEnabled %>"
   data-card-surcharge="<%= summary.cardSurchargePercent %>">
@@ -97,18 +96,8 @@
     <section class="zilo-card-premium rounded-2xl p-5 space-y-4">
       <h2 class="zilo-label">Beneficios Fundez</h2>
 
-      <% if (summary.canUseWelcome) { %>
-      <label class="flex items-center justify-between gap-3 cursor-pointer">
-        <div>
-          <strong class="text-sm block">Código BIENVENIDO</strong>
-          <span class="text-xs text-zilo-muted"><%= summary.welcomeDiscountPercent || 10 %>% en tu primer servicio · una vez por correo y teléfono</span>
-        </div>
-        <input type="checkbox" id="usePromo" class="w-5 h-5 rounded accent-[#2563EB]">
-      </label>
-      <% } %>
-
       <% if (mod('client_puntos') && referral.creditsCLP > 0) { %>
-      <label class="flex items-center justify-between gap-3 cursor-pointer pt-3 border-t border-gray-200">
+      <label class="flex items-center justify-between gap-3 cursor-pointer">
         <div>
           <strong class="text-sm block">Usar crédito</strong>
           <span class="text-xs text-zilo-success"><%= formatCLP(referral.creditsCLP) %> disponible</span>
@@ -127,13 +116,14 @@
       </label>
       <% } %>
 
-      <div class="pt-3 border-t border-gray-200">
+      <div class="<%= (mod('client_puntos') && (referral.creditsCLP > 0 || referral.points > 0)) ? 'pt-3 border-t border-gray-200' : '' %>">
         <label class="zilo-label block mb-2">Código promocional</label>
         <div class="flex gap-2">
-          <input type="text" id="promoCode" placeholder="BIENVENIDO" maxlength="12"
+          <input type="text" id="promoCode" placeholder="Ingresa tu código" maxlength="24" autocomplete="off"
             class="zilo-input flex-1 uppercase font-mono text-sm">
           <button type="button" id="btnApplyPromo" class="zilo-btn-ghost shrink-0">Aplicar</button>
         </div>
+        <p id="promoFeedback" class="hidden text-[11px] mt-1.5"></p>
       </div>
     </section>
 
@@ -213,10 +203,10 @@
   const requestId = page.dataset.requestId;
   const fmt = n => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n);
 
-  const usePromo = document.getElementById('usePromo');
   const useCredits = document.getElementById('useCredits');
   const usePoints = document.getElementById('usePoints');
   const promoCode = document.getElementById('promoCode');
+  const promoFeedback = document.getElementById('promoFeedback');
   const btnPay = document.getElementById('btnPay');
   const billGiro = document.getElementById('billGiro');
 
@@ -282,7 +272,7 @@
   }
 
   async function recalc() {
-    const code = promoCode.value.trim() || (usePromo?.checked ? 'BIENVENIDO' : '');
+    const code = promoCode?.value.trim() || '';
     const res = await fetch('/pagos/calcular', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -297,8 +287,26 @@
     });
     const data = await res.json();
     if (!data.success) {
+      if (promoFeedback) {
+        promoFeedback.textContent = data.error || 'Código no válido';
+        promoFeedback.classList.remove('hidden', 'text-zilo-success');
+        promoFeedback.classList.add('text-red-600');
+      }
       FundezNotify.show(data.error || 'Error al calcular', 'warning');
       return;
+    }
+    if (promoFeedback) {
+      if (code && data.summary.discountPromo > 0) {
+        promoFeedback.textContent = `Descuento aplicado (−${fmt(data.summary.discountPromo)})`;
+        promoFeedback.classList.remove('hidden', 'text-red-600');
+        promoFeedback.classList.add('text-zilo-success');
+      } else if (code) {
+        promoFeedback.textContent = '';
+        promoFeedback.classList.add('hidden');
+      } else {
+        promoFeedback.textContent = '';
+        promoFeedback.classList.add('hidden');
+      }
     }
     const s = data.summary;
     document.getElementById('lineVisitBase').textContent = fmt(s.visitBasePrice || s.visitSubtotal);
@@ -336,13 +344,19 @@
     show('linePoints', s.discountPoints);
   }
 
-  [usePromo, useCredits, usePoints].forEach(el => el?.addEventListener('change', recalc));
+  [useCredits, usePoints].forEach(el => el?.addEventListener('change', recalc));
   document.getElementById('btnApplyPromo')?.addEventListener('click', recalc);
+  promoCode?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      recalc();
+    }
+  });
 
   btnPay.addEventListener('click', async () => {
     btnPay.disabled = true;
     document.getElementById('btnPaySticky')?.setAttribute('disabled', 'disabled');
-    const code = promoCode.value.trim() || (usePromo?.checked ? 'BIENVENIDO' : '');
+    const code = promoCode?.value.trim() || '';
     const res = await fetch('/pagos/crear', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -477,6 +477,106 @@ function getActivePromos() {
   return PROMOS.filter((p) => p.enabled !== false);
 }
 
+function getAllPromos() {
+  return [...PROMOS].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+
+function isWelcomePromoRecord(promo) {
+  if (!promo) return false;
+  return promo.id === 'first' || String(promo.code || '').toUpperCase() === WELCOME_PROMO;
+}
+
+function getPromosForClient(userId) {
+  const user = getUserById(userId);
+  const canWelcome = canUseWelcomePromo(user);
+  return getActivePromos().filter((p) => {
+    if (p.showBanner === false) return false;
+    if (isWelcomePromoRecord(p)) return canWelcome;
+    return true;
+  });
+}
+
+function findPromoByCode(code) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (!normalized) return null;
+  return PROMOS.find((p) => String(p.code || '').toUpperCase() === normalized) || null;
+}
+
+function promoCodeAlreadyUsedByUser(userId, code) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (!normalized || !userId) return false;
+  return requests.some((request) => {
+    if (request.clientId !== userId) return false;
+    if (String(request.promoCode || '').toUpperCase() !== normalized) return false;
+    return request.paymentStatus === 'approved' || request.discountsCommitted;
+  });
+}
+
+function upsertPromo(input = {}) {
+  const id = String(input.id || '').trim() || `promo-${uuidv4().slice(0, 8)}`;
+  const existing = PROMOS.find((p) => p.id === id);
+  const codeRaw = input.code == null ? (existing?.code || null) : String(input.code).trim().toUpperCase();
+  const code = codeRaw || null;
+  if (code && code !== WELCOME_PROMO) {
+    const clash = PROMOS.find((p) => p.id !== id && String(p.code || '').toUpperCase() === code);
+    if (clash) return { error: 'Ya existe otra promoción con ese código' };
+  }
+  if (code === WELCOME_PROMO && id !== 'first') {
+    return { error: 'El código BIENVENIDO está reservado para la promoción de bienvenida' };
+  }
+
+  const discountPercent = input.discountPercent == null || input.discountPercent === ''
+    ? (existing?.discountPercent ?? null)
+    : Math.max(0, Math.min(100, Math.round(Number(input.discountPercent))));
+  const checkoutEnabled = input.checkoutEnabled == null
+    ? Boolean(existing?.checkoutEnabled) || (Number(discountPercent) > 0)
+    : Boolean(input.checkoutEnabled);
+  const showBanner = input.showBanner == null
+    ? (existing ? existing.showBanner !== false : true)
+    : Boolean(input.showBanner);
+
+  const promo = {
+    id,
+    title: String(input.title || existing?.title || '').trim() || 'Promoción',
+    desc: String(input.desc || input.description || existing?.desc || '').trim(),
+    code,
+    color: String(input.color || existing?.color || '#2563EB').trim() || '#2563EB',
+    sortOrder: Number.isFinite(Number(input.sortOrder))
+      ? Number(input.sortOrder)
+      : (existing?.sortOrder || PROMOS.length + 1),
+    enabled: input.enabled == null ? (existing ? existing.enabled !== false : true) : Boolean(input.enabled),
+    discountPercent: Number.isFinite(discountPercent) ? discountPercent : null,
+    showBanner,
+    checkoutEnabled: checkoutEnabled || code === WELCOME_PROMO
+  };
+
+  if (!existing) PROMOS.push(promo);
+  else Object.assign(existing, promo);
+
+  const saved = existing || promo;
+  repository.persist(() => repository.savePromo(saved), `promo ${saved.id}`);
+  return { success: true, promo: saved };
+}
+
+function togglePromo(id, enabled) {
+  const promo = PROMOS.find((p) => p.id === id);
+  if (!promo) return null;
+  promo.enabled = Boolean(enabled);
+  repository.persist(() => repository.savePromo(promo), `promo ${id}`);
+  return promo;
+}
+
+function deletePromo(id) {
+  if (['first', 'refer', 'gift'].includes(id)) {
+    return { error: 'Esta promoción del sistema no se puede eliminar. Desactívala si no quieres mostrarla.' };
+  }
+  const idx = PROMOS.findIndex((p) => p.id === id);
+  if (idx < 0) return { error: 'Promoción no encontrada' };
+  PROMOS.splice(idx, 1);
+  repository.persist(() => repository.deletePromo(id), `promo ${id}`);
+  return { success: true };
+}
+
 function getCheckoutSummary(userId, requestId) {
   const user = getUserById(userId);
   const request = requests.find(r => r.id === requestId && r.clientId === userId);
@@ -543,17 +643,30 @@ function applyCheckoutDiscounts(userId, requestId, { useCredits, usePoints, prom
 
   const code = promoCode?.trim().toUpperCase();
 
-  if (code === WELCOME_PROMO && canUseWelcomePromo(user)) {
-    discountPromo = Math.round(remaining * WELCOME_DISCOUNT);
-    remaining -= discountPromo;
-    appliedPromo = WELCOME_PROMO;
-  } else if (code && code !== WELCOME_PROMO) {
-    return { error: 'Código promocional no válido' };
-  } else if (code === WELCOME_PROMO) {
-    if (!normalizePhone(user.phone)) {
-      return { error: 'Para usar BIENVENIDO debes tener un teléfono registrado en tu perfil' };
+  if (code === WELCOME_PROMO) {
+    if (canUseWelcomePromo(user)) {
+      discountPromo = Math.round(remaining * WELCOME_DISCOUNT);
+      remaining -= discountPromo;
+      appliedPromo = WELCOME_PROMO;
+    } else {
+      return { error: 'Este código no está disponible' };
     }
-    return { error: 'El código BIENVENIDO solo aplica una vez por correo y teléfono, en tu primer servicio' };
+  } else if (code) {
+    const promo = findPromoByCode(code);
+    const percent = Number(promo?.discountPercent) || 0;
+    const usable = promo
+      && promo.enabled !== false
+      && (promo.checkoutEnabled || percent > 0)
+      && percent > 0;
+    if (!usable) {
+      return { error: 'Código promocional no válido' };
+    }
+    if (promoCodeAlreadyUsedByUser(userId, code)) {
+      return { error: 'Este código ya fue utilizado' };
+    }
+    discountPromo = Math.round(remaining * (percent / 100));
+    remaining -= discountPromo;
+    appliedPromo = code;
   }
 
   if (useCredits && (user.creditsCLP || 0) > 0 && remaining > 0) {
@@ -3258,6 +3371,12 @@ module.exports = {
   getReferralStats,
   applyReferralCode,
   getActivePromos,
+  getAllPromos,
+  getPromosForClient,
+  canUseWelcomePromo,
+  upsertPromo,
+  togglePromo,
+  deletePromo,
   get PROMOS() { return getActivePromos(); },
   POINTS_VALUE_CLP,
   getCheckoutSummary,

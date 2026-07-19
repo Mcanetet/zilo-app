@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS promos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO promos (id, title, description, code, color, sort_order, enabled) VALUES
-  ('first', '10% en tu 1er servicio', 'Código BIENVENIDO al pagar · una vez por correo y teléfono', 'BIENVENIDO', '#B8956B', 1, 1),
+  ('first', '10% en tu 1er servicio', 'Código BIENVENIDO · 10% en tu primer servicio', 'BIENVENIDO', '#B8956B', 1, 1),
   ('refer', 'Invita y gana $5.000', 'Tú y tu amigo reciben crédito', NULL, '#8B7355', 2, 1),
   ('gift', 'Regala un servicio', 'Modo Guardián para tu familia', NULL, '#A67C52', 3, 1)
 ON DUPLICATE KEY UPDATE

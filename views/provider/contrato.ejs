@@ -9,7 +9,8 @@
   <main class="flex-1 px-5 py-5 space-y-5">
     <div class="p-4 rounded-2xl border <%= summary.canOperate ? 'border-emerald-500/30 bg-emerald-500/10' : summary.status === 'pending_review' ? 'border-amber-500/30 bg-amber-500/10' : 'border-blue-500/30 bg-blue-500/10' %>">
       <p class="text-sm font-semibold mb-1"><%= summary.label %></p>
-      <p class="text-xs text-zilo-muted">Versión contrato v<%= templateVersion %> · <%= company.name %></p>
+      <p class="text-xs text-zilo-muted mt-1">Aquí subes los antecedentes legales y firmas el contrato para activar tu cuenta. La verificación de identidad (carnet y facial) se completa en Perfil.</p>
+      <p class="text-xs text-zilo-muted mt-2">Versión contrato v<%= templateVersion %> · <%= company.name %></p>
       <% if (contract.review?.rejectionReason) { %>
         <p class="text-xs text-red-600 mt-2"><strong>Observación:</strong> <%= contract.review.rejectionReason %></p>
       <% } %>

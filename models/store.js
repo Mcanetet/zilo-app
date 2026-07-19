@@ -48,8 +48,7 @@ const {
   LEGAL_DECLARATIONS,
   CONTRACT_CLAUSES,
   ENTITY_TYPES,
-  TEMPLATE_VERSION,
-  validateProviderRegistrationDocuments
+  TEMPLATE_VERSION
 } = require('../lib/contracts');
 const { saveProviderFile } = require('../lib/uploads');
 const {
@@ -1525,13 +1524,6 @@ async function registerUser({
     const raw = Array.isArray(specialties) ? specialties : (specialties ? [specialties] : []);
     cleanSpecialties = raw.filter(id => SERVICES.some(s => s.id === id));
     if (cleanSpecialties.length === 0) return { errorKey: 'register.error_specialties' };
-    if (!(companyLegalName || '').trim()) return { errorKey: 'register.error_company_name' };
-    if (!(companyRut || '').trim()) return { errorKey: 'register.error_company_rut' };
-    if (!validateRut(companyRut)) return { errorKey: 'register.error_company_rut_invalid' };
-    if (!(repRut || '').trim()) return { errorKey: 'register.error_rep_rut' };
-    if (!validateRut(repRut)) return { errorKey: 'register.error_rep_rut_invalid' };
-    const docCheck = validateProviderRegistrationDocuments(providerDocuments);
-    if (!docCheck.ok) return { errorKey: docCheck.errorKey, missingDocs: docCheck.missing };
   }
 
   let resolvedAddress = null;
@@ -1668,15 +1660,6 @@ async function registerUser({
 
   USERS.push(user);
   try {
-    if (role === 'provider') {
-      attachProviderRegistrationDocuments(user, {
-        documents: providerDocuments,
-        companyRut,
-        companyLegalName,
-        repRut,
-        repName: name
-      });
-    }
     await repository.saveUser(user);
   } catch (err) {
     const idx = USERS.indexOf(user);

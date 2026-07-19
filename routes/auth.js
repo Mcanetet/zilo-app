@@ -103,7 +103,6 @@ router.post('/login', rateLimitLogin(12), async (req, res) => {
 });
 
 const { buildPageMeta } = require('../lib/seo');
-const { PROVIDER_REGISTRATION_DOC_KEYS } = require('../lib/contracts');
 const { getCommune, getRegionCommunes } = require('../lib/chile-geo');
 const { buildCoverageResult } = require('../lib/coverage');
 const {
@@ -120,14 +119,6 @@ function wantsJson(req) {
   return req.is('application/json') || (req.get('Accept') || '').includes('application/json');
 }
 
-function providerRegistrationDocsForView(t) {
-  return PROVIDER_REGISTRATION_DOC_KEYS.map((key) => ({
-    key,
-    label: t(`register.doc_${key}`),
-    hint: t(`register.doc_${key}_hint`)
-  }));
-}
-
 function registerRenderOptions(req, extra = {}) {
   const form = extra.form || {};
   const pageId = form.role === 'provider' || req.query.role === 'provider' ? 'register_provider' : 'register';
@@ -136,7 +127,6 @@ function registerRenderOptions(req, extra = {}) {
     referralCode: req.session.pendingReferral || null,
     useMap: true,
     pageScript: '/js/register-address.js',
-    providerRegistrationDocs: providerRegistrationDocsForView(req.t.bind(req)),
     registrationCommunes: getRegionCommunes(REGISTRATION_REGION),
     seo: buildPageMeta(pageId, req),
     ...extra

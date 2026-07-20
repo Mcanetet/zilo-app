@@ -724,6 +724,10 @@ function hasPerm(key) {
         <span class="text-xs text-gray-500"><%= t('admin.modulos.active_count', { active: modules.filter(m => m.enabled).length, total: modules.length }) %></span>
       </div>
       <p class="text-xs text-gray-500 mb-4"><%= as.modulos.hint %></p>
+      <p class="text-xs text-violet-700 mb-4 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
+        Para que los clientes vean <strong>Aland IA</strong>, el módulo <strong>Chat Aland IA</strong> debe estar <strong>ON</strong>.
+        El chat aparece en el inicio del cliente y al abrir un servicio.
+      </p>
 
       <h4 class="text-sm font-semibold mb-2 text-zilo-accent"><%= as.modulos.client %></h4>
       <div id="clientModulesList" class="space-y-2 mb-6">

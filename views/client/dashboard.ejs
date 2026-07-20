@@ -36,6 +36,22 @@
     </div>
     <% } %>
 
+    <% if (mod('client_aland') && typeof services !== 'undefined' && services.length) { %>
+    <a href="/cliente/servicio/<%= services[0].id %>?aland=1" class="block zilo-card-premium rounded-2xl p-4 mb-5 border border-violet-500/25 bg-violet-50/40 hover:border-violet-500/40 transition">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-violet-700" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="zilo-label mb-0.5 text-violet-700">Aland IA</p>
+          <strong class="text-sm block"><%= t('client.dashboard.aland_title') %></strong>
+          <span class="text-xs text-zilo-muted"><%= t('client.dashboard.aland_sub') %></span>
+        </div>
+        <svg class="w-5 h-5 text-violet-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </a>
+    <% } %>
+
     <% if (typeof lastCompleted !== 'undefined' && lastCompleted && mod('client_solicitar')) { %>
     <a href="/cliente/servicio/<%= lastCompleted.serviceId %>" class="block zilo-card-premium rounded-2xl p-4 mb-5 border border-emerald-500/20 bg-emerald-50/50 hover:border-emerald-500/35 transition">
       <div class="flex items-center gap-3">

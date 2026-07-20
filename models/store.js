@@ -211,6 +211,7 @@ async function init() {
 
   SERVICES = data.services;
   MODULES = data.modules;
+  await ensureMissingModules();
   PRICING_CONFIG = data.pricing || normalizePricing(DEFAULT_PRICING);
   USERS = data.users;
   requests = data.requests;
@@ -1116,6 +1117,29 @@ function toggleService(serviceId, enabled) {
 
 function getModuleById(id) {
   return MODULES.find(m => m.id === id);
+}
+
+/** Inserta módulos del catálogo que falten en BD (p. ej. client_aland en installs viejas). */
+async function ensureMissingModules() {
+  const seed = repository.SEED_MODULES || [];
+  if (!seed.length) return;
+  const existing = new Set(MODULES.map((m) => m.id));
+  let added = 0;
+  for (const mod of seed) {
+    if (existing.has(mod.id)) continue;
+    const row = { ...mod, enabled: mod.enabled !== false };
+    MODULES.push(row);
+    try {
+      await repository.saveModule(row);
+      added++;
+    } catch (err) {
+      console.warn('[modules] no se pudo insertar', mod.id, err.message);
+    }
+  }
+  if (added) {
+    MODULES.sort((a, b) => String(a.audience).localeCompare(String(b.audience)) || (a.sortOrder - b.sortOrder));
+    console.log(`✓ Módulos nuevos insertados: ${added}`);
+  }
 }
 
 function isModuleEnabled(id) {
@@ -3782,6 +3806,7 @@ async function reloadFromDatabase() {
   const data = await repository.loadAll();
   SERVICES = data.services;
   MODULES = data.modules;
+  await ensureMissingModules();
   PRICING_CONFIG = data.pricing || normalizePricing(DEFAULT_PRICING);
   USERS = data.users;
   requests = data.requests;

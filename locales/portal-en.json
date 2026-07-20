@@ -38,6 +38,8 @@
   "client.service.aland_open": "Open chat",
   "client.service.aland_placeholder": "Type your question…",
   "client.service.aland_send": "Send",
+  "client.dashboard.aland_title": "Ask Aland AI",
+  "client.dashboard.aland_sub": "Get guidance before requesting a visit",
   "client.service.gift": "Gift this service",
   "client.service.gift_name": "Beneficiary name",
   "client.service.gift_phone": "Phone (optional)",

@@ -78,6 +78,11 @@
     }
   });
 
+  // Abrir automáticamente desde inicio (?aland=1) o si el chat es el foco
+  if (section.dataset.autoOpen === '1' || /[?&]aland=1\b/.test(location.search)) {
+    setTimeout(() => toggleBtn?.click(), 250);
+  }
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();

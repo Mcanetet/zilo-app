@@ -38,6 +38,8 @@
   "client.service.aland_open": "Abrir chat",
   "client.service.aland_placeholder": "Escribe tu consulta…",
   "client.service.aland_send": "Enviar",
+  "client.dashboard.aland_title": "Pregúntale a Aland IA",
+  "client.dashboard.aland_sub": "Te orienta sobre el servicio antes de pedir la visita",
   "client.service.gift": "Regalar este servicio",
   "client.service.gift_name": "Nombre del beneficiario",
   "client.service.gift_phone": "Teléfono (opcional)",

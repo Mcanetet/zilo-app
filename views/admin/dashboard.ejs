@@ -1429,6 +1429,10 @@ function hasPerm(key) {
       <h3 class="text-lg font-semibold mb-1"><%= t('admin.aland.title') %></h3>
       <p class="text-xs text-gray-500 mb-4">Configura el agente de inteligencia artificial. Lee información de la empresa, servicios, precios y conocimiento adicional.</p>
 
+      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-900 mb-4">
+        <strong>Seguridad fija del servidor:</strong> Aland no usa garabatos, bloquea prompt injection, no revela BD/secretos y avisa al admin (auditoría + Mensajes) si detecta un intento de vulnerar. Esas reglas no se pueden desactivar desde este panel.
+      </div>
+
       <div id="alandConfigStatus" class="p-3 rounded-xl bg-zilo-bg border border-gray-200 text-xs text-gray-600 mb-4">Cargando configuración…</div>
 
       <% if (hasPerm('aland.manage')) { %>

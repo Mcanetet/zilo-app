@@ -1084,6 +1084,16 @@
   });
 
   const socket = io();
+  socket.emit('aland_join', { admin: true });
+  socket.on('aland_security_alert', (payload) => {
+    const preview = (payload?.preview || '').slice(0, 80);
+    if (window.FundezNotify) {
+      FundezNotify.show(
+        `Alerta Aland IA (${payload?.type || 'seguridad'}): ${preview || payload?.conversationId || ''}`,
+        'warning'
+      );
+    }
+  });
   socket.on('services_updated', ({ services }) => {
     services.forEach(service => {
       const toggle = document.querySelector(`.service-toggle[data-id="${service.id}"]`);
@@ -1538,6 +1548,16 @@
           }
         });
         adminAlandSocket.on('aland_escalated', () => loadMensajesList());
+        adminAlandSocket.on('aland_security_alert', (payload) => {
+          const preview = (payload?.preview || '').slice(0, 80);
+          if (window.FundezNotify) {
+            FundezNotify.show(
+              `Alerta Aland IA (${payload?.type || 'seguridad'}): ${preview || payload?.conversationId || ''}`,
+              'warning'
+            );
+          }
+          loadMensajesList();
+        });
       }
       adminAlandSocket.emit('aland_join', { conversationId: id, admin: true });
     }

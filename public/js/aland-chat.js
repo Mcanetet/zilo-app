@@ -100,7 +100,24 @@
       if (!data.success) throw new Error(data.error || 'Error al enviar');
       if (data.clientMessage) appendMessage(data.clientMessage);
       if (data.alandMessage) appendMessage(data.alandMessage);
-      if (data.escalated) {
+      if (data.handoffMessage) appendMessage(data.handoffMessage);
+      if (data.whatsappUrl) {
+        appendMessage({
+          senderType: 'system',
+          senderName: 'Sistema',
+          body: 'Tema de pagos: puedes continuar por WhatsApp con el equipo de Fundez.'
+        });
+        const wa = document.createElement('a');
+        wa.href = data.whatsappUrl;
+        wa.target = '_blank';
+        wa.rel = 'noopener';
+        wa.className = 'inline-block mt-1 text-xs font-semibold text-emerald-700 underline';
+        wa.textContent = 'Abrir WhatsApp de pagos';
+        const wrap = document.createElement('div');
+        wrap.className = 'text-left px-1';
+        wrap.appendChild(wa);
+        messagesEl.appendChild(wrap);
+      } else if (data.escalated) {
         appendMessage({
           senderType: 'system',
           senderName: 'Sistema',

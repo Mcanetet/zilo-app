@@ -1,0 +1,34 @@
+<!-- FAB + panel flotante Aland IA (soporte cliente) -->
+<% if (typeof user !== 'undefined' && user && user.role === 'client' && typeof mod === 'function' && mod('client_aland')) { %>
+<div id="alandFabRoot" class="fixed bottom-24 right-5 z-40 flex flex-col items-end gap-2" data-aland-fab>
+  <div id="alandFabPanel" class="hidden w-[min(100vw-2rem,22rem)] rounded-2xl border border-violet-200 bg-white shadow-xl overflow-hidden mb-1">
+    <div class="flex items-center justify-between px-3 py-2.5 bg-violet-600 text-white">
+      <div>
+        <p class="text-sm font-semibold leading-tight">Aland IA</p>
+        <p class="text-[10px] text-violet-100">Soporte Fundez</p>
+      </div>
+      <button type="button" id="alandFabClose" class="w-8 h-8 rounded-lg hover:bg-white/10 text-lg leading-none" aria-label="Cerrar">×</button>
+    </div>
+    <div id="alandFabMessages" class="h-64 overflow-y-auto p-3 space-y-2 bg-slate-50 text-sm"></div>
+    <form id="alandFabForm" class="flex gap-2 p-2 border-t border-slate-200 bg-white">
+      <input type="text" id="alandFabInput" maxlength="2000" placeholder="Escribe tu consulta…" class="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm" autocomplete="off">
+      <button type="submit" class="px-3 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium">Enviar</button>
+    </form>
+    <div id="alandFabWhatsapp" class="hidden p-2 border-t border-emerald-100 bg-emerald-50">
+      <a id="alandFabWhatsappLink" href="#" target="_blank" rel="noopener"
+        class="block w-full text-center py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold">
+        Continuar por WhatsApp (pagos)
+      </a>
+    </div>
+  </div>
+  <button type="button" id="alandFabToggle"
+    class="w-12 h-12 rounded-full bg-violet-600 text-white shadow-lg border border-violet-500/30 flex items-center justify-center hover:bg-violet-700 transition"
+    title="Hablar con Aland IA" aria-label="Abrir Aland IA" data-tour="concierge">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/>
+      <path d="M5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16z"/>
+    </svg>
+  </button>
+</div>
+<script src="<%= typeof asset === 'function' ? asset('/js/aland-fab.js') : '/js/aland-fab.js' %>"></script>
+<% } %>

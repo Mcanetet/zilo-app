@@ -20,10 +20,21 @@ function emitTo(req, room, event, payload) {
 
 router.post('/client/start', requireRole('client'), requireModule('client_aland'), async (req, res) => {
   try {
-    const serviceId = String(req.body.serviceId || '').trim();
-    const service = store.getServiceById(serviceId);
-    if (!service || !service.enabled) {
-      return res.status(404).json({ error: 'Servicio no disponible' });
+    const mode = String(req.body.mode || '').trim().toLowerCase();
+    const isSupport = mode === 'support' || mode === 'soporte';
+    let serviceId;
+    let serviceName;
+
+    if (isSupport) {
+      serviceId = 'soporte-general';
+      serviceName = 'Soporte Fundez';
+    } else {
+      serviceId = String(req.body.serviceId || '').trim();
+      const service = store.getServiceById(serviceId);
+      if (!service || !service.enabled) {
+        return res.status(404).json({ error: 'Servicio no disponible' });
+      }
+      serviceName = service.name;
     }
 
     const config = await aland.getConfig();
@@ -31,15 +42,19 @@ router.post('/client/start', requireRole('client'), requireModule('client_aland'
 
     const user = store.getUserById(req.session.user.id);
     const conversation = await aland.createConversation({
-      serviceId: service.id,
-      serviceName: service.name,
+      serviceId,
+      serviceName,
       clientId: user.id,
       clientName: user.name,
       clientEmail: user.email
     });
 
-    const greeting = (config.greetingMessage || config.greeting || aland.DEFAULT_CONFIG.greetingMessage)
-      .replace('{service}', service.name);
+    const greetingTemplate = isSupport
+      ? (config.supportGreeting
+        || 'Hola, soy Aland IA. Estoy aquí para ayudarte con Fundez. Cuéntame si es un tema de servicio o de pagos y te oriento.')
+      : (config.greetingMessage || config.greeting || aland.DEFAULT_CONFIG.greetingMessage);
+
+    const greeting = String(greetingTemplate).replace('{service}', serviceName);
 
     const welcome = await aland.addMessage({
       conversationId: conversation.id,
@@ -48,7 +63,13 @@ router.post('/client/start', requireRole('client'), requireModule('client_aland'
       body: greeting
     });
 
-    res.json({ success: true, conversation, messages: [welcome], openaiConfigured: aland.openai.isConfigured() });
+    res.json({
+      success: true,
+      conversation,
+      messages: [welcome],
+      openaiConfigured: aland.openai.isConfigured(),
+      mode: isSupport ? 'support' : 'service'
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -5,8 +5,13 @@
     <a href="/legal/terminos" class="hover:text-zilo-accent transition"><%= t('footer.terms') %></a>
     <a href="/legal/cookies" class="hover:text-zilo-accent transition"><%= t('footer.cookies') %></a>
     <% if (typeof company !== 'undefined') { %>
+      <% if (typeof user !== 'undefined' && user && user.role === 'client' && typeof mod === 'function' && mod('client_aland')) { %>
+      <a href="#aland-support" data-open-aland class="hover:text-zilo-accent transition"><%= t('footer.support') %></a>
+      <a href="#aland-support" data-open-aland class="hover:text-zilo-accent transition"><%= t('footer.concierge') %></a>
+      <% } else { %>
       <a href="mailto:<%= company.supportEmail %>" class="hover:text-zilo-accent transition"><%= t('footer.support') %></a>
       <a href="<%= company.whatsappLink() %>" target="_blank" rel="noopener" class="hover:text-zilo-accent transition"><%= t('footer.concierge') %></a>
+      <% } %>
     <% } %>
   </div>
   <p class="text-[10px] text-zilo-muted/50 mt-3 tracking-wider">FUNDEZ · SANTIAGO · MMXXVI</p>

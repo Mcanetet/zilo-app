@@ -9,6 +9,8 @@ module.exports = {
   address: 'Santiago, Región Metropolitana, Chile',
   whatsapp: process.env.WHATSAPP_NUMBER || '56912345678',
   whatsappDisplay: process.env.WHATSAPP_DISPLAY || '+56 9 1234 5678',
+  /** WhatsApp operaciones/pagos (Aland deriva aquí temas de cobro). */
+  paymentsWhatsapp: String(process.env.ALAND_PAYMENTS_WHATSAPP || '56935038343').replace(/\D/g, ''),
   commissionRate: parseFloat(process.env.PLATFORM_COMMISSION || '0.15'),
   dpoEmail: DPO_EMAIL,
   appUrl: process.env.APP_URL || 'http://localhost:3000',
@@ -16,6 +18,12 @@ module.exports = {
   whatsappLink(message) {
     const num = this.whatsapp.replace(/\D/g, '');
     const text = encodeURIComponent(message || 'Hola Fundez, necesito ayuda con un servicio.');
+    return `https://wa.me/${num}?text=${text}`;
+  },
+
+  paymentsWhatsappLink(message) {
+    const num = this.paymentsWhatsapp.replace(/\D/g, '') || '56935038343';
+    const text = encodeURIComponent(message || 'Hola Fundez, tengo una consulta de pagos.');
     return `https://wa.me/${num}?text=${text}`;
   },
 

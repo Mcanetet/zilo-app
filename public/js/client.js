@@ -546,9 +546,12 @@
       showAdditionalPaymentBanner(request);
       renderCompletionSummary(request.clientTotals, request.vouchers);
     }
-    const waNum = page.dataset.whatsapp || '56912345678';
-    const waMsg = encodeURIComponent(t('client.js.wa_help', { name: provider.name }));
-    document.getElementById('whatsappSupport').href = `https://wa.me/${waNum.replace(/\D/g, '')}?text=${waMsg}`;
+    const waBtn = document.getElementById('whatsappSupport');
+    if (waBtn) {
+      waBtn.href = '#aland-support';
+      waBtn.removeAttribute('target');
+      waBtn.setAttribute('data-open-aland', '1');
+    }
 
     if (request) syncTripFromRequest(request);
 

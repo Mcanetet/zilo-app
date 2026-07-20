@@ -1476,17 +1476,46 @@
 
   alandKbForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    const errEl = document.getElementById('alandKbFormError');
+    if (errEl) {
+      errEl.classList.add('hidden');
+      errEl.textContent = '';
+    }
+    const btn = document.getElementById('btnAlandAddKb');
     const fd = new FormData(alandKbForm);
-    const res = await fetch('/aland/admin/knowledge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: fd.get('title'), content: fd.get('content'), sourceType: 'custom', active: true })
-    });
-    const data = await res.json();
-    if (data.success) {
+    const title = String(fd.get('title') || '').trim();
+    const content = String(fd.get('content') || '').trim();
+    if (!title || !content) {
+      if (errEl) {
+        errEl.textContent = 'Completa título y contenido (o una URL pública).';
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/aland/admin/knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title, content, sourceType: 'custom', active: true })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `No se pudo guardar (${res.status})`);
+      }
       FundezNotify.show('Conocimiento agregado', 'success');
       alandKbForm.reset();
       loadAlandAdmin();
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || 'Error al agregar';
+        errEl.classList.remove('hidden');
+      }
+      FundezNotify.show(err.message || 'Error al agregar conocimiento', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
     }
   });
 

@@ -1097,15 +1097,7 @@
   socket.on('aland_payment_alert', (payload) => {
     const preview = (payload?.preview || '').slice(0, 60);
     if (window.FundezNotify) {
-      FundezNotify.show(`Pagos Aland: ${preview}`, 'warning');
-    }
-    if (payload?.whatsappUrl) {
-      // Admin puede abrir el WhatsApp de operaciones en una pestaña
-      const a = document.createElement('a');
-      a.href = payload.whatsappUrl;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      // no auto-click agresivo; solo toast. El link queda en Mensajes.
+      FundezNotify.show(`Pagos Aland: ${preview || 'Nueva consulta'} — revisa Mensajes`, 'warning');
     }
   });
   socket.on('services_updated', ({ services }) => {

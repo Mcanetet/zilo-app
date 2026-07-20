@@ -8,8 +8,6 @@
   const messagesEl = document.getElementById('alandFabMessages');
   const form = document.getElementById('alandFabForm');
   const input = document.getElementById('alandFabInput');
-  const waBox = document.getElementById('alandFabWhatsapp');
-  const waLink = document.getElementById('alandFabWhatsappLink');
 
   let conversationId = null;
   let socket = null;
@@ -41,12 +39,6 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function showWhatsapp(url) {
-    if (!url || !waBox || !waLink) return;
-    waLink.href = url;
-    waBox.classList.remove('hidden');
-  }
-
   async function startSupportChat() {
     if (conversationId || starting) return;
     starting = true;
@@ -69,8 +61,6 @@
         socket.on('aland_message', (payload) => {
           if (payload.conversationId === conversationId && payload.message) {
             appendMessage(payload.message);
-            const wa = payload.message?.meta?.whatsappUrl;
-            if (wa) showWhatsapp(wa);
           }
         });
       }
@@ -135,7 +125,6 @@
       if (data.clientMessage) appendMessage(data.clientMessage);
       if (data.alandMessage) appendMessage(data.alandMessage);
       if (data.handoffMessage) appendMessage(data.handoffMessage);
-      if (data.whatsappUrl) showWhatsapp(data.whatsappUrl);
     } catch (err) {
       if (window.FundezNotify) FundezNotify.show(err.message, 'error');
     }

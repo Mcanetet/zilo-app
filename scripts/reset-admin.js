@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const db = require('../lib/db');
 const repository = require('../models/repository');
+const appMode = require('../lib/appMode');
 
 async function main() {
   if (!db.isConfigured()) {
@@ -11,7 +12,6 @@ async function main() {
   }
 
   const password = process.argv[2] || process.env.ADMIN_PASSWORD || 'admin123';
-  const cfg = repository.getAdminSeedConfig();
 
   try {
     await db.ping();
@@ -20,7 +20,9 @@ async function main() {
     console.log(result.created ? '✓ Admin creado' : '✓ Contraseña admin restablecida');
     console.log(`  Email: ${result.email}`);
     console.log(`  Contraseña: ${password}`);
-    console.log('\nIngresa en /admin/login');
+    const base = appMode.getAdminBasePath();
+    const site = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    console.log(`\nIngresa en ${site}${base}/login`);
   } catch (err) {
     console.error('❌ Error:', err.message);
     process.exit(1);

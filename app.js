@@ -29,12 +29,24 @@ const aland = require('./lib/aland');
 const { localizeServices } = require('./lib/i18n-admin');
 const { buildPageMeta, getSiteUrl } = require('./lib/seo');
 const seoRoutes = require('./routes/seo');
+const appMode = require('./lib/appMode');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const ADMIN_BASE = appMode.getAdminBasePath();
+
+const bootErrors = appMode.assertSecureBoot();
+if (bootErrors.length && appMode.isProductionMode() && process.env.ALLOW_INSECURE_BOOT !== 'true') {
+  console.error('✗ Arranque inseguro en producción:');
+  bootErrors.forEach((e) => console.error('  -', e));
+  process.exit(1);
+} else if (bootErrors.length) {
+  console.warn('⚠ Avisos de seguridad:');
+  bootErrors.forEach((e) => console.warn('  -', e));
+}
 
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -46,8 +58,6 @@ app.set('io', io);
 
 app.get('/health', async (req, res) => {
   const dbConfigured = require('./lib/db').isConfigured();
-  const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-  const missingVars = requiredVars.filter((k) => !process.env[k]);
   let dbOk = false;
   if (dbConfigured && store.isReady()) {
     try {
@@ -57,37 +67,36 @@ app.get('/health', async (req, res) => {
     }
   }
   const version = getAppVersionInfo();
-  const mailer = require('./lib/mailer');
-  const smtp = mailer.smtpStatus();
-  let smtpOk = null;
-  if (smtp.configured && req.query.smtp === '1') {
-    const check = await mailer.verifySmtp();
-    smtpOk = check.ok;
-    if (!check.ok) smtp.verifyError = check.reason;
-  }
-  res.json({
+  const mode = appMode.getPublicStatus();
+  const payload = {
     ok: store.isReady() && dbOk,
     app: 'fundez',
     version: version.version,
-    gitCommit: version.gitCommit,
+    mode: mode.mode,
     ready: store.isReady(),
     database: dbOk ? 'connected' : (dbConfigured ? 'connecting' : 'not_configured'),
-    dbHost: process.env.DB_HOST || null,
-    dbName: process.env.DB_NAME || null,
-    appUrl: require('./lib/seo').getSiteUrl(),
-    missingVars,
-    smtp: {
-      ...smtp,
-      verified: smtpOk
-    },
-    port: PORT,
-    uptime: process.uptime(),
-    initError: global.__ziloInitError || null
-  });
+    uptime: process.uptime()
+  };
+  if (process.env.HEALTH_VERBOSE === 'true') {
+    payload.gitCommit = version.gitCommit;
+    payload.appUrl = require('./lib/seo').getSiteUrl();
+    payload.initError = global.__ziloInitError || null;
+  }
+  res.json(payload);
 });
 
 app.use(securityHeaders);
 app.use(rateLimitSimple(150));
+// Evita //ruta (p. ej. fundez.cl//ops-.../login) que no matchea el panel admin
+app.use((req, res, next) => {
+  if (!req.url || !req.url.includes('//')) return next();
+  const qIdx = req.url.indexOf('?');
+  const pathPart = qIdx >= 0 ? req.url.slice(0, qIdx) : req.url;
+  const query = qIdx >= 0 ? req.url.slice(qIdx) : '';
+  const cleaned = pathPart.replace(/\/{2,}/g, '/');
+  if (cleaned === pathPart) return next();
+  return res.redirect(301, cleaned + query);
+});
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders(res, filePath) {
     if (/\.(js|css)$/.test(filePath)) {
@@ -96,20 +105,30 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: appMode.isProductionMode() ? '2mb' : '25mb' }));
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'zilo-dev-secret-change-me',
+const sessionSecret = process.env.SESSION_SECRET || (appMode.isProductionMode() ? null : 'zilo-dev-secret-change-me');
+if (!sessionSecret) {
+  console.error('✗ SESSION_SECRET es obligatorio');
+  process.exit(1);
+}
+
+const sessionMiddleware = session({
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
-  name: 'zilo.sid',
+  name: 'fundez.sid',
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
-}));
+});
+app.use(sessionMiddleware);
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, {}, next);
+});
 
 app.use(i18nMiddleware);
 
@@ -128,6 +147,9 @@ app.use((req, res, next) => {
     return `${url}${sep}v=${assetVersion}`;
   };
   res.locals.mod = (id) => (store.isReady() ? store.isModuleEnabled(id) : true);
+  res.locals.adminBase = ADMIN_BASE;
+  res.locals.adminUrl = appMode.adminUrl;
+  res.locals.appModeStatus = appMode.getPublicStatus();
   next();
 });
 
@@ -136,7 +158,12 @@ app.get('/', (req, res) => {
     req.session.pendingReferral = String(req.query.ref).trim().toUpperCase();
   }
   if (req.session.user) {
-    const dashboards = { client: '/cliente', provider: '/proveedor', tecnico: '/tecnico', admin: '/admin' };
+    const dashboards = {
+      client: '/cliente',
+      provider: '/proveedor',
+      tecnico: '/tecnico',
+      admin: ADMIN_BASE
+    };
     return res.redirect(dashboards[req.session.user.role] || '/login');
   }
   const seo = buildPageMeta('home', req);
@@ -159,7 +186,16 @@ app.use('/', authRoutes);
 app.use('/cliente', clientRoutes);
 app.use('/proveedor', providerRoutes);
 app.use('/tecnico', tecnicoRoutes);
-app.use('/admin', adminRoutes);
+app.use(ADMIN_BASE, adminRoutes);
+if (ADMIN_BASE !== '/admin') {
+  app.use('/admin', (req, res) => {
+    res.status(404).render('error', {
+      title: 'No encontrado',
+      message: 'Ruta no disponible.',
+      code: 404
+    });
+  });
+}
 app.use('/pagos', paymentRoutes);
 app.use('/legal', legalRoutes);
 app.use('/seguimiento', trackingRoutes);
@@ -169,6 +205,8 @@ app.use('/aland', alandRoutes);
 
 app.use((req, res, next) => {
   if (store.isReady() || req.path === '/health') return next();
+  // Login/MFA admin pueden renderizarse aunque la DB aún arranque
+  if (req.path === ADMIN_BASE || req.path.startsWith(`${ADMIN_BASE}/`)) return next();
   return res.status(503).render('error', {
     title: req.t('error.connecting.title'),
     message: req.t('error.connecting.message'),
@@ -178,12 +216,19 @@ app.use((req, res, next) => {
 
 io.on('connection', (socket) => {
   socket.on('register_provider', (providerId) => {
+    const sessionUser = socket.request?.session?.user;
+    if (!sessionUser || (sessionUser.role !== 'provider' && sessionUser.role !== 'admin')) return;
+    if (sessionUser.role === 'provider' && sessionUser.id !== providerId) return;
     store.providerSockets.set(providerId, socket.id);
     socket.providerId = providerId;
     dispatchPendingToProvider(io, providerId);
   });
 
   socket.on('register_client', (requestId) => {
+    const sessionUser = socket.request?.session?.user;
+    if (!sessionUser) return;
+    const request = store.isReady() ? store.requests.find((r) => r.id === requestId) : null;
+    if (request && sessionUser.role === 'client' && request.clientId !== sessionUser.id) return;
     socket.join(`request_${requestId}`);
     socket.requestId = requestId;
   });
@@ -199,16 +244,25 @@ io.on('connection', (socket) => {
   });
 
   socket.on('register_technico', (tecnicoId) => {
+    const sessionUser = socket.request?.session?.user;
+    if (!sessionUser || (sessionUser.role !== 'tecnico' && sessionUser.role !== 'admin')) return;
+    if (sessionUser.role === 'tecnico' && sessionUser.id !== tecnicoId) return;
     store.technicianSockets.set(tecnicoId, socket.id);
     socket.tecnicoId = tecnicoId;
     dispatchPendingToTechnician(io, tecnicoId);
   });
 
   socket.on('aland_join', ({ conversationId, clientId, providerId, admin }) => {
+    const sessionUser = socket.request?.session?.user;
+    if (!sessionUser) return;
     if (conversationId) socket.join(`aland_conv_${conversationId}`);
-    if (clientId) socket.join(`aland_client_${clientId}`);
-    if (providerId) socket.join(`aland_provider_${providerId}`);
-    if (admin) socket.join('aland_admin');
+    if (clientId && (sessionUser.id === clientId || sessionUser.role === 'admin')) {
+      socket.join(`aland_client_${clientId}`);
+    }
+    if (providerId && (sessionUser.id === providerId || sessionUser.role === 'admin')) {
+      socket.join(`aland_provider_${providerId}`);
+    }
+    if (admin && sessionUser.role === 'admin') socket.join('aland_admin');
   });
 
   socket.on('disconnect', () => {
@@ -270,7 +324,13 @@ async function initDatabase() {
 
 async function start() {
   server.listen(PORT, '0.0.0.0', () => {
+    const mode = appMode.getPublicStatus();
     console.log(`Servidor escuchando en puerto ${PORT}`);
+    console.log(`Modo: ${mode.label} (${mode.mode})`);
+    console.log(`Admin login: ${ADMIN_BASE}/login`);
+    if (ADMIN_BASE === '/admin') {
+      console.warn('⚠ ADMIN_PATH=/admin es fácil de adivinar. Usa un path secreto en producción.');
+    }
     console.log('DB_HOST:', process.env.DB_HOST || '(no definido)');
     console.log('DB_NAME:', process.env.DB_NAME || '(no definido)');
     console.log('DB_USER:', process.env.DB_USER || '(no definido)');

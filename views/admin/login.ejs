@@ -21,7 +21,7 @@
       <div class="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-700 text-sm text-center"><%= error %></div>
     <% } %>
 
-    <form action="/admin/login" method="POST" class="space-y-4">
+    <form action="<%= typeof adminBase !== 'undefined' ? adminBase : '/admin' %>/login" method="POST" class="space-y-4">
       <div>
         <label for="email" class="zilo-label block mb-1.5"><%= t('admin.login.email') %></label>
         <input type="email" id="email" name="email" required autocomplete="username" placeholder="admin@fundez.cl" class="zilo-input">

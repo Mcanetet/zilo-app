@@ -183,6 +183,33 @@ CREATE TABLE IF NOT EXISTS promos (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS crm_leads (
+  id VARCHAR(64) PRIMARY KEY,
+  company_name VARCHAR(255) NOT NULL,
+  contact_name VARCHAR(255) NOT NULL,
+  email VARCHAR(190),
+  phone VARCHAR(64),
+  rut VARCHAR(32),
+  meeting_at DATETIME NULL,
+  next_steps TEXT,
+  meeting_notes TEXT,
+  training_done TINYINT(1) NOT NULL DEFAULT 0,
+  docs_received TINYINT(1) NOT NULL DEFAULT 0,
+  contract_sent TINYINT(1) NOT NULL DEFAULT 0,
+  contract_signed TINYINT(1) NOT NULL DEFAULT 0,
+  pipeline_stage VARCHAR(32) NOT NULL DEFAULT 'prospecto',
+  interested_services TEXT,
+  coverage_area VARCHAR(255),
+  source VARCHAR(128),
+  assigned_to VARCHAR(190),
+  notes TEXT,
+  converted_provider_id VARCHAR(64) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_crm_meeting (meeting_at),
+  INDEX idx_crm_stage (pipeline_stage)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS app_settings (
   setting_key VARCHAR(64) PRIMARY KEY,
   setting_value JSON NOT NULL,

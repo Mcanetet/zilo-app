@@ -4,7 +4,7 @@
   <header class="sticky top-0 z-50 bg-zilo-bg/95 backdrop-blur-xl border-b border-zilo-border px-5 py-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <a href="/admin" class="zilo-icon-btn" title="Volver al admin">
+        <a href="<%= typeof adminBase !== 'undefined' ? adminBase : '/admin' %>" class="zilo-icon-btn" title="Volver al admin">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </a>
         <div>
@@ -23,7 +23,7 @@
       <div class="mb-4 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm text-emerald-700">Precios actualizados correctamente.</div>
     <% } %>
 
-    <form method="POST" action="/admin/precios" id="pricingForm" class="space-y-5">
+    <form method="POST" action="<%= typeof adminBase !== 'undefined' ? adminBase : '/admin' %>/precios" id="pricingForm" class="space-y-5">
       <section class="zilo-card-premium rounded-2xl p-5 border border-gray-200">
         <h2 class="text-sm font-semibold mb-4">Tarifas base</h2>
         <div class="grid grid-cols-1 gap-3">

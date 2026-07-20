@@ -17,7 +17,7 @@
       <div class="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-700 text-sm text-center"><%= error %></div>
     <% } %>
 
-    <form action="/admin/mfa" method="POST" class="space-y-4">
+    <form action="<%= typeof adminBase !== 'undefined' ? adminBase : '/admin' %>/mfa" method="POST" class="space-y-4">
       <div>
         <label for="code" class="zilo-label block mb-1.5">Código MFA</label>
         <input type="text" id="code" name="code" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" class="zilo-input text-center text-2xl tracking-[0.4em] font-mono">
@@ -26,7 +26,7 @@
     </form>
 
     <p class="text-center text-xs text-gray-500 mt-6 space-x-3">
-      <a href="/admin/login" class="hover:text-gray-700 underline">Volver al login</a>
+      <a href="<%= typeof adminBase !== 'undefined' ? adminBase : '/admin' %>/login" class="hover:text-gray-700 underline">Volver al login</a>
       <span>·</span>
       <a href="/logout" class="hover:text-gray-700 underline">Cancelar</a>
     </p>

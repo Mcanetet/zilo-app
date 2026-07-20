@@ -19,9 +19,10 @@ const currentProfile = adminProfiles.find(function(p) { return p.id === adminAcc
 const profileLabel = currentProfile ? currentProfile.name : (adminAccess.isSuperAdmin ? (typeof adminStrings !== 'undefined' ? adminStrings.profiles.superadmin : 'Superadministrador') : (typeof adminStrings !== 'undefined' ? adminStrings.profiles.custom : 'Personalizado'));
 const as = typeof adminStrings !== 'undefined' ? adminStrings : { panels: {}, resumen: {}, modulos: {}, cobertura: {}, servicios: {}, status: {}, profiles: {}, js: {} };
 const dl = (typeof locale !== 'undefined' && locale === 'en') ? 'en-US' : 'es-CL';
-const canManageTeam = adminAccess.isSuperAdmin || (adminAccess.permissions || []).indexOf('equipo.manage') !== -1;
+const canManageTeam = adminAccess.isSuperAdmin || adminAccess.isFullAccess || (adminAccess.permissions || []).indexOf('equipo.manage') !== -1;
+const canManageProfiles = canManageTeam || adminAccess.isSuperAdmin || adminAccess.isFullAccess || (adminAccess.permissions || []).indexOf('perfiles.manage') !== -1;
 function hasPerm(key) {
-  return adminAccess.isSuperAdmin || (adminAccess.permissions || []).indexOf(key) !== -1;
+  return adminAccess.isSuperAdmin || adminAccess.isFullAccess || (adminAccess.permissions || []).indexOf(key) !== -1;
 }
 %>
 
@@ -34,6 +35,10 @@ function hasPerm(key) {
       <div class="min-w-0">
         <span class="zilo-label !text-[9px]"><%= t('admin.operations') %></span>
         <h1 class="text-sm font-semibold truncate"><%= t('admin.title') %></h1>
+        <% const modeSt = typeof appModeStatus !== 'undefined' ? appModeStatus : { mode: 'demo', label: 'Modo demo', isDemo: true }; %>
+        <p class="mt-1">
+          <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full <%= modeSt.isProduction ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-800' %>"><%= modeSt.label %></span>
+        </p>
         <% if (typeof appVersion !== 'undefined' && appVersion) { %>
           <p class="text-[10px] text-zilo-muted font-mono truncate"><%= appVersion.label %></p>
         <% } %>
@@ -68,8 +73,8 @@ function hasPerm(key) {
       </div>
       <div class="admin-topbar-actions">
         <%- include('../partials/lang-switcher') %>
-        <% if (adminAccess.isSuperAdmin || (adminAccess.permissions || []).includes('precios.view') || (adminAccess.permissions || []).includes('precios.manage')) { %>
-          <a href="/admin/precios" class="zilo-icon-btn" title="<%= t('admin.prices') %>">
+        <% if (hasPerm('precios.view') || hasPerm('precios.manage')) { %>
+          <a href="<%= adminBase %>/precios" class="zilo-icon-btn" title="<%= t('admin.prices') %>">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           </a>
         <% } %>
@@ -115,7 +120,7 @@ function hasPerm(key) {
       <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
         <h3 class="text-sm font-semibold mb-2"><%= as.resumen.configLegal %></h3>
         <div class="flex flex-wrap gap-2">
-          <a href="/admin/precios" class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-700 hover:border-blue-500/50 font-medium"><%= as.resumen.pricing %></a>
+          <a href="<%= adminBase %>/precios" class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-700 hover:border-blue-500/50 font-medium"><%= as.resumen.pricing %></a>
           <button type="button" class="admin-goto-tab text-xs px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 hover:border-emerald-500/50 font-medium" data-tab="finanzas"><%= as.resumen.financeCenter %></button>
           <a href="/legal/privacidad" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50"><%= as.resumen.privacy %></a>
           <a href="/legal/terminos" target="_blank" class="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:border-blue-500/50"><%= as.resumen.terms %></a>
@@ -132,7 +137,10 @@ function hasPerm(key) {
           <h3 class="text-lg font-semibold"><%= t('admin.finanzas.title') %></h3>
           <p class="text-xs text-gray-500 mt-1"><%= t('admin.finanzas.subtitle') %></p>
         </div>
-        <a href="/admin/finanzas/export.csv" class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-700 font-medium shrink-0"><%= t('admin.common.export_csv') %></a>
+        <div class="flex flex-col items-end gap-2 shrink-0">
+          <a href="<%= adminBase %>/finanzas/export.csv" class="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-700 font-medium"><%= t('admin.common.export_csv') %></a>
+          <a href="<%= adminBase %>/finanzas/balance.csv" class="text-xs px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 font-medium"><%= t('admin.finanzas.export_balance') %></a>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 gap-2 mb-4">
@@ -166,6 +174,136 @@ function hasPerm(key) {
         <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
           <strong class="block text-sm"><%= fin.pendingTransferCount %></strong>
           <span class="text-[9px] text-gray-500 uppercase"><%= t('admin.finanzas.pending_transfer') %></span>
+        </div>
+      </div>
+
+      <% const acc = financialReport.accounting || {}; const pnl = acc.pnl || { income: {}, expenses: {} }; const bs = acc.balanceSheet || { assets: [], liabilities: [], equity: [] }; const bank = acc.bank || { reconciliation: {}, movements: [] }; const purch = acc.purchases || { invoices: [], connection: {} }; %>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <h4 class="text-sm font-semibold mb-1"><%= t('admin.finanzas.pnl_title') %></h4>
+        <p class="text-[11px] text-gray-500 mb-3"><%= t('admin.finanzas.pnl_subtitle') %></p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-gray-500"><%= t('admin.finanzas.income_commission') %></span><strong class="text-emerald-600"><%= formatCLP(pnl.income.commission || 0) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500"><%= t('admin.finanzas.income_surcharge') %></span><strong class="text-emerald-600"><%= formatCLP(pnl.income.cardSurcharge || 0) %></strong></div>
+          <div class="flex justify-between border-t border-gray-100 pt-2"><span class="text-gray-500"><%= t('admin.finanzas.expense_payouts') %></span><strong class="text-red-600"><%= formatCLP(pnl.expenses.providerPaid || 0) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500"><%= t('admin.finanzas.expense_purchases') %></span><strong class="text-red-600"><%= formatCLP(pnl.expenses.purchases || 0) %></strong></div>
+          <div class="flex justify-between"><span class="text-gray-500"><%= t('admin.finanzas.expense_pending') %></span><strong class="text-yellow-600"><%= formatCLP(pnl.expenses.providerPending || 0) %></strong></div>
+          <div class="flex justify-between border-t border-gray-200 pt-2 text-base"><span class="font-medium"><%= t('admin.finanzas.net_result') %></span><strong class="<%= (pnl.netResult || 0) >= 0 ? 'text-emerald-600' : 'text-red-600' %>"><%= formatCLP(pnl.netResult || 0) %></strong></div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <h4 class="text-sm font-semibold mb-1"><%= t('admin.finanzas.balance_title') %></h4>
+        <p class="text-[11px] text-gray-500 mb-3"><%= t('admin.finanzas.balance_subtitle') %></p>
+        <div class="grid grid-cols-1 gap-3 text-sm">
+          <div>
+            <span class="text-[10px] uppercase text-gray-500 font-semibold"><%= t('admin.finanzas.assets') %></span>
+            <% (bs.assets || []).forEach(function(a) { %>
+              <div class="flex justify-between py-1 border-b border-gray-50"><span><%= a.code %> <%= a.name %></span><strong><%= formatCLP(a.balance) %></strong></div>
+            <% }); %>
+            <div class="flex justify-between pt-1"><span class="text-gray-500"><%= t('admin.finanzas.total') %></span><strong><%= formatCLP(bs.totalAssets || 0) %></strong></div>
+          </div>
+          <div>
+            <span class="text-[10px] uppercase text-gray-500 font-semibold"><%= t('admin.finanzas.liabilities') %></span>
+            <% (bs.liabilities || []).forEach(function(a) { %>
+              <div class="flex justify-between py-1 border-b border-gray-50"><span><%= a.code %> <%= a.name %></span><strong><%= formatCLP(a.balance) %></strong></div>
+            <% }); %>
+            <div class="flex justify-between pt-1"><span class="text-gray-500"><%= t('admin.finanzas.total') %></span><strong><%= formatCLP(bs.totalLiabilities || 0) %></strong></div>
+          </div>
+          <div>
+            <span class="text-[10px] uppercase text-gray-500 font-semibold"><%= t('admin.finanzas.equity') %></span>
+            <% (bs.equity || []).forEach(function(a) { %>
+              <div class="flex justify-between py-1 border-b border-gray-50"><span><%= a.code %> <%= a.name %></span><strong><%= formatCLP(a.balance) %></strong></div>
+            <% }); %>
+            <div class="flex justify-between pt-1"><span class="text-gray-500"><%= t('admin.finanzas.total') %></span><strong><%= formatCLP(bs.totalEquity || 0) %></strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 mb-4 text-xs text-gray-600">
+        <strong class="text-blue-700 block mb-1"><%= t('admin.finanzas.dte_auto_title') %></strong>
+        <p><%= (acc.dte && acc.dte.note) || t('admin.finanzas.dte_auto_note') %></p>
+        <p class="mt-1 text-gray-500"><%= t('admin.finanzas.dte_count') %>: <strong><%= (acc.dte && acc.dte.documentsCount) || 0 %></strong> · <%= formatCLP((acc.dte && acc.dte.amount) || 0) %></p>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <div class="flex justify-between items-start gap-2 mb-3">
+          <div>
+            <h4 class="text-sm font-semibold"><%= t('admin.finanzas.purchases_title') %></h4>
+            <p class="text-[11px] text-gray-500"><%= t('admin.finanzas.purchases_subtitle') %></p>
+          </div>
+          <button type="button" id="btnSiiSync" class="text-[10px] px-2 py-1 rounded-lg bg-yellow-500/15 text-yellow-800 font-semibold border border-yellow-500/30"><%= t('admin.finanzas.sii_sync') %></button>
+        </div>
+        <p class="text-[11px] text-gray-500 mb-3"><%= t('admin.finanzas.sii_status') %>: <code><%= (purch.connection && purch.connection.status) || 'ready_to_connect' %></code><% if (purch.connection && purch.connection.apiKeySet) { %> · API key OK<% } %></p>
+        <form id="formPurchaseInvoice" class="grid grid-cols-2 gap-2 mb-3 text-sm">
+          <input name="supplierRut" class="zilo-input !py-2 col-span-1" placeholder="RUT proveedor" required>
+          <input name="supplierName" class="zilo-input !py-2 col-span-1" placeholder="Razón social" required>
+          <input name="folio" class="zilo-input !py-2" placeholder="Folio" required>
+          <input name="issuedAt" type="date" class="zilo-input !py-2" required>
+          <input name="netAmount" type="number" min="0" class="zilo-input !py-2" placeholder="Neto">
+          <input name="taxAmount" type="number" min="0" class="zilo-input !py-2" placeholder="IVA">
+          <input name="totalAmount" type="number" min="0" class="zilo-input !py-2 col-span-2" placeholder="Total" required>
+          <button type="submit" class="zilo-btn-primary !py-2 col-span-2 text-sm"><%= t('admin.finanzas.add_purchase') %></button>
+        </form>
+        <% if (!(purch.invoices || []).length) { %>
+          <p class="text-xs text-gray-500"><%= t('admin.finanzas.purchases_empty') %></p>
+        <% } %>
+        <% (purch.invoices || []).slice(0, 8).forEach(function(inv) { %>
+          <div class="flex justify-between text-sm py-1.5 border-b border-gray-100">
+            <span><%= inv.supplierName %> · <%= inv.folio %><span class="text-gray-400 text-xs block"><%= inv.issuedAt %> · <%= inv.source %></span></span>
+            <strong><%= formatCLP(inv.totalAmount) %></strong>
+          </div>
+        <% }); %>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4">
+        <div class="flex justify-between items-start gap-2 mb-3">
+          <div>
+            <h4 class="text-sm font-semibold"><%= t('admin.finanzas.bank_title') %></h4>
+            <p class="text-[11px] text-gray-500"><%= t('admin.finanzas.bank_subtitle') %></p>
+          </div>
+          <button type="button" id="btnAutoReconcile" class="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-800 font-semibold border border-emerald-500/30"><%= t('admin.finanzas.auto_reconcile') %></button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-3 text-center text-xs">
+          <div class="p-2 rounded-lg bg-gray-50"><strong class="block"><%= (bank.reconciliation && bank.reconciliation.matchedCount) || 0 %></strong><%= t('admin.finanzas.matched') %></div>
+          <div class="p-2 rounded-lg bg-yellow-50"><strong class="block"><%= (bank.reconciliation && bank.reconciliation.openCount) || 0 %></strong><%= t('admin.finanzas.open_movs') %></div>
+          <div class="p-2 rounded-lg bg-blue-50"><strong class="block"><%= formatCLP((bank.reconciliation && bank.reconciliation.unreconciledEstimate) || 0) %></strong><%= t('admin.finanzas.unreconciled') %></div>
+        </div>
+        <form id="formBankMovement" class="grid grid-cols-2 gap-2 mb-3 text-sm">
+          <input name="date" type="date" class="zilo-input !py-2" required>
+          <input name="amount" type="number" class="zilo-input !py-2" placeholder="Monto (+ingreso)" required>
+          <input name="description" class="zilo-input !py-2 col-span-2" placeholder="Descripción" required>
+          <input name="reference" class="zilo-input !py-2 col-span-2" placeholder="Referencia / paymentId">
+          <button type="submit" class="zilo-btn-primary !py-2 col-span-2 text-sm"><%= t('admin.finanzas.add_movement') %></button>
+        </form>
+        <% (bank.movements || []).slice(0, 8).forEach(function(m) { %>
+          <div class="flex justify-between text-sm py-1.5 border-b border-gray-100">
+            <span><%= m.description %><span class="text-gray-400 text-xs block"><%= m.date %> · <%= m.status %></span></span>
+            <strong class="<%= m.amount >= 0 ? 'text-emerald-600' : 'text-red-600' %>"><%= formatCLP(m.amount) %></strong>
+          </div>
+        <% }); %>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 mb-4">
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <h4 class="text-sm font-semibold mb-2"><%= t('admin.finanzas.sales_ledger') %></h4>
+          <% if (!(acc.sales || []).length) { %><p class="text-xs text-gray-500"><%= t('admin.common.no_data') %></p><% } %>
+          <% (acc.sales || []).slice(0, 10).forEach(function(s) { %>
+            <div class="flex justify-between text-sm py-1 border-b border-gray-50">
+              <span><%= s.label %><span class="text-gray-400 text-xs block"><%= s.date %> · <%= s.clientName %></span></span>
+              <strong><%= formatCLP(s.amount) %></strong>
+            </div>
+          <% }); %>
+        </div>
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <h4 class="text-sm font-semibold mb-2"><%= t('admin.finanzas.costs_ledger') %></h4>
+          <% if (!(acc.costs || []).length) { %><p class="text-xs text-gray-500"><%= t('admin.common.no_data') %></p><% } %>
+          <% (acc.costs || []).slice(0, 10).forEach(function(c) { %>
+            <div class="flex justify-between text-sm py-1 border-b border-gray-50">
+              <span><%= c.label %><span class="text-gray-400 text-xs block"><%= c.date %> · <%= c.status %></span></span>
+              <strong><%= formatCLP(c.amount) %></strong>
+            </div>
+          <% }); %>
         </div>
       </div>
 
@@ -225,6 +363,172 @@ function hasPerm(key) {
             </div>
           <% }); %>
         </div>
+      </div>
+    </section>
+
+    <!-- CRM SOCIOS ESTRATÉGICOS -->
+    <section class="<%= panelClass('crm') %>" data-panel="crm">
+      <% const crmList = crmLeads || []; const crmSt = crmStats || { byStage: {} }; const stages = crmStages || []; %>
+      <div class="flex justify-between items-start gap-3 mb-4">
+        <div>
+          <h3 class="text-lg font-semibold"><%= t('admin.crm.title') %></h3>
+          <p class="text-xs text-gray-500 mt-1"><%= t('admin.crm.subtitle') %></p>
+        </div>
+        <span class="text-xs text-gray-500 shrink-0"><%= crmSt.total || 0 %> <%= t('admin.crm.records') %></span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center">
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= crmSt.upcomingMeetings || 0 %></strong>
+          <span class="text-[9px] text-gray-500 uppercase"><%= t('admin.crm.upcoming') %></span>
+        </div>
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= crmSt.trainingDone || 0 %></strong>
+          <span class="text-[9px] text-gray-500 uppercase"><%= t('admin.crm.trained') %></span>
+        </div>
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= crmSt.converted || 0 %></strong>
+          <span class="text-[9px] text-gray-500 uppercase"><%= t('admin.crm.converted') %></span>
+        </div>
+        <div class="p-3 rounded-xl bg-zilo-card border border-gray-200">
+          <strong class="block text-sm"><%= (crmSt.byStage && crmSt.byStage.documentacion) || 0 %></strong>
+          <span class="text-[9px] text-gray-500 uppercase"><%= t('admin.crm.in_docs') %></span>
+        </div>
+      </div>
+
+      <% if (hasPerm('crm.manage')) { %>
+      <form id="crmLeadForm" class="p-4 rounded-2xl bg-zilo-card border border-gray-200 space-y-3 mb-5">
+        <input type="hidden" name="id" id="crmEditId" value="">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.company') %></label>
+            <input type="text" name="companyName" id="crmCompany" required class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Empresa o socio">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.contact') %></label>
+            <input type="text" name="contactName" id="crmContact" required class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Nombre contacto">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.email') %></label>
+            <input type="email" name="email" id="crmEmail" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="correo@empresa.cl">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.phone') %></label>
+            <input type="tel" name="phone" id="crmPhone" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="+56 9 ...">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.rut') %></label>
+            <input type="text" name="rut" id="crmRut" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="76.123.456-0">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.meeting_at') %></label>
+            <input type="datetime-local" name="meetingAt" id="crmMeetingAt" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.stage') %></label>
+            <select name="pipelineStage" id="crmStage" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
+              <% stages.forEach(function(s) { %>
+                <option value="<%= s.id %>"><%= s.label %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.assigned') %></label>
+            <input type="text" name="assignedTo" id="crmAssigned" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Responsable Fundez">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.services') %></label>
+            <input type="text" name="interestedServices" id="crmServices" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Gasfitería, electricidad…">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.coverage') %></label>
+            <input type="text" name="coverageArea" id="crmCoverage" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Comunas / región">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.source') %></label>
+            <input type="text" name="source" id="crmSource" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Referido, LinkedIn…">
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.next_steps') %></label>
+          <textarea name="nextSteps" id="crmNextSteps" rows="2" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Próximos pasos acordados"></textarea>
+        </div>
+        <div>
+          <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.meeting_notes') %></label>
+          <textarea name="meetingNotes" id="crmMeetingNotes" rows="2" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Notas de la reunión"></textarea>
+        </div>
+        <div>
+          <label class="text-[10px] text-gray-500 uppercase block mb-1"><%= t('admin.crm.notes') %></label>
+          <textarea name="notes" id="crmNotes" rows="2" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" placeholder="Notas internas"></textarea>
+        </div>
+        <div class="flex flex-wrap gap-4 text-sm">
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="trainingDone" id="crmTraining" value="true" class="accent-[#2563EB]"> <%= t('admin.crm.training_done') %></label>
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="docsReceived" id="crmDocs" value="true" class="accent-[#2563EB]"> <%= t('admin.crm.docs_received') %></label>
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="contractSent" id="crmContractSent" value="true" class="accent-[#2563EB]"> <%= t('admin.crm.contract_sent') %></label>
+          <label class="inline-flex items-center gap-2"><input type="checkbox" name="contractSigned" id="crmContractSigned" value="true" class="accent-[#2563EB]"> <%= t('admin.crm.contract_signed') %></label>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="zilo-btn-primary !py-2.5 !px-4 !w-auto text-sm"><%= t('admin.crm.save') %></button>
+          <button type="button" id="crmFormReset" class="zilo-btn-ghost !py-2.5 !px-4 !w-auto text-sm"><%= t('admin.crm.reset') %></button>
+        </div>
+      </form>
+      <% } %>
+
+      <div class="space-y-3">
+        <% if (!crmList.length) { %>
+          <p class="text-sm text-gray-500 text-center py-8"><%= t('admin.crm.empty') %></p>
+        <% } %>
+        <% crmList.forEach(function(lead) {
+          const stageLabel = (stages.find(function(s) { return s.id === lead.pipelineStage; }) || {}).label || lead.pipelineStage;
+          const meetingLabel = lead.meetingAt ? new Date(lead.meetingAt).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+        %>
+          <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 crm-lead-item" data-id="<%= lead.id %>">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  <strong class="text-sm"><%= lead.companyName %></strong>
+                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700"><%= stageLabel %></span>
+                </div>
+                <p class="text-xs text-gray-600"><%= lead.contactName %><% if (lead.email) { %> · <%= lead.email %><% } %><% if (lead.phone) { %> · <%= lead.phone %><% } %></p>
+                <p class="text-[11px] text-gray-500 mt-1"><%= t('admin.crm.meeting_at') %>: <strong><%= meetingLabel %></strong></p>
+                <% if (lead.nextSteps) { %><p class="text-xs text-gray-600 mt-1"><span class="text-gray-400"><%= t('admin.crm.next_steps') %>:</span> <%= lead.nextSteps %></p><% } %>
+                <div class="flex flex-wrap gap-2 mt-2 text-[10px]">
+                  <span class="px-2 py-0.5 rounded <%= lead.trainingDone ? 'bg-emerald-500/15 text-emerald-700' : 'bg-gray-100 text-gray-500' %>"><%= t('admin.crm.training_done') %>: <%= lead.trainingDone ? 'Sí' : 'No' %></span>
+                  <span class="px-2 py-0.5 rounded <%= lead.docsReceived ? 'bg-emerald-500/15 text-emerald-700' : 'bg-gray-100 text-gray-500' %>"><%= t('admin.crm.docs_received') %>: <%= lead.docsReceived ? 'Sí' : 'No' %></span>
+                  <span class="px-2 py-0.5 rounded <%= lead.contractSigned ? 'bg-emerald-500/15 text-emerald-700' : 'bg-gray-100 text-gray-500' %>"><%= t('admin.crm.contract_signed') %>: <%= lead.contractSigned ? 'Sí' : 'No' %></span>
+                </div>
+              </div>
+              <% if (hasPerm('crm.manage')) { %>
+              <div class="flex gap-2 shrink-0">
+                <button type="button" class="crm-edit text-xs px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  data-payload="<%= encodeURIComponent(JSON.stringify({
+                    id: lead.id,
+                    companyName: lead.companyName,
+                    contactName: lead.contactName,
+                    email: lead.email || '',
+                    phone: lead.phone || '',
+                    rut: lead.rut || '',
+                    meetingAt: lead.meetingAt || '',
+                    pipelineStage: lead.pipelineStage,
+                    assignedTo: lead.assignedTo || '',
+                    interestedServices: lead.interestedServices || '',
+                    coverageArea: lead.coverageArea || '',
+                    source: lead.source || '',
+                    nextSteps: lead.nextSteps || '',
+                    meetingNotes: lead.meetingNotes || '',
+                    notes: lead.notes || '',
+                    trainingDone: lead.trainingDone,
+                    docsReceived: lead.docsReceived,
+                    contractSent: lead.contractSent,
+                    contractSigned: lead.contractSigned
+                  })) %>"
+                ><%= t('admin.crm.edit') %></button>
+                <button type="button" class="crm-delete text-xs px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-600" data-id="<%= lead.id %>"><%= t('admin.crm.delete') %></button>
+              </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
       </div>
     </section>
 
@@ -785,7 +1089,7 @@ function hasPerm(key) {
           </div>
         <% }); %>
       </div>
-      <% const pendingPayouts = payments.filter(p => p.status === 'completed' && p.payoutStatus === 'pendiente'); %>
+      <% const pendingPayouts = payments.filter(p => p.status === 'completed' && p.payoutStatus !== 'pagado' && p.payoutStatus !== 'n/a'); %>
       <% if (pendingPayouts.length > 0) { %>
         <h4 class="text-sm font-semibold mt-6 mb-2"><%= t('admin.proveedores.mark_payouts') %></h4>
         <div class="space-y-2">
@@ -912,6 +1216,56 @@ function hasPerm(key) {
         </ul>
       </div>
     </section>
+
+    <% if (canAccessPanelFn('usuarios')) { %>
+    <section class="<%= panelClass('usuarios') %>" data-panel="usuarios">
+      <div class="flex justify-between items-start gap-3 mb-4">
+        <div>
+          <h3 class="text-lg font-semibold"><%= t('admin.usuarios.title') %></h3>
+          <p class="text-xs text-gray-500 mt-1"><%= t('admin.usuarios.subtitle') %></p>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2 mb-4">
+        <input type="search" id="managedUserSearch" class="zilo-input !py-2 flex-1 text-sm" placeholder="Buscar por nombre, email o teléfono">
+        <select id="managedUserRole" class="zilo-input !py-2 text-sm">
+          <option value="">Todos</option>
+          <option value="client">Clientes</option>
+          <option value="provider">Socios</option>
+          <option value="technician">Técnicos</option>
+        </select>
+        <button type="button" id="btnManagedUserSearch" class="zilo-btn-primary !py-2 !px-4 !text-sm">Buscar</button>
+      </div>
+      <div id="managedUsersList" class="space-y-2">
+        <% (typeof managedUsers !== 'undefined' ? managedUsers : []).forEach(function(u) { %>
+          <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3" data-user-id="<%= u.id %>">
+            <div class="min-w-0">
+              <strong class="text-sm"><%= u.name %></strong>
+              <span class="text-[10px] uppercase ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600"><%= u.role %></span>
+              <p class="text-xs text-gray-500 truncate"><%= u.email %><% if (u.phone) { %> · <%= u.phone %><% } %></p>
+              <p class="text-[10px] text-gray-400 mt-1">
+                <%= u.active ? 'Activo' : 'Inactivo' %>
+                · <%= u.emailVerified ? 'Email OK' : 'Email pendiente' %>
+              </p>
+            </div>
+            <% if (hasPerm('usuarios.manage')) { %>
+              <div class="flex flex-wrap gap-2 shrink-0">
+                <label class="inline-flex items-center gap-1.5 text-xs">
+                  <input type="checkbox" class="managed-user-active" data-id="<%= u.id %>" <%= u.active ? 'checked' : '' %>>
+                  Activo
+                </label>
+                <% if (!u.emailVerified) { %>
+                  <button type="button" class="managed-user-verify text-xs px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-700" data-email="<%= u.email %>">Verificar email</button>
+                <% } %>
+              </div>
+            <% } %>
+          </div>
+        <% }); %>
+        <% if (!(typeof managedUsers !== 'undefined' && managedUsers.length)) { %>
+          <p class="text-sm text-gray-500 text-center py-6">Sin resultados. Usa el buscador para encontrar clientes o socios.</p>
+        <% } %>
+      </div>
+    </section>
+    <% } %>
 
     <!-- BACKUPS -->
     <section class="<%= panelClass('backups') %>" data-panel="backups">
@@ -1057,7 +1411,7 @@ function hasPerm(key) {
               <%= b.includesUploads ? ' · + documentos' : '' %>
             </p>
             <div class="flex flex-wrap gap-2">
-              <a href="/admin/backups/<%= b.id %>/download" class="flex-1 min-w-[7rem] py-1.5 rounded-lg bg-gray-50 text-center text-gray-700 hover:bg-gray-100">Descargar</a>
+              <a href="<%= adminBase %>/backups/<%= b.id %>/download" class="flex-1 min-w-[7rem] py-1.5 rounded-lg bg-gray-50 text-center text-gray-700 hover:bg-gray-100">Descargar</a>
               <% if (hasPerm('backups.restore')) { %>
               <button type="button" class="btn-restore-backup flex-1 min-w-[7rem] py-1.5 rounded-lg bg-amber-500/15 text-amber-700 font-medium" data-id="<%= b.id %>" data-version="<%= b.appVersion || '' %>" data-date="<%= new Date(b.createdAt).toLocaleString('es-CL') %>">Restaurar</button>
               <% } %>
@@ -1153,12 +1507,88 @@ function hasPerm(key) {
       <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
         <div>
           <h3 class="text-lg font-semibold"><%= t('admin.equipo.title') %></h3>
-          <p class="text-xs text-gray-500 mt-1">Crea administradores con perfiles predefinidos o permisos personalizados por checklist.</p>
+          <p class="text-xs text-gray-500 mt-1">Crea administradores, perfiles de permisos y asigna superadmin o admin.mod con acceso total.</p>
         </div>
         <% if (canManageTeam) { %>
-          <button type="button" id="btnNewAdmin" class="admin-primary-btn shrink-0">+ Nuevo administrador</button>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <% if (canManageProfiles) { %>
+              <button type="button" id="btnNewProfile" class="admin-secondary-btn">+ Nuevo perfil</button>
+            <% } %>
+            <button type="button" id="btnNewAdmin" class="admin-primary-btn">+ Nuevo administrador</button>
+          </div>
         <% } %>
       </div>
+
+      <% if (canManageProfiles) { %>
+      <div class="admin-card mb-6">
+        <h4 class="text-sm font-semibold mb-1">Perfiles de permisos</h4>
+        <p class="text-xs text-gray-500 mb-3">Los perfiles del sistema (superadmin, admin.mod, etc.) no se eliminan. Puedes crear perfiles propios.</p>
+        <div id="adminProfilesList" class="space-y-2 mb-4">
+          <% adminProfiles.forEach(function(profile) { %>
+            <div class="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-zilo-bg border border-gray-200">
+              <div class="min-w-0">
+                <strong class="text-sm"><%= profile.name %></strong>
+                <% if (profile.builtin) { %><span class="admin-badge admin-badge-blue ml-1">Sistema</span><% } %>
+                <% if (profile.isFullAccess || profile.isSuperAdmin) { %><span class="admin-badge admin-badge-green ml-1">Acceso total</span><% } %>
+                <p class="text-xs text-gray-500 mt-0.5"><%= profile.description || '—' %> · <%= (profile.permissions || []).length %> permisos</p>
+              </div>
+              <% if (!profile.builtin) { %>
+                <div class="flex gap-2">
+                  <button type="button" class="btn-edit-profile text-xs px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200"
+                    data-id="<%= profile.id %>"
+                    data-name="<%= profile.name %>"
+                    data-description="<%= (profile.description || '').replace(/"/g, '&quot;') %>"
+                    data-permissions="<%= (profile.permissions || []).join(',') %>"
+                  >Editar</button>
+                  <button type="button" class="btn-delete-profile text-xs px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-600" data-id="<%= profile.id %>">Eliminar</button>
+                </div>
+              <% } %>
+            </div>
+          <% }); %>
+        </div>
+        <div id="adminProfileFormWrap" class="hidden border-t border-gray-200 pt-4">
+          <h5 class="text-sm font-semibold mb-3" id="adminProfileFormTitle">Nuevo perfil</h5>
+          <form id="adminProfileForm" class="space-y-3">
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label class="admin-field-label">ID del perfil</label>
+                <input type="text" id="profileFormId" class="admin-field-input font-mono text-sm" placeholder="ej. comercial" pattern="[a-z0-9._-]+" required>
+              </div>
+              <div>
+                <label class="admin-field-label">Nombre visible</label>
+                <input type="text" id="profileFormName" class="admin-field-input" required placeholder="Equipo comercial">
+              </div>
+            </div>
+            <div>
+              <label class="admin-field-label">Descripción</label>
+              <input type="text" id="profileFormDesc" class="admin-field-input" placeholder="Qué puede hacer este perfil">
+            </div>
+            <div id="profilePermissionsChecklist" class="border border-gray-200 rounded-xl p-4 bg-gray-50/80 max-h-56 overflow-y-auto">
+              <% Object.entries(adminPermissionGroups).forEach(function(entry) {
+                const groupName = entry[0];
+                const perms = entry[1];
+              %>
+                <div class="mb-3 last:mb-0">
+                  <p class="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-2"><%= groupName %></p>
+                  <div class="grid sm:grid-cols-2 gap-2">
+                    <% perms.forEach(function(perm) { %>
+                      <label class="admin-perm-check">
+                        <input type="checkbox" class="profile-perm-input" value="<%= perm.key %>">
+                        <span><%= perm.label %></span>
+                      </label>
+                    <% }); %>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="submit" class="admin-primary-btn">Guardar perfil</button>
+              <button type="button" class="admin-secondary-btn" id="adminProfileFormCancel">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <% } %>
 
       <div class="grid gap-4 mb-6">
         <% adminTeam.forEach(function(member) {
@@ -1173,6 +1603,7 @@ function hasPerm(key) {
                   <p class="text-xs text-gray-500 truncate"><%= member.email %></p>
                   <div class="flex flex-wrap gap-1.5 mt-1.5">
                     <span class="admin-badge admin-badge-blue"><%= memberProfile ? memberProfile.name : member.profileId %></span>
+                    <% if (member.isFullAccess || member.isSuperAdmin) { %><span class="admin-badge admin-badge-green">Acceso total</span><% } %>
                     <% if (member.mfaEnabled) { %><span class="admin-badge admin-badge-green">MFA</span><% } %>
                     <span class="admin-badge <%= member.active ? 'admin-badge-green' : 'admin-badge-gray' %>"><%= member.active ? 'Activo' : 'Inactivo' %></span>
                   </div>
@@ -1233,8 +1664,9 @@ function hasPerm(key) {
           </div>
           <label class="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" name="isSuperAdmin" id="adminFormSuper" class="rounded border-gray-300">
-            Superadministrador (acceso total)
+            Superadministrador (acceso total + marca superadmin)
           </label>
+          <p class="text-[10px] text-gray-500 -mt-2">El perfil <strong>admin.mod</strong> ya otorga acceso total sin marcar esta casilla.</p>
           <div id="adminPermissionsChecklist" class="border border-gray-200 rounded-xl p-4 bg-gray-50/80 max-h-72 overflow-y-auto">
             <% Object.entries(adminPermissionGroups).forEach(function(entry) {
               const groupName = entry[0];
@@ -1269,6 +1701,29 @@ function hasPerm(key) {
     <section class="<%= panelClass('seguridad') %>" data-panel="seguridad">
       <h3 class="text-lg font-semibold mb-3"><%= t('admin.seguridad.title') %></h3>
 
+      <% const modePanel = typeof appModeStatus !== 'undefined' ? appModeStatus : { mode: 'demo', label: 'Modo demo', isDemo: true, canToggle: true, adminBasePath: '/admin' }; %>
+      <div class="p-4 rounded-2xl border mb-4 <%= modePanel.isProduction ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-amber-500/10 border-amber-500/30' %>">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 class="text-sm font-semibold"><%= modePanel.isProduction ? 'Producción' : 'Modo demo' %></h4>
+            <p class="text-xs text-gray-600 mt-1">
+              <% if (modePanel.isDemo) { %>
+                Pagos simulados activos para pruebas. Las pasarelas reales no son obligatorias.
+              <% } else { %>
+                Pagos reales obligatorios. El pago demo está bloqueado.
+              <% } %>
+            </p>
+            <p class="text-[11px] text-gray-500 mt-2">URL admin: <code class="bg-white/70 px-1 rounded"><%= modePanel.adminBasePath %>/login</code></p>
+          </div>
+          <% if (modePanel.canToggle && (adminAccess.isSuperAdmin || adminAccess.isFullAccess)) { %>
+            <div class="flex gap-2">
+              <button type="button" class="btn-set-app-mode text-xs px-3 py-1.5 rounded-lg border font-semibold <%= modePanel.isDemo ? 'bg-white border-amber-400' : 'bg-white/50' %>" data-mode="demo">Demo</button>
+              <button type="button" class="btn-set-app-mode text-xs px-3 py-1.5 rounded-lg border font-semibold <%= modePanel.isProduction ? 'bg-white border-emerald-500' : 'bg-white/50' %>" data-mode="production">Producción</button>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
       <% if (typeof mfaMessage !== 'undefined' && mfaMessage === 'enabled') { %>
         <div class="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 text-sm">MFA activado correctamente.</div>
       <% } %>
@@ -1291,12 +1746,12 @@ function hasPerm(key) {
         </div>
 
         <% if (!mfaStatus.enabled) { %>
-          <a href="/admin/mfa/setup" class="inline-flex items-center justify-center w-full py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm font-medium text-blue-700 hover:border-blue-500/50">
+          <a href="<%= adminBase %>/mfa/setup" class="inline-flex items-center justify-center w-full py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm font-medium text-blue-700 hover:border-blue-500/50">
             Configurar MFA
           </a>
         <% } else { %>
           <p class="text-xs text-gray-500 mb-3">Activado<%= mfaStatus.confirmedAt ? ' el ' + new Date(mfaStatus.confirmedAt).toLocaleString('es-CL') : '' %>.</p>
-          <form action="/admin/mfa/disable" method="POST" class="space-y-3">
+          <form action="<%= adminBase %>/mfa/disable" method="POST" class="space-y-3">
             <div>
               <label class="text-[10px] text-gray-500 uppercase block mb-1">Contraseña actual</label>
               <input type="password" name="password" required autocomplete="current-password" class="w-full px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
@@ -1364,5 +1819,5 @@ function hasPerm(key) {
 <script type="application/json" id="adminProfilesData"><%- JSON.stringify(adminProfiles) %></script>
 <script type="application/json" id="adminTeamData"><%- JSON.stringify(adminTeam) %></script>
 
-<script>window.FundezAdminI18n = <%- JSON.stringify(as) %>;</script>
+<script>window.FundezAdminI18n = <%- JSON.stringify(as) %>; window.FundezAdminBase = <%- JSON.stringify(typeof adminBase !== "undefined" ? adminBase : "/admin") %>;</script>
 <%- include('../partials/footer', { pageScript: '/js/admin.js' }) %>

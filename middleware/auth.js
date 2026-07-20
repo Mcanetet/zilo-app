@@ -1,4 +1,6 @@
 const store = require('../models/store');
+const { adminUrl } = require('../lib/appMode');
+const { resolveAdminAccess, hasFullSystemAccess } = require('../lib/adminPermissions');
 
 function requireAuth(req, res, next) {
   if (!req.session.user) {
@@ -11,7 +13,7 @@ function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.session.user) {
       if (roles.includes('admin')) {
-        return res.redirect('/admin/login');
+        return res.redirect(adminUrl('/login'));
       }
       return res.redirect('/login');
     }
@@ -24,14 +26,21 @@ function requireRole(...roles) {
     }
     if (roles.includes('admin') && req.session.user.role === 'admin') {
       try {
-        if (store.isMfaEnabled(req.session.user.id) && !req.session.adminMfaVerified) {
+        const user = store.getUserById(req.session.user.id);
+        const access = resolveAdminAccess(user);
+        const mfaOn = store.isMfaEnabled(req.session.user.id);
+        const requireMfa = mfaOn || (require('../lib/appMode').isProductionMode() && hasFullSystemAccess(access));
+        if (requireMfa && !req.session.adminMfaVerified) {
+          if (!mfaOn && require('../lib/appMode').isProductionMode() && hasFullSystemAccess(access)) {
+            return res.redirect(adminUrl('/mfa/setup?required=1'));
+          }
           req.session.pendingAdminMfa = {
             userId: req.session.user.id,
             email: req.session.user.email,
             expiresAt: Date.now() + 5 * 60 * 1000
           };
           delete req.session.user;
-          return res.redirect('/admin/mfa');
+          return res.redirect(adminUrl('/mfa'));
         }
       } catch (_) { /* store no listo */ }
     }

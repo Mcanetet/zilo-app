@@ -9,6 +9,7 @@ data/backups/
 data/backup-config.json
 data/dte/
 data/vouchers/
+data/finance-state.json
 zilo-hostinger.zip
 
 # Playwright

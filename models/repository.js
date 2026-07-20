@@ -406,6 +406,40 @@ function rowToPromo(row) {
   };
 }
 
+function toMysqlDatetime(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function rowToCrmLead(row) {
+  return {
+    id: row.id,
+    companyName: row.company_name,
+    contactName: row.contact_name,
+    email: row.email || '',
+    phone: row.phone || '',
+    rut: row.rut || '',
+    meetingAt: row.meeting_at ? new Date(row.meeting_at).toISOString() : null,
+    nextSteps: row.next_steps || '',
+    meetingNotes: row.meeting_notes || '',
+    trainingDone: Boolean(row.training_done),
+    docsReceived: Boolean(row.docs_received),
+    contractSent: Boolean(row.contract_sent),
+    contractSigned: Boolean(row.contract_signed),
+    pipelineStage: row.pipeline_stage || 'prospecto',
+    interestedServices: row.interested_services || '',
+    coverageArea: row.coverage_area || '',
+    source: row.source || '',
+    assignedTo: row.assigned_to || '',
+    notes: row.notes || '',
+    convertedProviderId: row.converted_provider_id || null,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null
+  };
+}
+
 function rowToCoverageCommune(row) {
   return {
     regionCode: row.region_code,
@@ -583,14 +617,24 @@ async function ensureDemoPricing() {
 }
 
 function getAdminSeedConfig() {
+  const appMode = require('../lib/appMode');
+  const defaultPass = appMode.isProductionMode() ? '' : 'admin123';
+  const password = process.env.ADMIN_PASSWORD || defaultPass;
+  if (appMode.isProductionMode() && (!password || password === 'admin123')) {
+    console.warn('⚠ ADMIN_PASSWORD no configurada de forma segura en producción');
+  }
   return {
     id: 'admin-1',
     email: (process.env.ADMIN_EMAIL || 'admin@fundez.cl').trim().toLowerCase(),
-    password: process.env.ADMIN_PASSWORD || 'admin123',
+    password: password || cryptoRandomTemp(),
     name: process.env.ADMIN_NAME || 'Admin Fundez',
     phone: '+56 9 0000 0000',
     adminAccess: { profileId: 'superadmin', isSuperAdmin: true, permissions: [] }
   };
+}
+
+function cryptoRandomTemp() {
+  return require('crypto').randomBytes(16).toString('hex');
 }
 
 async function ensureAdminAccount() {
@@ -667,6 +711,11 @@ async function resetAdminPassword(plainPassword) {
 
 async function ensureDemoUsers() {
   await ensureAdminAccount();
+  const appMode = require('../lib/appMode');
+  if (appMode.isProductionMode() && process.env.SEED_DEMO_USERS !== 'true') {
+    console.log('✓ Seed de usuarios demo omitido (modo producción)');
+    return;
+  }
   for (const user of SEED_USERS) {
     if (user.role === 'admin') continue;
     const exists = await db.query('SELECT id FROM users WHERE id = ? LIMIT 1', [user.id]);
@@ -743,6 +792,7 @@ function mapLoadedRows({
   servicesRes,
   modulesRes,
   promosRes,
+  crmLeadsRes,
   pricingRes,
   requestsRes,
   logbookRes,
@@ -764,6 +814,7 @@ function mapLoadedRows({
     services: servicesRes.rows.map(rowToService),
     modules: modulesRes.rows.map(rowToModule),
     promos: (promosRes?.rows || []).map(rowToPromo),
+    crmLeads: (crmLeadsRes?.rows || []).map(rowToCrmLead),
     coverageCommunes: (coverageRes?.rows || []).map(rowToCoverageCommune),
     coverageRegions: (coverageRegionsRes?.rows || []).map(rowToCoverageRegion),
     pricing,
@@ -853,11 +904,12 @@ async function fetchDataRows({ logsLimit = 200, notifLimit = 300, includeSecurit
     ? db.query('SELECT * FROM notifications ORDER BY created_at DESC').catch(() => ({ rows: [] }))
     : db.query(`SELECT * FROM notifications ORDER BY created_at DESC LIMIT ${Math.max(1, notifLimit)}`).catch(() => ({ rows: [] }));
 
-  const [usersRes, servicesRes, modulesRes, promosRes, pricingRes, requestsRes, logbookRes, complaintsRes, chatsRes, consentsRes, logsRes, notifRes, coverageRes, coverageRegionsRes] = await Promise.all([
+  const [usersRes, servicesRes, modulesRes, promosRes, crmLeadsRes, pricingRes, requestsRes, logbookRes, complaintsRes, chatsRes, consentsRes, logsRes, notifRes, coverageRes, coverageRegionsRes] = await Promise.all([
     db.query('SELECT * FROM users ORDER BY created_at ASC'),
     db.query('SELECT * FROM services ORDER BY name ASC'),
     db.query('SELECT * FROM modules ORDER BY audience ASC, sort_order ASC'),
     db.query('SELECT * FROM promos ORDER BY sort_order ASC, title ASC').catch(() => ({ rows: [] })),
+    db.query('SELECT * FROM crm_leads ORDER BY meeting_at IS NULL, meeting_at DESC, updated_at DESC').catch(() => ({ rows: [] })),
     db.query('SELECT * FROM pricing_config WHERE id = ?', ['default']).catch(() => ({ rows: [] })),
     db.query('SELECT * FROM service_requests ORDER BY created_at DESC'),
     db.query('SELECT * FROM home_logbook ORDER BY entry_date DESC'),
@@ -875,6 +927,7 @@ async function fetchDataRows({ logsLimit = 200, notifLimit = 300, includeSecurit
     servicesRes,
     modulesRes,
     promosRes,
+    crmLeadsRes,
     pricingRes,
     requestsRes,
     logbookRes,
@@ -1057,6 +1110,62 @@ async function deletePromo(id) {
   await db.query('DELETE FROM promos WHERE id = ?', [id]);
 }
 
+async function saveCrmLead(lead) {
+  await db.query(
+    `INSERT INTO crm_leads (
+      id, company_name, contact_name, email, phone, rut, meeting_at, next_steps, meeting_notes,
+      training_done, docs_received, contract_sent, contract_signed, pipeline_stage,
+      interested_services, coverage_area, source, assigned_to, notes, converted_provider_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      company_name = VALUES(company_name),
+      contact_name = VALUES(contact_name),
+      email = VALUES(email),
+      phone = VALUES(phone),
+      rut = VALUES(rut),
+      meeting_at = VALUES(meeting_at),
+      next_steps = VALUES(next_steps),
+      meeting_notes = VALUES(meeting_notes),
+      training_done = VALUES(training_done),
+      docs_received = VALUES(docs_received),
+      contract_sent = VALUES(contract_sent),
+      contract_signed = VALUES(contract_signed),
+      pipeline_stage = VALUES(pipeline_stage),
+      interested_services = VALUES(interested_services),
+      coverage_area = VALUES(coverage_area),
+      source = VALUES(source),
+      assigned_to = VALUES(assigned_to),
+      notes = VALUES(notes),
+      converted_provider_id = VALUES(converted_provider_id)`,
+    [
+      lead.id,
+      lead.companyName,
+      lead.contactName,
+      lead.email || null,
+      lead.phone || null,
+      lead.rut || null,
+      toMysqlDatetime(lead.meetingAt),
+      lead.nextSteps || null,
+      lead.meetingNotes || null,
+      lead.trainingDone ? 1 : 0,
+      lead.docsReceived ? 1 : 0,
+      lead.contractSent ? 1 : 0,
+      lead.contractSigned ? 1 : 0,
+      lead.pipelineStage || 'prospecto',
+      lead.interestedServices || null,
+      lead.coverageArea || null,
+      lead.source || null,
+      lead.assignedTo || null,
+      lead.notes || null,
+      lead.convertedProviderId || null
+    ]
+  );
+}
+
+async function deleteCrmLead(id) {
+  await db.query('DELETE FROM crm_leads WHERE id = ?', [id]);
+}
+
 async function savePricingConfig(config) {
   const normalized = normalizePricing(config);
   await db.query(
@@ -1194,7 +1303,8 @@ async function restoreFromSnapshot(snapshot) {
     consents: 0,
     securityLogs: 0,
     notifications: 0,
-    promos: 0
+    promos: 0,
+    crmLeads: 0
   };
 
   for (const service of snapshot.services || []) {
@@ -1214,6 +1324,11 @@ async function restoreFromSnapshot(snapshot) {
   for (const promo of snapshot.promos || []) {
     await savePromo(promo);
     stats.promos++;
+  }
+
+  for (const lead of snapshot.crmLeads || []) {
+    await saveCrmLead(lead);
+    stats.crmLeads++;
   }
 
   for (const user of snapshot.users || []) {
@@ -1282,6 +1397,8 @@ module.exports = {
   saveCoverageRegion,
   savePromo,
   deletePromo,
+  saveCrmLead,
+  deleteCrmLead,
   savePricingConfig,
   saveRequest,
   saveLogbookEntry,

@@ -54,10 +54,18 @@ const { saveProviderFile } = require('../lib/uploads');
 const {
   normalizeAdminAccess,
   resolveAdminAccess,
-  PROFILES,
+  getProfile,
   getProfilesList,
-  getPermissionGroups
+  getPermissionGroups,
+  setCustomProfiles,
+  normalizeCustomProfile,
+  getCustomProfiles,
+  hasFullSystemAccess,
+  hasPermission,
+  ALL_PERMISSION_KEYS,
+  canAssignFullAccess
 } = require('../lib/adminPermissions');
+const adminProfilesStore = require('../lib/adminProfilesStore');
 const { checkAddressCoverage, groupCoverageForAdmin, formatCoverageMessage, buildCoverageResult } = require('../lib/coverage');
 const { getCommuneKey, getCommune } = require('../lib/chile-geo');
 const { geocodeAddress, haversineKm, withCommuneContext, coordsMatchAddress } = require('../lib/geocode');
@@ -81,6 +89,7 @@ let consentRecords = [];
 let securityLogs = [];
 let notifications = [];
 let PROMOS = [];
+let CRM_LEADS = [];
 let COVERAGE_COMMUNES = [];
 let COVERAGE_REGIONS = [];
 let coverageMap = new Map();
@@ -193,8 +202,11 @@ async function init() {
   }
 
   await repository.migrate();
+  await require('../lib/appModeStore').hydrateAppModeOverride().catch(() => {});
   await repository.ensureDemoData();
   await require('../lib/backup').hydrateFromDatabase();
+  const customProfiles = await adminProfilesStore.loadCustomProfiles();
+  setCustomProfiles(customProfiles);
   const data = await repository.loadAll();
 
   SERVICES = data.services;
@@ -209,6 +221,7 @@ async function init() {
   securityLogs = data.securityLogs;
   notifications = data.notifications || [];
   PROMOS = data.promos || [];
+  CRM_LEADS = data.crmLeads || [];
   COVERAGE_COMMUNES = data.coverageCommunes || [];
   COVERAGE_REGIONS = data.coverageRegions || [];
   rebuildCoverageMap();
@@ -386,7 +399,7 @@ async function createRequest({
     paymentMethod: null,
     paymentSurchargePercent: 0,
     paymentSurchargeAmount: 0,
-    guardianToken: uuidv4().replace(/-/g, '').slice(0, 12),
+    guardianToken: require('crypto').randomBytes(24).toString('hex'),
     coords,
     regionCode: geoMeta?.regionCode || null,
     regionName: geoMeta?.regionName || null,
@@ -583,6 +596,118 @@ function deletePromo(id) {
   if (idx < 0) return { error: 'Promoción no encontrada' };
   PROMOS.splice(idx, 1);
   repository.persist(() => repository.deletePromo(id), `promo ${id}`);
+  return { success: true };
+}
+
+const CRM_PIPELINE_STAGES = [
+  { id: 'prospecto', label: 'Prospecto' },
+  { id: 'reunion_agendada', label: 'Reunión agendada' },
+  { id: 'reunion_hecha', label: 'Reunión realizada' },
+  { id: 'capacitacion', label: 'Capacitación' },
+  { id: 'documentacion', label: 'Documentación' },
+  { id: 'revision_contrato', label: 'Revisión contrato' },
+  { id: 'listo_alta', label: 'Listo para alta' },
+  { id: 'convertido', label: 'Convertido a socio' },
+  { id: 'descartado', label: 'Descartado' }
+];
+
+function normalizeCrmStage(stage) {
+  const id = String(stage || '').trim();
+  return CRM_PIPELINE_STAGES.some((s) => s.id === id) ? id : 'prospecto';
+}
+
+function getCrmLeads() {
+  return [...CRM_LEADS].sort((a, b) => {
+    const am = a.meetingAt || '';
+    const bm = b.meetingAt || '';
+    if (am && bm) return String(bm).localeCompare(String(am));
+    if (am) return -1;
+    if (bm) return 1;
+    return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+  });
+}
+
+function getCrmStats() {
+  const leads = getCrmLeads();
+  const byStage = {};
+  CRM_PIPELINE_STAGES.forEach((s) => { byStage[s.id] = 0; });
+  leads.forEach((l) => {
+    const stage = normalizeCrmStage(l.pipelineStage);
+    byStage[stage] = (byStage[stage] || 0) + 1;
+  });
+  const upcoming = leads.filter((l) => {
+    if (!l.meetingAt || l.pipelineStage === 'descartado' || l.pipelineStage === 'convertido') return false;
+    return new Date(l.meetingAt) >= new Date(new Date().toDateString());
+  }).length;
+  return {
+    total: leads.length,
+    upcomingMeetings: upcoming,
+    trainingDone: leads.filter((l) => l.trainingDone).length,
+    converted: byStage.convertido || 0,
+    byStage
+  };
+}
+
+function upsertCrmLead(input = {}) {
+  const id = String(input.id || '').trim() || `crm-${uuidv4().slice(0, 8)}`;
+  const existing = CRM_LEADS.find((l) => l.id === id);
+  const companyName = String(input.companyName || existing?.companyName || '').trim();
+  const contactName = String(input.contactName || existing?.contactName || '').trim();
+  if (!companyName) return { error: 'Indica el nombre de la empresa o socio estratégico' };
+  if (!contactName) return { error: 'Indica la persona de contacto' };
+
+  let meetingAt = input.meetingAt === undefined ? existing?.meetingAt : input.meetingAt;
+  if (meetingAt === '' || meetingAt == null) meetingAt = null;
+  else {
+    const d = new Date(meetingAt);
+    meetingAt = Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  const boolField = (key, fallback = false) => {
+    if (input[key] === undefined || input[key] === null || input[key] === '') {
+      return existing ? Boolean(existing[key]) : fallback;
+    }
+    return input[key] === true || input[key] === 'true' || input[key] === '1' || input[key] === 1;
+  };
+
+  const lead = {
+    id,
+    companyName,
+    contactName,
+    email: String(input.email ?? existing?.email ?? '').trim(),
+    phone: String(input.phone ?? existing?.phone ?? '').trim(),
+    rut: String(input.rut ?? existing?.rut ?? '').trim(),
+    meetingAt,
+    nextSteps: String(input.nextSteps ?? existing?.nextSteps ?? '').trim(),
+    meetingNotes: String(input.meetingNotes ?? existing?.meetingNotes ?? '').trim(),
+    trainingDone: boolField('trainingDone'),
+    docsReceived: boolField('docsReceived'),
+    contractSent: boolField('contractSent'),
+    contractSigned: boolField('contractSigned'),
+    pipelineStage: normalizeCrmStage(input.pipelineStage ?? existing?.pipelineStage),
+    interestedServices: String(input.interestedServices ?? existing?.interestedServices ?? '').trim(),
+    coverageArea: String(input.coverageArea ?? existing?.coverageArea ?? '').trim(),
+    source: String(input.source ?? existing?.source ?? '').trim(),
+    assignedTo: String(input.assignedTo ?? existing?.assignedTo ?? '').trim(),
+    notes: String(input.notes ?? existing?.notes ?? '').trim(),
+    convertedProviderId: input.convertedProviderId ?? existing?.convertedProviderId ?? null,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (!existing) CRM_LEADS.push(lead);
+  else Object.assign(existing, lead);
+
+  const saved = existing || lead;
+  repository.persist(() => repository.saveCrmLead(saved), `crm ${saved.id}`);
+  return { success: true, lead: saved };
+}
+
+function deleteCrmLead(id) {
+  const idx = CRM_LEADS.findIndex((l) => l.id === id);
+  if (idx < 0) return { error: 'Registro CRM no encontrado' };
+  CRM_LEADS.splice(idx, 1);
+  repository.persist(() => repository.deleteCrmLead(id), `crm ${id}`);
   return { success: true };
 }
 
@@ -1527,7 +1652,7 @@ async function registerUser({
 
   if (!name || !email || !password) return { errorKey: 'register.error_incomplete' };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { errorKey: 'register.error_invalid_email' };
-  if (password.length < 6) return { errorKey: 'register.error_password_short' };
+  if (password.length < 10) return { errorKey: 'register.error_password_short' };
   if (getUserByEmail(email)) {
     return { errorKey: 'register.error_email_exists', code: 'email_exists' };
   }
@@ -1788,7 +1913,7 @@ async function createTechnician(socioId, { name, email, password, phone, special
 
   if (!name || !email || !password) return { error: 'Completa nombre, correo y contraseña.' };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Ingresa un correo válido.' };
-  if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres.' };
+  if (password.length < 10) return { error: 'La contraseña debe tener al menos 10 caracteres.' };
   if (getUserByEmail(email)) return { error: 'Ya existe una cuenta con ese correo.' };
 
   if (!Array.isArray(socio.specialties) || !socio.specialties.length) {
@@ -1927,6 +2052,7 @@ function getAdminTeamUsers() {
         active: u.active !== false,
         profileId: access.profileId,
         isSuperAdmin: access.isSuperAdmin,
+        isFullAccess: access.isFullAccess,
         permissions: access.permissions,
         mfaEnabled: isMfaEnabled(u.id),
         createdAt: u.memberSince || null
@@ -1935,7 +2061,7 @@ function getAdminTeamUsers() {
     .sort((a, b) => a.email.localeCompare(b.email));
 }
 
-async function createAdminUser({ name, email, password, profileId, permissions, isSuperAdmin }, actorId) {
+async function createAdminUser({ name, email, password, profileId, permissions, isSuperAdmin, isFullAccess }, actorId) {
   ensureReady();
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!normalizedEmail || !password || !name) {
@@ -1948,11 +2074,24 @@ async function createAdminUser({ name, email, password, profileId, permissions, 
     return { error: 'Ya existe una cuenta con ese email.' };
   }
 
-  const profile = PROFILES[profileId] || PROFILES.operaciones;
+  const actor = actorId ? getUserById(actorId) : null;
+  const actorAccess = resolveAdminAccess(actor);
+  const wantFull = Boolean(isSuperAdmin || isFullAccess || profileId === 'admin.mod' || profileId === 'superadmin');
+  if (wantFull && !canAssignFullAccess(actorAccess)) {
+    return { error: 'Solo superadmin o admin.mod pueden asignar acceso total.' };
+  }
+
+  const profile = getProfile(profileId) || getProfile('operaciones');
+  let nextPerms = permissions || profile.permissions;
+  if (!canAssignFullAccess(actorAccess) && Array.isArray(nextPerms)) {
+    const allowed = new Set(actorAccess.permissions || []);
+    nextPerms = nextPerms.filter((p) => allowed.has(p));
+  }
   const adminAccess = normalizeAdminAccess({
     profileId: isSuperAdmin ? 'superadmin' : (profileId || profile.id),
-    permissions: permissions || profile.permissions,
-    isSuperAdmin: Boolean(isSuperAdmin)
+    permissions: nextPerms,
+    isSuperAdmin: Boolean(isSuperAdmin),
+    isFullAccess: Boolean(isFullAccess || profile?.isFullAccess || profileId === 'admin.mod')
   });
 
   const user = {
@@ -1972,10 +2111,17 @@ async function createAdminUser({ name, email, password, profileId, permissions, 
   return { success: true, user: getAdminTeamUsers().find((u) => u.id === user.id) };
 }
 
-async function updateAdminUserAccess(userId, { name, profileId, permissions, isSuperAdmin, password }, actorId) {
+async function updateAdminUserAccess(userId, { name, profileId, permissions, isSuperAdmin, isFullAccess, password }, actorId) {
   ensureReady();
   const user = getUserById(userId);
   if (!user || user.role !== 'admin') return { error: 'Administrador no encontrado.' };
+
+  const actor = actorId ? getUserById(actorId) : null;
+  const actorAccess = resolveAdminAccess(actor);
+  const wantFull = Boolean(isSuperAdmin || isFullAccess || profileId === 'admin.mod' || profileId === 'superadmin');
+  if (wantFull && !canAssignFullAccess(actorAccess)) {
+    return { error: 'Solo superadmin o admin.mod pueden asignar acceso total.' };
+  }
 
   if (name) user.name = String(name).trim();
   if (password) {
@@ -1983,11 +2129,17 @@ async function updateAdminUserAccess(userId, { name, profileId, permissions, isS
     user.password = await hashPassword(password);
   }
 
-  const profile = PROFILES[profileId] || null;
+  const profile = getProfile(profileId) || null;
+  let nextPerms = permissions || profile?.permissions || user.adminAccess?.permissions;
+  if (!canAssignFullAccess(actorAccess) && Array.isArray(nextPerms)) {
+    const allowed = new Set(actorAccess.permissions || []);
+    nextPerms = nextPerms.filter((p) => allowed.has(p));
+  }
   user.adminAccess = normalizeAdminAccess({
     profileId: isSuperAdmin ? 'superadmin' : (profileId || user.adminAccess?.profileId || 'custom'),
-    permissions: permissions || profile?.permissions || user.adminAccess?.permissions,
-    isSuperAdmin: Boolean(isSuperAdmin)
+    permissions: nextPerms,
+    isSuperAdmin: Boolean(isSuperAdmin),
+    isFullAccess: Boolean(isFullAccess || profile?.isFullAccess || profileId === 'admin.mod')
   });
 
   await repository.saveUser(user);
@@ -1998,6 +2150,131 @@ function getAdminPermissionMeta() {
   return {
     profiles: getProfilesList(),
     groups: getPermissionGroups()
+  };
+}
+
+async function upsertAdminProfile(input = {}, actorId) {
+  ensureReady();
+  const actor = actorId ? getUserById(actorId) : null;
+  const actorAccess = resolveAdminAccess(actor);
+  if (!hasPermission(actorAccess, 'perfiles.manage') && !hasPermission(actorAccess, 'equipo.manage')) {
+    return { error: 'No tienes permiso para gestionar perfiles.' };
+  }
+
+  const draft = normalizeCustomProfile({
+    id: input.id || input.profileId,
+    name: input.name,
+    description: input.description,
+    permissions: input.permissions,
+    isFullAccess: input.isFullAccess
+  });
+  if (!draft) {
+    return { error: 'ID de perfil inválido o reservado (no uses superadmin, admin.mod u otros internos).' };
+  }
+  if (input.isFullAccess && !canAssignFullAccess(actorAccess)) {
+    return { error: 'Solo superadmin o admin.mod pueden crear perfiles con acceso total.' };
+  }
+  if (draft.isFullAccess) {
+    draft.permissions = [...ALL_PERMISSION_KEYS];
+  }
+  if (!draft.permissions.length) {
+    return { error: 'Selecciona al menos un permiso para el perfil.' };
+  }
+
+  const list = getCustomProfiles();
+  const idx = list.findIndex((p) => p.id === draft.id);
+  if (idx >= 0) list[idx] = draft;
+  else list.push(draft);
+
+  setCustomProfiles(list);
+  await adminProfilesStore.saveCustomProfiles(getCustomProfiles());
+  return { success: true, profile: draft, profiles: getProfilesList() };
+}
+
+async function deleteAdminProfile(profileId, actorId) {
+  ensureReady();
+  const actor = actorId ? getUserById(actorId) : null;
+  const actorAccess = resolveAdminAccess(actor);
+  if (!hasPermission(actorAccess, 'perfiles.manage') && !hasPermission(actorAccess, 'equipo.manage')) {
+    return { error: 'No tienes permiso para gestionar perfiles.' };
+  }
+  if (getProfile(profileId)?.builtin) {
+    return { error: 'No se pueden eliminar perfiles del sistema.' };
+  }
+  const inUse = getAdminTeamUsers().some((u) => u.profileId === profileId);
+  if (inUse) {
+    return { error: 'Hay administradores usando este perfil. Cámbiales el perfil antes de eliminarlo.' };
+  }
+  const next = getCustomProfiles().filter((p) => p.id !== profileId);
+  setCustomProfiles(next);
+  await adminProfilesStore.saveCustomProfiles(next);
+  return { success: true, profiles: getProfilesList() };
+}
+
+function getManagedUsers({ q = '', role = '', limit = 40 } = {}) {
+  const query = String(q || '').trim().toLowerCase();
+  const roleFilter = String(role || '').trim();
+  return USERS
+    .filter((u) => u.role === 'client' || u.role === 'provider' || u.role === 'technician')
+    .filter((u) => !roleFilter || u.role === roleFilter)
+    .filter((u) => {
+      if (!query) return true;
+      return [u.name, u.email, u.phone, u.id]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(query));
+    })
+    .sort((a, b) => String(b.memberSince || '').localeCompare(String(a.memberSince || '')))
+    .slice(0, Math.min(100, Math.max(1, Number(limit) || 40)))
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone || '',
+      role: u.role,
+      active: u.active !== false,
+      emailVerified: Boolean(u.emailVerifiedAt),
+      online: Boolean(u.online),
+      parentId: u.parentId || null,
+      memberSince: u.memberSince || null
+    }));
+}
+
+function adminUpdateManagedUser(userId, patch = {}, actorId) {
+  ensureReady();
+  const user = getUserById(userId);
+  if (!user || user.role === 'admin') return { error: 'Usuario no encontrado o no editable aquí.' };
+
+  if (patch.active !== undefined) {
+    user.active = patch.active === true || patch.active === 'true' || patch.active === 1;
+  }
+  if (patch.name !== undefined) {
+    const name = String(patch.name || '').trim();
+    if (name) user.name = name;
+  }
+  if (patch.phone !== undefined) {
+    user.phone = String(patch.phone || '').trim() || null;
+  }
+  if (patch.online !== undefined && (user.role === 'provider' || user.role === 'technician')) {
+    user.online = patch.online === true || patch.online === 'true';
+  }
+  if (patch.clientEnabled !== undefined && user.role === 'client') {
+    user.clientEnabled = patch.clientEnabled === true || patch.clientEnabled === 'true';
+  }
+
+  user.updatedAt = new Date().toISOString();
+  repository.persist(() => repository.saveUser(user), `usuario admin ${userId}`);
+  if (actorId) {
+    logSecurityEvent('usuarios_update', `${userId} by ${actorId}`, { session: { user: { id: actorId } } });
+  }
+  return {
+    success: true,
+    user: getManagedUsers({ q: user.email, limit: 1 })[0] || {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active !== false
+    }
   };
 }
 
@@ -2083,6 +2360,8 @@ const DEMO_ACCOUNT_LABELS = { 'client-1': 'Cliente', 'provider-pedro': 'Socio' }
 const DEMO_ACCOUNT_PASSWORDS = { 'client-1': 'cliente123', 'provider-pedro': 'proveedor123' };
 
 function getDemoAccounts() {
+  const appMode = require('../lib/appMode');
+  if (appMode.isProductionMode()) return [];
   return DEMO_ACCOUNT_IDS
     .map(id => USERS.find(u => u.id === id))
     .filter(Boolean)
@@ -3268,7 +3547,7 @@ function getPayments() {
         paidAt: r.paidAt,
         status: r.status,
         urgencyTierLabel: r.urgencyTierLabel,
-        payoutStatus: r.status === 'completed' ? (r.payoutStatus || 'pendiente') : 'n/a'
+        payoutStatus: r.status === 'completed' ? (r.payoutStatus || 'programado') : 'n/a'
       };
     });
 }
@@ -3335,6 +3614,16 @@ function bumpFinanceBucket(map, key, amount = 0, count = 1) {
   if (!map[key]) map[key] = { count: 0, amount: 0 };
   map[key].count += count;
   map[key].amount += amount;
+}
+
+function getAccountingPack() {
+  const finance = require('../lib/finance');
+  return finance.buildAccountingPack({
+    requests,
+    payments: getPayments(),
+    pricing: getPricingConfig(),
+    getAllDteDocuments
+  });
 }
 
 function getFinancialReport() {
@@ -3424,6 +3713,8 @@ function getFinancialReport() {
 
   const maxDaily = Math.max(1, ...Object.values(last7Days).map((d) => d.amount));
 
+  const accounting = getAccountingPack();
+
   return {
     summary,
     byPaymentMethod: toRows(byPaymentMethod),
@@ -3435,7 +3726,8 @@ function getFinancialReport() {
       laborRate: pricing.laborCommissionRate,
       materialsRate: pricing.materialsCommissionRate,
       cardSurcharge: pricing.cardSurchargePercent
-    }
+    },
+    accounting
   };
 }
 
@@ -3480,7 +3772,8 @@ async function exportDataSnapshot({ includeSecurityLogs = true } = {}) {
     consentRecords: data.consentRecords,
     securityLogs: data.securityLogs,
     notifications: data.notifications,
-    promos: data.promos
+    promos: data.promos,
+    crmLeads: data.crmLeads
   };
 }
 
@@ -3499,6 +3792,7 @@ async function reloadFromDatabase() {
   securityLogs = data.securityLogs;
   notifications = data.notifications || [];
   PROMOS = data.promos || [];
+  CRM_LEADS = data.crmLeads || [];
   require('../lib/notifications').bindStore(module.exports);
   return data;
 }
@@ -3575,6 +3869,10 @@ module.exports = {
   createAdminUser,
   updateAdminUserAccess,
   getAdminPermissionMeta,
+  upsertAdminProfile,
+  deleteAdminProfile,
+  getManagedUsers,
+  adminUpdateManagedUser,
   resolveAdminAccess,
   isMfaEnabled,
   beginMfaSetup,
@@ -3638,6 +3936,7 @@ module.exports = {
   getProviderPayouts,
   getAdminStats,
   getFinancialReport,
+  getAccountingPack,
   getConsentsSummary,
   recordConsent,
   recordRegistrationConsents,
@@ -3673,6 +3972,11 @@ module.exports = {
   upsertPromo,
   togglePromo,
   deletePromo,
+  CRM_PIPELINE_STAGES,
+  getCrmLeads,
+  getCrmStats,
+  upsertCrmLead,
+  deleteCrmLead,
   get PROMOS() { return getActivePromos(); },
   POINTS_VALUE_CLP,
   getCheckoutSummary,

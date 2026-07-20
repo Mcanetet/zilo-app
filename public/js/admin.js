@@ -5,6 +5,7 @@
   const PANEL_TITLES = (window.FundezAdminI18n && window.FundezAdminI18n.panels) || {
     resumen: 'Resumen',
     finanzas: 'Finanzas',
+    crm: 'CRM socios',
     documentos: 'DTE / SII',
     contratos: 'Contratos socios',
     notificaciones: 'Notificaciones',
@@ -19,6 +20,7 @@
     whatsapp: 'WhatsApp',
     aland: 'Aland IA',
     mensajes: 'Mensajes',
+    usuarios: 'Clientes y socios',
     datos: 'Datos',
     backups: 'Backups',
     equipo: 'Equipo y permisos',
@@ -26,6 +28,16 @@
   };
 
   const ADMIN_JS = (window.FundezAdminI18n && window.FundezAdminI18n.js) || {};
+  const ADMIN_BASE = window.FundezAdminBase || '/admin';
+  function adminFetch(path, options) {
+    const url = path.startsWith('http') ? path : `${ADMIN_BASE}${path.startsWith('/') ? path : '/' + path}`;
+    return fetch(url, options);
+  }
+  function adminHref(path) {
+    return `${ADMIN_BASE}${path.startsWith('/') ? path : '/' + path}`;
+  }
+
+
   const ADMIN_STATUS = (window.FundezAdminI18n && window.FundezAdminI18n.status) || { on: 'ON', off: 'OFF', active: 'ACTIVA', inactive: 'INACTIVA' };
 
   function adminMsg(template, vars) {
@@ -116,7 +128,13 @@
       return;
     }
     applyProfileToChecklist(profileSelect.value);
-    setChecklistDisabled(false);
+    const profile = adminProfiles.find(p => p.id === profileSelect.value);
+    if (profile?.isFullAccess || profile?.isSuperAdmin || profileSelect.value === 'admin.mod') {
+      permInputs.forEach(input => { input.checked = true; });
+      setChecklistDisabled(true);
+    } else {
+      setChecklistDisabled(false);
+    }
   });
 
   superCheckbox?.addEventListener('change', () => {
@@ -153,6 +171,164 @@
 
   document.getElementById('adminFormCancel')?.addEventListener('click', resetTeamForm);
 
+  /* ——— Perfiles personalizados ——— */
+  const profileFormWrap = document.getElementById('adminProfileFormWrap');
+  const profileForm = document.getElementById('adminProfileForm');
+  const profilePermInputs = document.querySelectorAll('.profile-perm-input');
+
+  function resetProfileForm() {
+    profileForm?.reset();
+    document.getElementById('profileFormId').disabled = false;
+    document.getElementById('adminProfileFormTitle').textContent = 'Nuevo perfil';
+    profilePermInputs.forEach((i) => { i.checked = false; });
+    profileFormWrap?.classList.add('hidden');
+  }
+
+  document.getElementById('btnNewProfile')?.addEventListener('click', () => {
+    resetProfileForm();
+    profileFormWrap?.classList.remove('hidden');
+    profileFormWrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('adminProfileFormCancel')?.addEventListener('click', resetProfileForm);
+
+  document.querySelectorAll('.btn-edit-profile').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById('profileFormId').value = btn.dataset.id || '';
+      document.getElementById('profileFormId').disabled = true;
+      document.getElementById('profileFormName').value = btn.dataset.name || '';
+      document.getElementById('profileFormDesc').value = btn.dataset.description || '';
+      const perms = String(btn.dataset.permissions || '').split(',').filter(Boolean);
+      profilePermInputs.forEach((i) => { i.checked = perms.includes(i.value); });
+      document.getElementById('adminProfileFormTitle').textContent = 'Editar perfil';
+      profileFormWrap?.classList.remove('hidden');
+      profileFormWrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  profileForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      id: document.getElementById('profileFormId').value.trim(),
+      name: document.getElementById('profileFormName').value.trim(),
+      description: document.getElementById('profileFormDesc').value.trim(),
+      permissions: [...profilePermInputs].filter((i) => i.checked).map((i) => i.value)
+    };
+    try {
+      const res = await adminFetch('/profiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.success) {
+        FundezNotify.show(data.error || 'No se pudo guardar el perfil', 'error');
+        return;
+      }
+      FundezNotify.show('Perfil guardado', 'success');
+      setTimeout(() => { window.location.href = ADMIN_BASE + '?tab=equipo'; }, 700);
+    } catch (_) {
+      FundezNotify.show('Error al guardar perfil', 'error');
+    }
+  });
+
+  document.querySelectorAll('.btn-delete-profile').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar este perfil?')) return;
+      try {
+        const res = await adminFetch(`/profiles/${btn.dataset.id}/delete`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          FundezNotify.show(data.error || 'No se pudo eliminar', 'error');
+          return;
+        }
+        FundezNotify.show('Perfil eliminado', 'success');
+        setTimeout(() => { window.location.href = ADMIN_BASE + '?tab=equipo'; }, 700);
+      } catch (_) {
+        FundezNotify.show('Error al eliminar', 'error');
+      }
+    });
+  });
+
+  /* ——— Intervención clientes/socios ——— */
+  async function refreshManagedUsers() {
+    const q = document.getElementById('managedUserSearch')?.value || '';
+    const role = document.getElementById('managedUserRole')?.value || '';
+    const list = document.getElementById('managedUsersList');
+    if (!list) return;
+    try {
+      const res = await adminFetch(`/usuarios?q=${encodeURIComponent(q)}&role=${encodeURIComponent(role)}&limit=40`);
+      const data = await res.json();
+      if (!data.success) return;
+      if (!data.users.length) {
+        list.innerHTML = '<p class="text-sm text-gray-500 text-center py-6">Sin resultados.</p>';
+        return;
+      }
+      list.innerHTML = data.users.map((u) => `
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3" data-user-id="${u.id}">
+          <div class="min-w-0">
+            <strong class="text-sm">${u.name || ''}</strong>
+            <span class="text-[10px] uppercase ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">${u.role}</span>
+            <p class="text-xs text-gray-500 truncate">${u.email || ''}${u.phone ? ' · ' + u.phone : ''}</p>
+            <p class="text-[10px] text-gray-400 mt-1">${u.active ? 'Activo' : 'Inactivo'} · ${u.emailVerified ? 'Email OK' : 'Email pendiente'}</p>
+          </div>
+          <div class="flex flex-wrap gap-2 shrink-0 items-center">
+            <label class="inline-flex items-center gap-1.5 text-xs">
+              <input type="checkbox" class="managed-user-active" data-id="${u.id}" ${u.active ? 'checked' : ''}>
+              Activo
+            </label>
+            ${!u.emailVerified ? `<button type="button" class="managed-user-verify text-xs px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-700" data-email="${u.email}">Verificar email</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+      bindManagedUserActions();
+    } catch (_) { /* noop */ }
+  }
+
+  function bindManagedUserActions() {
+    document.querySelectorAll('.managed-user-active').forEach((toggle) => {
+      toggle.onchange = async () => {
+        const res = await adminFetch(`/usuarios/${toggle.dataset.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ active: toggle.checked })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          toggle.checked = !toggle.checked;
+          FundezNotify.show(data.error || 'No se pudo actualizar', 'error');
+          return;
+        }
+        FundezNotify.show(toggle.checked ? 'Usuario activado' : 'Usuario desactivado', 'success');
+      };
+    });
+    document.querySelectorAll('.managed-user-verify').forEach((btn) => {
+      btn.onclick = async () => {
+        document.getElementById('adminVerifyEmail') && (document.getElementById('adminVerifyEmail').value = btn.dataset.email || '');
+        const res = await adminFetch('/usuarios/verificar-email/forzar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: btn.dataset.email })
+        });
+        const data = await res.json();
+        if (data.success) {
+          FundezNotify.show('Email verificado', 'success');
+          refreshManagedUsers();
+        } else {
+          FundezNotify.show(data.error || 'No se pudo verificar', 'error');
+        }
+      };
+    });
+  }
+
+  document.getElementById('btnManagedUserSearch')?.addEventListener('click', refreshManagedUsers);
+  document.getElementById('managedUserSearch')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      refreshManagedUsers();
+    }
+  });
+  bindManagedUserActions();
+
   document.querySelectorAll('.btn-edit-admin').forEach(btn => {
     btn.addEventListener('click', () => {
       const member = adminTeam.find(m => m.id === btn.dataset.id);
@@ -177,7 +353,7 @@
 
       if (superCheckbox) {
         superCheckbox.checked = Boolean(member.isSuperAdmin);
-        setChecklistDisabled(Boolean(member.isSuperAdmin));
+        setChecklistDisabled(Boolean(member.isSuperAdmin || member.isFullAccess));
       }
 
       teamFormWrap?.classList.remove('hidden');
@@ -193,7 +369,8 @@
       name: document.getElementById('adminFormName').value,
       profileId: profileSelect?.value === 'custom' ? 'custom' : profileSelect?.value,
       permissions,
-      isSuperAdmin: superCheckbox?.checked || false
+      isSuperAdmin: superCheckbox?.checked || false,
+      isFullAccess: profileSelect?.value === 'admin.mod' || Boolean(adminProfiles.find(p => p.id === profileSelect?.value)?.isFullAccess)
     };
     const password = document.getElementById('adminFormPassword').value;
     if (password) body.password = password;
@@ -201,7 +378,7 @@
     try {
       let res;
       if (adminId) {
-        res = await fetch(`/admin/team/${adminId}`, {
+        res = await adminFetch(`/team/${adminId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -212,7 +389,7 @@
           FundezNotify.show('La contraseña es obligatoria para nuevos administradores', 'error');
           return;
         }
-        res = await fetch('/admin/team', {
+        res = await adminFetch('/team', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -235,7 +412,7 @@
       const id = toggle.dataset.id;
       const active = toggle.checked;
       try {
-        const res = await fetch(`/admin/team/${id}/toggle`, {
+        const res = await adminFetch(`/team/${id}/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ active })
@@ -269,7 +446,7 @@
     const body = { action, notes: notes || '', ...extra };
     if (action === 'reject' && !body.rejectionReason) body.rejectionReason = notes || 'No cumple requisitos legales.';
     try {
-      const res = await fetch(`/admin/contratos/${id}/review`, {
+      const res = await adminFetch(`/contratos/${id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -316,7 +493,7 @@
       const statusLabel = item.querySelector('.service-status');
 
       try {
-        const res = await fetch('/admin/toggle-service', {
+        const res = await adminFetch('/toggle-service', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ serviceId, enabled })
@@ -343,7 +520,7 @@
       const statusLabel = item.querySelector('.demo-status');
 
       try {
-        const res = await fetch('/admin/toggle-user', {
+        const res = await adminFetch('/toggle-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, active })
@@ -373,7 +550,7 @@
       const statusLabel = item.querySelector('.module-status');
 
       try {
-        const res = await fetch('/admin/toggle-module', {
+        const res = await adminFetch('/toggle-module', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ moduleId, enabled })
@@ -422,7 +599,7 @@
       enabled: document.getElementById('promoEnabled').checked
     };
     try {
-      const res = await fetch('/admin/promos', {
+      const res = await adminFetch('/promos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -433,7 +610,7 @@
         return;
       }
       FundezNotify.show('Promoción guardada', 'success');
-      window.location.href = '/admin?tab=promos';
+      window.location.href = ADMIN_BASE + '?tab=promos';
     } catch (_) {
       FundezNotify.show('Error al guardar promoción', 'error');
     }
@@ -454,11 +631,123 @@
     });
   });
 
+  function toDatetimeLocalValue(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function resetCrmForm() {
+    const form = document.getElementById('crmLeadForm');
+    if (!form) return;
+    form.reset();
+    document.getElementById('crmEditId').value = '';
+    ['crmTraining', 'crmDocs', 'crmContractSent', 'crmContractSigned'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+  }
+
+  document.getElementById('crmFormReset')?.addEventListener('click', resetCrmForm);
+
+  document.getElementById('crmLeadForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      id: document.getElementById('crmEditId').value || undefined,
+      companyName: document.getElementById('crmCompany').value.trim(),
+      contactName: document.getElementById('crmContact').value.trim(),
+      email: document.getElementById('crmEmail').value.trim(),
+      phone: document.getElementById('crmPhone').value.trim(),
+      rut: document.getElementById('crmRut').value.trim(),
+      meetingAt: document.getElementById('crmMeetingAt').value || null,
+      pipelineStage: document.getElementById('crmStage').value,
+      assignedTo: document.getElementById('crmAssigned').value.trim(),
+      interestedServices: document.getElementById('crmServices').value.trim(),
+      coverageArea: document.getElementById('crmCoverage').value.trim(),
+      source: document.getElementById('crmSource').value.trim(),
+      nextSteps: document.getElementById('crmNextSteps').value.trim(),
+      meetingNotes: document.getElementById('crmMeetingNotes').value.trim(),
+      notes: document.getElementById('crmNotes').value.trim(),
+      trainingDone: document.getElementById('crmTraining').checked,
+      docsReceived: document.getElementById('crmDocs').checked,
+      contractSent: document.getElementById('crmContractSent').checked,
+      contractSigned: document.getElementById('crmContractSigned').checked
+    };
+    try {
+      const res = await adminFetch('/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.success) {
+        FundezNotify.show(data.error || 'No se pudo guardar', 'error');
+        return;
+      }
+      FundezNotify.show(ADMIN_JS.crmSaved || 'Contacto CRM guardado', 'success');
+      window.location.href = ADMIN_BASE + '?tab=crm';
+    } catch (_) {
+      FundezNotify.show('Error al guardar CRM', 'error');
+    }
+  });
+
+  document.querySelectorAll('.crm-edit').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      let lead = null;
+      try {
+        lead = JSON.parse(decodeURIComponent(btn.dataset.payload || ''));
+      } catch (_) {
+        return;
+      }
+      if (!lead) return;
+      document.getElementById('crmEditId').value = lead.id || '';
+      document.getElementById('crmCompany').value = lead.companyName || '';
+      document.getElementById('crmContact').value = lead.contactName || '';
+      document.getElementById('crmEmail').value = lead.email || '';
+      document.getElementById('crmPhone').value = lead.phone || '';
+      document.getElementById('crmRut').value = lead.rut || '';
+      document.getElementById('crmMeetingAt').value = toDatetimeLocalValue(lead.meetingAt);
+      document.getElementById('crmStage').value = lead.pipelineStage || 'prospecto';
+      document.getElementById('crmAssigned').value = lead.assignedTo || '';
+      document.getElementById('crmServices').value = lead.interestedServices || '';
+      document.getElementById('crmCoverage').value = lead.coverageArea || '';
+      document.getElementById('crmSource').value = lead.source || '';
+      document.getElementById('crmNextSteps').value = lead.nextSteps || '';
+      document.getElementById('crmMeetingNotes').value = lead.meetingNotes || '';
+      document.getElementById('crmNotes').value = lead.notes || '';
+      document.getElementById('crmTraining').checked = Boolean(lead.trainingDone);
+      document.getElementById('crmDocs').checked = Boolean(lead.docsReceived);
+      document.getElementById('crmContractSent').checked = Boolean(lead.contractSent);
+      document.getElementById('crmContractSigned').checked = Boolean(lead.contractSigned);
+      document.getElementById('crmLeadForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  document.querySelectorAll('.crm-delete').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(ADMIN_JS.crmDeleteConfirm || '¿Eliminar este contacto del CRM?')) return;
+      try {
+        const res = await adminFetch(`/crm/${btn.dataset.id}/delete`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          FundezNotify.show(data.error || 'No se pudo eliminar', 'error');
+          return;
+        }
+        FundezNotify.show(ADMIN_JS.crmDeleted || 'Contacto eliminado', 'success');
+        window.location.href = ADMIN_BASE + '?tab=crm';
+      } catch (_) {
+        FundezNotify.show('Error al eliminar', 'error');
+      }
+    });
+  });
+
   document.querySelectorAll('.promo-toggle').forEach((toggle) => {
     toggle.addEventListener('change', async () => {
       const enabled = toggle.checked;
       try {
-        const res = await fetch(`/admin/promos/${toggle.dataset.id}/toggle`, {
+        const res = await adminFetch(`/promos/${toggle.dataset.id}/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled })
@@ -483,14 +772,14 @@
     btn.addEventListener('click', async () => {
       if (!confirm('¿Eliminar esta promoción?')) return;
       try {
-        const res = await fetch(`/admin/promos/${btn.dataset.id}/delete`, { method: 'POST' });
+        const res = await adminFetch(`/promos/${btn.dataset.id}/delete`, { method: 'POST' });
         const data = await res.json();
         if (!data.success) {
           FundezNotify.show(data.error || 'No se pudo eliminar', 'error');
           return;
         }
         FundezNotify.show('Promoción eliminada', 'success');
-        window.location.href = '/admin?tab=promos';
+        window.location.href = ADMIN_BASE + '?tab=promos';
       } catch (_) {
         FundezNotify.show('Error al eliminar promoción', 'error');
       }
@@ -508,7 +797,7 @@
       const regionEl = toggle.closest('.coverage-region');
 
       try {
-        const res = await fetch('/admin/toggle-coverage', {
+        const res = await adminFetch('/toggle-coverage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ regionCode, communeCode, enabled })
@@ -588,7 +877,7 @@
       if (!regionEl) return;
 
       try {
-        const res = await fetch('/admin/toggle-coverage', {
+        const res = await adminFetch('/toggle-coverage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ regionCode, enabled, regionOnly: true })
@@ -612,7 +901,7 @@
 
   document.querySelectorAll('.btn-complaint').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const res = await fetch(`/admin/complaint/${btn.dataset.id}/status`, {
+      const res = await adminFetch(`/complaint/${btn.dataset.id}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: btn.dataset.status })
@@ -627,7 +916,7 @@
 
   document.querySelectorAll('.btn-mark-payout').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const res = await fetch(`/admin/payout/${btn.dataset.id}`, { method: 'POST' });
+      const res = await adminFetch(`/payout/${btn.dataset.id}`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         FundezNotify.show(ADMIN_JS.payoutMarked, 'success');
@@ -636,9 +925,68 @@
     });
   });
 
+  const formPurchase = document.getElementById('formPurchaseInvoice');
+  if (formPurchase) {
+    formPurchase.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(formPurchase);
+      const body = Object.fromEntries(fd.entries());
+      const res = await adminFetch('/finanzas/compras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.success) {
+        FundezNotify.show(ADMIN_JS.purchaseSaved || 'Compra registrada', 'success');
+        setTimeout(() => location.reload(), 700);
+      } else {
+        FundezNotify.show(data.error || 'No se pudo registrar', 'error');
+      }
+    });
+  }
+
+  const formBank = document.getElementById('formBankMovement');
+  if (formBank) {
+    formBank.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(formBank);
+      const body = Object.fromEntries(fd.entries());
+      const res = await adminFetch('/finanzas/banco', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.success) {
+        FundezNotify.show(ADMIN_JS.bankSaved || 'Movimiento bancario guardado', 'success');
+        setTimeout(() => location.reload(), 700);
+      } else {
+        FundezNotify.show(data.error || 'No se pudo guardar', 'error');
+      }
+    });
+  }
+
+  document.getElementById('btnAutoReconcile')?.addEventListener('click', async () => {
+    const res = await adminFetch('/finanzas/conciliar', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      FundezNotify.show(adminMsg(ADMIN_JS.reconciled || 'Conciliados: {{count}}', { count: data.matched }), 'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      FundezNotify.show(data.error || 'Sin coincidencias', 'error');
+    }
+  });
+
+  document.getElementById('btnSiiSync')?.addEventListener('click', async () => {
+    const res = await adminFetch('/finanzas/compras/sync-sii', { method: 'POST' });
+    const data = await res.json();
+    FundezNotify.show(data.error || data.message || (data.success ? 'Sync OK' : 'Sync pendiente de API'), data.success ? 'success' : 'info');
+  });
+
   document.querySelectorAll('.btn-approve-transfer').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const res = await fetch(`/admin/transfer/${btn.dataset.id}/aprobar`, { method: 'POST' });
+      const res = await adminFetch(`/transfer/${btn.dataset.id}/aprobar`, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         FundezNotify.show(ADMIN_JS.transferConfirmed, 'success');
@@ -684,7 +1032,7 @@
       }
       btn.disabled = true;
       try {
-        const res = await fetch(`/admin/solicitudes/${btn.dataset.id}/asignar`, {
+        const res = await adminFetch(`/solicitudes/${btn.dataset.id}/asignar`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ providerId, technicianId })
@@ -704,14 +1052,14 @@
 
   const adminVerifyEmail = document.getElementById('adminVerifyEmail');
   const adminVerifyFeedback = document.getElementById('adminVerifyFeedback');
-  async function adminVerifyAction(url, successType) {
+  async function adminVerifyAction(path, successType) {
     const email = (adminVerifyEmail?.value || '').trim();
     if (!email) {
       FundezNotify.show('Ingresa el correo del usuario', 'warning');
       return;
     }
     try {
-      const res = await fetch(url, {
+      const res = await adminFetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ email })
@@ -728,11 +1076,11 @@
     }
   }
   document.getElementById('btnAdminResendVerify')?.addEventListener('click', () => {
-    adminVerifyAction('/admin/usuarios/verificar-email/reenviar', 'success');
+    adminVerifyAction('/usuarios/verificar-email/reenviar', 'success');
   });
   document.getElementById('btnAdminForceVerify')?.addEventListener('click', () => {
     if (!confirm('¿Verificar manualmente este correo sin código?')) return;
-    adminVerifyAction('/admin/usuarios/verificar-email/forzar', 'success');
+    adminVerifyAction('/usuarios/verificar-email/forzar', 'success');
   });
 
   const socket = io();
@@ -779,7 +1127,7 @@
         weeklyRetentionWeeks: fd.get('weeklyRetentionWeeks'),
         monthlyRetentionMonths: fd.get('monthlyRetentionMonths')
       };
-      const res = await fetch('/admin/backups/config', {
+      const res = await adminFetch('/backups/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -796,7 +1144,7 @@
     const btn = document.getElementById('btnRunBackup');
     btn.disabled = true;
     btn.textContent = ADMIN_JS.generating || 'Generando...';
-    const res = await fetch('/admin/backups/run', { method: 'POST' });
+    const res = await adminFetch('/backups/run', { method: 'POST' });
     const data = await res.json();
     btn.disabled = false;
     btn.textContent = ADMIN_JS.generateBackup || 'Generar backup ahora';
@@ -807,7 +1155,7 @@
   });
 
   document.getElementById('btnApplyRetention')?.addEventListener('click', async () => {
-    const res = await fetch('/admin/backups/retention', { method: 'POST' });
+    const res = await adminFetch('/backups/retention', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
       if (data.skipped) {
@@ -906,7 +1254,7 @@
     btnImportHistory.disabled = true;
     btnImportHistory.textContent = 'Subiendo…';
     try {
-      const res = await fetch('/admin/backups/import', {
+      const res = await adminFetch('/backups/import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -946,7 +1294,7 @@
     btnImportRestore.disabled = true;
     btnImportRestore.textContent = 'Restaurando…';
     try {
-      const res = await fetch('/admin/backups/import', {
+      const res = await adminFetch('/backups/import', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -974,7 +1322,7 @@
   document.querySelectorAll('.btn-delete-backup').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('¿Eliminar este backup?')) return;
-      const res = await fetch(`/admin/backups/${btn.dataset.id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/backups/${btn.dataset.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         btn.closest('.backup-item')?.remove();
@@ -998,7 +1346,7 @@
       btn.disabled = true;
       btn.textContent = 'Restaurando…';
       try {
-        const res = await fetch(`/admin/backups/${btn.dataset.id}/restore`, {
+        const res = await adminFetch(`/backups/${btn.dataset.id}/restore`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1225,7 +1573,7 @@
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       try {
-        const res = await fetch('/admin/dte/retry', {
+        const res = await adminFetch('/dte/retry', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ requestId: btn.dataset.id, phase: btn.dataset.phase })
@@ -1245,3 +1593,27 @@
     });
   });
 })();
+
+
+  document.querySelectorAll('.btn-set-app-mode').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const mode = btn.dataset.mode;
+      if (!confirm('¿Cambiar la plataforma a ' + mode + '? Esto afecta pagos demo vs reales.')) return;
+      try {
+        const res = await adminFetch('/modo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          FundezNotify.show(data.error || 'No se pudo cambiar el modo', 'error');
+          return;
+        }
+        FundezNotify.show('Modo: ' + data.label, 'success');
+        setTimeout(() => location.reload(), 700);
+      } catch (_) {
+        FundezNotify.show('Error al cambiar modo', 'error');
+      }
+    });
+  });

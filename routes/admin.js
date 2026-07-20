@@ -30,6 +30,9 @@ const { rateLimitLogin, adminIpAllowlist, getClientIp, parseAdminIpAllowlist } =
 const { qrDataUrl } = require('../lib/mfa');
 const notifications = require('../lib/notifications');
 const events = require('../lib/events');
+const { adminUrl, getPublicStatus, canToggleModeFromAdmin, isProductionMode } = require('../lib/appMode');
+const appModeStore = require('../lib/appModeStore');
+const { resolveAdminAccess, hasFullSystemAccess } = require('../lib/adminPermissions');
 
 router.use(adminIpAllowlist());
 router.use(attachAdminAccess);
@@ -37,19 +40,30 @@ router.use(attachAdminAccess);
 const ADMIN_SESSION_MS = 4 * 60 * 60 * 1000;
 const MFA_PENDING_MS = 5 * 60 * 1000;
 
-function completeAdminSession(req, user) {
-  req.session.user = {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role
+function completeAdminSession(req, user, done) {
+  const finish = () => {
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role
+    };
+    refreshSessionAdminAccess(req, user);
+    req.session.isAdminSession = true;
+    req.session.adminMfaVerified = true;
+    delete req.session.pendingAdminMfa;
+    if (req.session.cookie) {
+      req.session.cookie.maxAge = ADMIN_SESSION_MS;
+    }
+    if (typeof done === 'function') done();
   };
-  refreshSessionAdminAccess(req, user);
-  req.session.isAdminSession = true;
-  req.session.adminMfaVerified = true;
-  delete req.session.pendingAdminMfa;
-  if (req.session.cookie) {
-    req.session.cookie.maxAge = ADMIN_SESSION_MS;
+  if (typeof req.session.regenerate === 'function') {
+    req.session.regenerate((err) => {
+      if (err) console.error('[session] regenerate', err.message);
+      finish();
+    });
+  } else {
+    finish();
   }
 }
 
@@ -65,7 +79,7 @@ function getPendingMfa(req) {
 
 router.get('/login', (req, res) => {
   if (req.session.user?.role === 'admin' && req.session.adminMfaVerified) {
-    return res.redirect('/admin');
+    return res.redirect(adminUrl());
   }
   const expired = req.query.expired === '1';
   res.render('admin/login', {
@@ -104,8 +118,11 @@ router.post('/login', rateLimitLogin(8), async (req, res) => {
   }
 
   const user = result.user;
+  const access = resolveAdminAccess(user);
+  const mfaEnabled = store.isMfaEnabled(user.id);
+  const mustSetupMfa = isProductionMode() && hasFullSystemAccess(access) && !mfaEnabled;
 
-  if (store.isMfaEnabled(user.id)) {
+  if (mfaEnabled) {
     req.session.pendingAdminMfa = {
       userId: user.id,
       email: user.email,
@@ -114,18 +131,27 @@ router.post('/login', rateLimitLogin(8), async (req, res) => {
     delete req.session.user;
     delete req.session.adminMfaVerified;
     store.logSecurityEvent('admin_login_mfa_required', email, req);
-    return res.redirect('/admin/mfa');
+    return res.redirect(adminUrl('/mfa'));
   }
 
-  completeAdminSession(req, user);
-  store.logSecurityEvent('admin_login_ok', email, req);
-  res.redirect('/admin');
+  if (mustSetupMfa) {
+    completeAdminSession(req, user, () => {
+      store.logSecurityEvent('admin_login_mfa_setup_required', email, req);
+      res.redirect(adminUrl('/mfa/setup') + '?required=1');
+    });
+    return;
+  }
+
+  completeAdminSession(req, user, () => {
+    store.logSecurityEvent('admin_login_ok', email, req);
+    res.redirect(adminUrl());
+  });
 });
 
 router.get('/mfa', (req, res) => {
   const pending = getPendingMfa(req);
   if (!pending) {
-    return res.redirect('/admin/login');
+    return res.redirect(adminUrl('/login'));
   }
   res.render('admin/mfa', {
     title: 'Verificación MFA — Fundez',
@@ -137,7 +163,7 @@ router.get('/mfa', (req, res) => {
 router.post('/mfa', rateLimitLogin(6), async (req, res) => {
   const pending = getPendingMfa(req);
   if (!pending) {
-    return res.redirect('/admin/login?expired=1');
+    return res.redirect(adminUrl('/login') + '?expired=1');
   }
 
   const code = req.body.code;
@@ -153,23 +179,24 @@ router.post('/mfa', rateLimitLogin(6), async (req, res) => {
   const user = store.getUserById(pending.userId);
   if (!user) {
     delete req.session.pendingAdminMfa;
-    return res.redirect('/admin/login');
+    return res.redirect(adminUrl('/login'));
   }
 
-  completeAdminSession(req, user);
-  store.logSecurityEvent('admin_mfa_ok', user.email, req);
-  res.redirect('/admin');
+  completeAdminSession(req, user, () => {
+    store.logSecurityEvent('admin_mfa_ok', user.email, req);
+    res.redirect(adminUrl());
+  });
 });
 
 router.get('/mfa/setup', requireRole('admin'), async (req, res) => {
   const status = store.getAdminMfaStatus(req.session.user.id);
   if (status.enabled) {
-    return res.redirect('/admin?tab=seguridad');
+    return res.redirect(adminUrl() + '?tab=seguridad');
   }
 
   const setup = await store.beginMfaSetup(req.session.user.id);
   if (setup.error) {
-    return res.redirect('/admin?tab=seguridad');
+    return res.redirect(adminUrl() + '?tab=seguridad');
   }
 
   const qr = await qrDataUrl(setup.otpauthUrl);
@@ -197,19 +224,19 @@ router.post('/mfa/setup', requireRole('admin'), async (req, res) => {
 
   req.session.adminMfaVerified = true;
   store.logSecurityEvent('admin_mfa_enabled', req.session.user.email, req);
-  res.redirect('/admin?tab=seguridad&mfa=enabled');
+  res.redirect(adminUrl('?tab=seguridad&mfa=enabled'));
 });
 
 router.post('/mfa/disable', requireRole('admin'), async (req, res) => {
   const { password, code } = req.body;
   const result = await store.disableMfa(req.session.user.id, password, code);
   if (result.error) {
-    return res.redirect('/admin?tab=seguridad&mfa_error=' + encodeURIComponent(result.error));
+    return res.redirect(adminUrl('?tab=seguridad&mfa_error=' + encodeURIComponent(result.error)));
   }
 
   delete req.session.adminMfaVerified;
   store.logSecurityEvent('admin_mfa_disabled', req.session.user.email, req);
-  res.redirect('/admin?tab=seguridad&mfa=disabled');
+  res.redirect(adminUrl('?tab=seguridad&mfa=disabled'));
 });
 
 router.get('/', requireRole('admin'), async (req, res) => {
@@ -255,6 +282,9 @@ router.get('/', requireRole('admin'), async (req, res) => {
     services: localizeServices(store.SERVICES, req.t),
     modules: store.getModules(),
     promos: store.getAllPromos(),
+    crmLeads: store.getCrmLeads(),
+    crmStats: store.getCrmStats(),
+    crmStages: store.CRM_PIPELINE_STAGES,
     clientModules: localizeModules(store.getModulesByAudience('client'), req.t),
     providerModules: localizeModules(store.getModulesByAudience('provider'), req.t),
     coverageRegions: store.getCoverageForAdmin(),
@@ -297,6 +327,7 @@ router.get('/', requireRole('admin'), async (req, res) => {
     adminTeam: store.getAdminTeamUsers(),
     adminProfiles: getProfilesList(),
     adminPermissionGroups: getPermissionGroups(),
+    managedUsers: store.getManagedUsers({ limit: 30 }),
     canAccessPanel: (panelId) => canAccessPanel(access, panelId),
     initialTab
   });
@@ -311,19 +342,42 @@ router.get('/', requireRole('admin'), async (req, res) => {
   }
 });
 
+
+router.get('/modo', requireRole('admin'), requireAdminPermission('seguridad.view', 'equipo.manage'), (req, res) => {
+  res.json({ success: true, ...getPublicStatus(), suggestedAdminPath: require('../lib/appMode').suggestAdminPath() });
+});
+
+router.post('/modo', requireRole('admin'), requireAdminPermission('equipo.manage'), async (req, res) => {
+  const access = req.adminAccess || {};
+  if (!(access.isSuperAdmin || access.isFullAccess)) {
+    return res.status(403).json({ error: 'Solo superadmin o admin.mod pueden cambiar el modo.' });
+  }
+  if (!canToggleModeFromAdmin()) {
+    return res.status(403).json({ error: 'El cambio de modo desde admin está bloqueado. Usa APP_MODE en el servidor o ALLOW_APP_MODE_TOGGLE=true.' });
+  }
+  try {
+    const status = await appModeStore.persistAppModeOverride(req.body.mode);
+    store.logSecurityEvent('app_mode_change', status.mode, req);
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.get('/team/meta', requireRole('admin'), requireAdminPermission('equipo.view'), (req, res) => {
   res.json({ success: true, ...store.getAdminPermissionMeta(), team: store.getAdminTeamUsers() });
 });
 
 router.post('/team', requireRole('admin'), requireAdminPermission('equipo.manage'), async (req, res) => {
-  const { name, email, password, profileId, permissions, isSuperAdmin } = req.body;
+  const { name, email, password, profileId, permissions, isSuperAdmin, isFullAccess } = req.body;
   const result = await store.createAdminUser({
     name,
     email,
     password,
     profileId,
     permissions: Array.isArray(permissions) ? permissions : undefined,
-    isSuperAdmin: isSuperAdmin === true || isSuperAdmin === 'true'
+    isSuperAdmin: isSuperAdmin === true || isSuperAdmin === 'true',
+    isFullAccess: isFullAccess === true || isFullAccess === 'true' || profileId === 'admin.mod'
   }, req.session.user.id);
 
   if (result.error) return res.status(400).json({ error: result.error });
@@ -332,9 +386,20 @@ router.post('/team', requireRole('admin'), requireAdminPermission('equipo.manage
 });
 
 router.put('/team/:id', requireRole('admin'), requireAdminPermission('equipo.manage'), async (req, res) => {
-  const { name, profileId, permissions, isSuperAdmin, password } = req.body;
-  if (req.params.id === req.session.user.id && isSuperAdmin === false) {
-    return res.status(400).json({ error: 'No puedes quitarte el rol de superadministrador a ti mismo.' });
+  const { name, profileId, permissions, isSuperAdmin, isFullAccess, password } = req.body;
+  const current = store.getAdminTeamUsers().find((u) => u.id === req.params.id);
+  const droppingFull =
+    current &&
+    (current.isSuperAdmin || current.isFullAccess) &&
+    isSuperAdmin !== true &&
+    isSuperAdmin !== 'true' &&
+    isFullAccess !== true &&
+    isFullAccess !== 'true' &&
+    profileId !== 'superadmin' &&
+    profileId !== 'admin.mod';
+
+  if (req.params.id === req.session.user.id && droppingFull) {
+    return res.status(400).json({ error: 'No puedes quitarte el acceso total a ti mismo.' });
   }
 
   const result = await store.updateAdminUserAccess(req.params.id, {
@@ -342,6 +407,7 @@ router.put('/team/:id', requireRole('admin'), requireAdminPermission('equipo.man
     profileId,
     permissions: Array.isArray(permissions) ? permissions : undefined,
     isSuperAdmin: isSuperAdmin === true || isSuperAdmin === 'true',
+    isFullAccess: isFullAccess === true || isFullAccess === 'true' || profileId === 'admin.mod',
     password: password || undefined
   }, req.session.user.id);
 
@@ -353,6 +419,42 @@ router.put('/team/:id', requireRole('admin'), requireAdminPermission('equipo.man
     refreshSessionAdminAccess(req, user);
   }
 
+  res.json({ success: true, user: result.user });
+});
+
+router.post('/profiles', requireRole('admin'), requireAdminPermission('perfiles.manage', 'equipo.manage'), async (req, res) => {
+  const result = await store.upsertAdminProfile({
+    id: req.body.id || req.body.profileId,
+    name: req.body.name,
+    description: req.body.description,
+    permissions: Array.isArray(req.body.permissions) ? req.body.permissions : undefined,
+    isFullAccess: req.body.isFullAccess === true || req.body.isFullAccess === 'true'
+  }, req.session.user.id);
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('admin_profile_upsert', result.profile?.id || '', req);
+  res.json({ success: true, profile: result.profile, profiles: result.profiles });
+});
+
+router.post('/profiles/:id/delete', requireRole('admin'), requireAdminPermission('perfiles.manage', 'equipo.manage'), async (req, res) => {
+  const result = await store.deleteAdminProfile(req.params.id, req.session.user.id);
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('admin_profile_delete', req.params.id, req);
+  res.json({ success: true, profiles: result.profiles });
+});
+
+router.get('/usuarios', requireRole('admin'), requireAdminPermission('usuarios.view', 'usuarios.manage'), (req, res) => {
+  const users = store.getManagedUsers({
+    q: req.query.q || '',
+    role: req.query.role || '',
+    limit: Number(req.query.limit) || 40
+  });
+  res.json({ success: true, users });
+});
+
+router.post('/usuarios/:id', requireRole('admin'), requireAdminPermission('usuarios.manage'), (req, res) => {
+  const result = store.adminUpdateManagedUser(req.params.id, req.body || {}, req.session.user.id);
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('usuarios_manage', req.params.id, req);
   res.json({ success: true, user: result.user });
 });
 
@@ -421,10 +523,90 @@ router.get('/finanzas/export.csv', requireRole('admin'), requireAdminPermission(
   lines.push(`Pendiente socios,${report.summary.providerPending}`);
   lines.push(`Transferencias pendientes,${report.summary.pendingTransferCount}`);
 
+  const acc = report.accounting || {};
+  if (acc.pnl) {
+    lines.push('');
+    lines.push('Resultado (P&L)');
+    lines.push(`Ingresos comisión,${acc.pnl.income.commission}`);
+    lines.push(`Ingresos recargo,${acc.pnl.income.cardSurcharge}`);
+    lines.push(`Gastos liquidaciones pagadas,${acc.pnl.expenses.providerPaid}`);
+    lines.push(`Gastos compras SII,${acc.pnl.expenses.purchases}`);
+    lines.push(`Resultado neto,${acc.pnl.netResult}`);
+  }
+
   store.logSecurityEvent('finanzas_export', `${payments.length} filas`, req);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="fundez-finanzas.csv"');
   res.send('\uFEFF' + lines.join('\n'));
+});
+
+router.get('/finanzas/balance.csv', requireRole('admin'), requireAdminPermission('finanzas.export'), (req, res) => {
+  const pack = store.getAccountingPack();
+  const lines = ['codigo,cuenta,tipo,debe,haber,saldo'];
+  (pack.accountBalances || []).forEach((a) => {
+    lines.push([a.code, csvEscape(a.name), a.type, a.debit, a.credit, a.balance].join(','));
+  });
+  lines.push('');
+  lines.push('Balance general');
+  lines.push(`Total activos,${pack.balanceSheet.totalAssets}`);
+  lines.push(`Total pasivos,${pack.balanceSheet.totalLiabilities}`);
+  lines.push(`Total patrimonio,${pack.balanceSheet.totalEquity}`);
+  lines.push(`Resultado neto,${pack.pnl.netResult}`);
+
+  store.logSecurityEvent('finanzas_balance_export', `${pack.accountBalances.length} cuentas`, req);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="fundez-balance.csv"');
+  res.send('\uFEFF' + lines.join('\n'));
+});
+
+router.post('/finanzas/compras', requireRole('admin'), requireAdminPermission('finanzas.manage'), (req, res) => {
+  const finance = require('../lib/finance');
+  const result = finance.purchases.upsertPurchaseInvoice(req.body || {});
+  store.logSecurityEvent('finanzas_compra', result.invoice?.id || '', req);
+  res.json(result);
+});
+
+router.post('/finanzas/compras/import', requireRole('admin'), requireAdminPermission('finanzas.manage'), (req, res) => {
+  const finance = require('../lib/finance');
+  let rows = req.body?.invoices || req.body?.rows || req.body;
+  if (typeof rows === 'string') {
+    try { rows = JSON.parse(rows); } catch (_) { rows = []; }
+  }
+  const result = finance.purchases.importPurchaseInvoices(Array.isArray(rows) ? rows : []);
+  store.logSecurityEvent('finanzas_compras_import', `${result.imported} facturas`, req);
+  res.json(result);
+});
+
+router.post('/finanzas/compras/sync-sii', requireRole('admin'), requireAdminPermission('finanzas.manage'), async (req, res) => {
+  const finance = require('../lib/finance');
+  const result = await finance.purchases.syncPurchasesFromSii();
+  store.logSecurityEvent('finanzas_sii_sync', result.success ? 'ok' : (result.error || 'fail'), req);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+router.post('/finanzas/banco', requireRole('admin'), requireAdminPermission('finanzas.manage'), (req, res) => {
+  const finance = require('../lib/finance');
+  const result = finance.reconciliation.addBankMovement(req.body || {});
+  store.logSecurityEvent('finanzas_banco', result.movement?.id || '', req);
+  res.json(result);
+});
+
+router.post('/finanzas/banco/import', requireRole('admin'), requireAdminPermission('finanzas.manage'), (req, res) => {
+  const finance = require('../lib/finance');
+  let rows = req.body?.movements || req.body?.rows || req.body;
+  if (typeof rows === 'string') {
+    try { rows = JSON.parse(rows); } catch (_) { rows = []; }
+  }
+  const result = finance.reconciliation.importBankMovements(Array.isArray(rows) ? rows : []);
+  store.logSecurityEvent('finanzas_banco_import', `${result.imported} movs`, req);
+  res.json(result);
+});
+
+router.post('/finanzas/conciliar', requireRole('admin'), requireAdminPermission('finanzas.manage'), (req, res) => {
+  const finance = require('../lib/finance');
+  const result = finance.reconciliation.autoReconcile(store.getPayments());
+  store.logSecurityEvent('finanzas_conciliar', `${result.matched} matches`, req);
+  res.json(result);
 });
 
 function csvEscape(value) {
@@ -494,6 +676,20 @@ router.post('/promos/:id/delete', requireRole('admin'), requireAdminPermission('
   if (result.error) return res.status(400).json({ error: result.error });
   store.logSecurityEvent('promo_delete', req.params.id, req);
   res.json({ success: true, promos: store.getAllPromos() });
+});
+
+router.post('/crm', requireRole('admin'), requireAdminPermission('crm.manage'), (req, res) => {
+  const result = store.upsertCrmLead(req.body || {});
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('crm_upsert', result.lead.id, req);
+  res.json({ success: true, lead: result.lead, leads: store.getCrmLeads(), stats: store.getCrmStats() });
+});
+
+router.post('/crm/:id/delete', requireRole('admin'), requireAdminPermission('crm.manage'), (req, res) => {
+  const result = store.deleteCrmLead(req.params.id);
+  if (result.error) return res.status(400).json({ error: result.error });
+  store.logSecurityEvent('crm_delete', req.params.id, req);
+  res.json({ success: true, leads: store.getCrmLeads(), stats: store.getCrmStats() });
 });
 
 router.post('/toggle-coverage', requireRole('admin'), requireAdminPermission('cobertura.manage'), (req, res) => {
@@ -628,7 +824,7 @@ router.post('/backups/import', requireRole('admin'), requireAdminPermission('bac
   try {
     if (mode === 'restore') {
       const access = req.adminAccess || req.session?.adminAccess;
-      if (!access?.isSuperAdmin && !hasPermission(access, 'backups.restore')) {
+      if (!hasPermission(access, 'backups.restore')) {
         return res.status(403).json({ success: false, error: 'No tienes permiso para restaurar backups' });
       }
       const confirm = String(req.body.confirm || '').trim().toUpperCase();
@@ -802,7 +998,7 @@ router.post('/precios', requireRole('admin'), requireAdminPermission('precios.ma
   if (req.xhr || (req.get('accept') || '').includes('application/json')) {
     return res.json({ success: true, pricing: updated });
   }
-  res.redirect('/admin/precios?ok=1');
+  res.redirect(adminUrl('/precios?ok=1'));
 });
 
 router.post('/transfer/:requestId/aprobar', requireRole('admin'), requireAdminPermission('pagos.manage'), (req, res) => {
@@ -876,7 +1072,7 @@ router.post('/solicitudes/:requestId/asignar', requireRole('admin'), requireAdmi
   });
 });
 
-router.post('/usuarios/verificar-email/reenviar', requireRole('admin'), requireAdminPermission('solicitudes.manage'), async (req, res) => {
+router.post('/usuarios/verificar-email/reenviar', requireRole('admin'), requireAdminPermission('usuarios.manage', 'solicitudes.manage'), async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ success: false, error: 'Ingresa un correo.' });
   const user = store.getUserByEmail(email);
@@ -898,7 +1094,7 @@ router.post('/usuarios/verificar-email/reenviar', requireRole('admin'), requireA
   });
 });
 
-router.post('/usuarios/verificar-email/forzar', requireRole('admin'), requireAdminPermission('solicitudes.manage'), async (req, res) => {
+router.post('/usuarios/verificar-email/forzar', requireRole('admin'), requireAdminPermission('usuarios.manage', 'solicitudes.manage'), async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ success: false, error: 'Ingresa un correo.' });
   const user = store.getUserByEmail(email);

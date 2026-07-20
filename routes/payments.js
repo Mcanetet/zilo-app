@@ -8,6 +8,7 @@ const cardCheckout = require('../lib/payments/cardCheckout');
 const { notifyProvidersForRequest } = require('../lib/dispatch');
 const { requireRole } = require('../middleware/auth');
 const company = require('../config/company');
+const appMode = require('../lib/appMode');
 
 function getBaseUrl(req) {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '');
@@ -102,6 +103,9 @@ router.post('/ajuste/crear', requireRole('client'), async (req, res) => {
 });
 
 router.post('/ajuste/demo/confirmar', requireRole('client'), (req, res) => {
+  if (appMode.isProductionMode()) {
+    return res.status(403).json({ error: 'Pago demo deshabilitado en producción.' });
+  }
   const request = store.requests.find((r) => r.id === req.body.requestId && r.clientId === req.session.user.id);
   const charge = getAdditionalCharge(request, req.body.chargeId);
   if (!request || !charge || charge.status !== 'pending') {
@@ -424,6 +428,13 @@ router.post('/transferencia/confirmar', requireRole('client'), (req, res) => {
 });
 
 router.get('/demo', requireRole('client'), (req, res) => {
+  if (appMode.isProductionMode()) {
+    return res.status(403).render('error', {
+      title: 'Pago no disponible',
+      message: 'El pago demo solo está disponible en modo demo. Configura una pasarela de pago.',
+      code: 403
+    });
+  }
   const request = store.requests.find(r => r.id === req.query.ref);
   if (!request || request.clientId !== req.session.user.id) {
     return res.redirect('/cliente');
@@ -438,6 +449,9 @@ router.get('/demo', requireRole('client'), (req, res) => {
 });
 
 router.post('/demo/confirmar', requireRole('client'), (req, res) => {
+  if (appMode.isProductionMode()) {
+    return res.status(403).json({ error: 'Pago demo deshabilitado en producción.' });
+  }
   const request = store.requests.find(r => r.id === req.body.requestId);
   if (!request || request.clientId !== req.session.user.id) {
     return res.status(404).json({ error: 'Solicitud no encontrada' });
@@ -457,14 +471,8 @@ router.get('/exito', requireRole('client'), (req, res) => {
   }
 
   const charge = getAdditionalCharge(request, req.query.charge);
-  if (req.query.payment_id && charge && charge.status !== 'approved') {
-    store.markAdditionalPaymentApproved(request.id, String(req.query.payment_id));
-    req.app.get('io').emit(`request_update_${request.id}`, { request });
-  } else if (req.query.payment_id && request.paymentStatus !== 'approved') {
-    store.markPaymentApproved(request.id, req.query.payment_id);
-    store.activateRequest(request.id);
-    notifyProviders(req, request);
-  }
+  // Seguridad: no aprobar pagos desde ?payment_id= en la URL.
+  // Solo webhook / commit de pasarela pueden marcar approved.
 
   const beneficiaryWhatsapp = company.beneficiaryWhatsappLink(request);
   const guardianUrl = company.guardianShareLink(request);
@@ -509,7 +517,15 @@ router.post('/webhook', async (req, res) => {
       const request = store.requests.find(r => r.id === ref);
 
       if (request && payment.status === 'approved') {
+        const paidAmount = Math.round(Number(payment.transaction_amount || payment.transactionAmount || 0));
         const charge = getAdditionalCharge(request, chargeId);
+        const expected = charge
+          ? Math.round(Number(charge.amountDue || 0))
+          : Math.round(Number(request.amountDue || request.visitPricePaid || 0));
+        if (expected > 0 && paidAmount > 0 && Math.abs(paidAmount - expected) > 1) {
+          console.error(`[webhook] monto mismatch request=${request.id} paid=${paidAmount} expected=${expected}`);
+          return res.sendStatus(200);
+        }
         if (chargeId && charge) {
           store.markAdditionalPaymentApproved(request.id, String(data.id));
           const io = req.app.get('io');

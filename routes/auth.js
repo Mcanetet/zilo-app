@@ -37,11 +37,12 @@ function setSessionUser(req, user, { admin = false, remember = false, activeRole
 }
 
 function getDashboardPath(role) {
+  const { getAdminBasePath } = require('../lib/appMode');
   const paths = {
     client: '/cliente',
     provider: '/proveedor',
     tecnico: '/tecnico',
-    admin: '/admin'
+    admin: getAdminBasePath()
   };
   return paths[role] || '/';
 }
@@ -80,7 +81,7 @@ router.post('/login', rateLimitLogin(12), async (req, res) => {
   if (result.error === 'wrong_portal') {
     store.logSecurityEvent('login_admin_blocked_public', email, req);
     return res.render('login', loginRenderOptions(req, {
-      error: 'Las cuentas de administración usan el portal corporativo en /admin/login'
+      error: 'Las cuentas de administración usan el portal corporativo (enlace interno).'
     }));
   }
 
@@ -464,8 +465,9 @@ router.get('/logout', (req, res) => {
   const wasAdmin = req.session.user?.role === 'admin' || req.session.isAdminSession || req.session.pendingAdminMfa;
   delete req.session.pendingAdminMfa;
   delete req.session.adminMfaVerified;
+  const { adminUrl } = require('../lib/appMode');
   req.session.destroy(() => {
-    res.redirect(wasAdmin ? '/admin/login' : '/');
+    res.redirect(wasAdmin ? adminUrl('/login') : '/');
   });
 });
 

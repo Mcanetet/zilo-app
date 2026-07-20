@@ -6,6 +6,7 @@ const {
   getFirstAccessiblePanel,
   canAccessPanel
 } = require('../lib/adminPermissions');
+const { adminUrl, getAdminBasePath, getPublicStatus } = require('../lib/appMode');
 
 function getSessionAccess(req) {
   if (req.session?.adminAccess) return req.session.adminAccess;
@@ -17,21 +18,25 @@ function getSessionAccess(req) {
 }
 
 function attachAdminAccess(req, res, next) {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   if (req.session?.user?.role === 'admin') {
     req.adminAccess = getSessionAccess(req);
     res.locals.adminAccess = req.adminAccess;
     res.locals.adminNav = getNavForAccess(req.adminAccess, req.t);
   }
+  res.locals.adminBase = getAdminBasePath();
+  res.locals.adminUrl = adminUrl;
+  res.locals.appModeStatus = getPublicStatus();
   next();
 }
 
 function requireAdminPermission(...permissions) {
   return (req, res, next) => {
     if (!req.session?.user || req.session.user.role !== 'admin') {
-      return res.redirect('/admin/login');
+      return res.redirect(adminUrl('/login'));
     }
     const access = getSessionAccess(req);
-    if (access.isSuperAdmin || hasAnyPermission(access, permissions)) {
+    if (access.isSuperAdmin || access.isFullAccess || hasAnyPermission(access, permissions)) {
       req.adminAccess = access;
       return next();
     }
@@ -51,6 +56,7 @@ function refreshSessionAdminAccess(req, user) {
   req.session.adminAccess = access;
   req.session.user.adminProfile = access.profileId;
   req.session.user.isSuperAdmin = access.isSuperAdmin;
+  req.session.user.isFullAccess = access.isFullAccess;
   req.session.user.permissions = access.permissions;
   return access;
 }

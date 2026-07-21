@@ -223,6 +223,7 @@ router.post('/trabajo/:requestId/material', requireRole('tecnico'), (req, res) =
     receiptUrl
   });
   if (result.error) return res.status(400).json({ success: false, error: result.error });
+  req.app.get('io').emit(`request_update_${result.request.id}`, { request: result.request });
   res.json({ success: true, material: result.material, materials: result.request.siteReport.materials });
 });
 

@@ -105,13 +105,13 @@
         appendMessage({
           senderType: 'system',
           senderName: 'Sistema',
-          body: 'Aviso enviado al equipo de pagos de Fundez. Revisarán tu caso en la plataforma.'
+          body: 'Consulta derivada al equipo de pagos de Fundez. La revisarán en la plataforma.'
         });
       } else if (data.escalated) {
         appendMessage({
           senderType: 'system',
           senderName: 'Sistema',
-          body: 'Te conectamos con un especialista del servicio. Si no responde en unos minutos, administración Fundez tomará el caso.'
+          body: 'Caso derivado al equipo del servicio. Si no responden a tiempo, administración Fundez lo retoma.'
         });
       }
     } catch (err) {

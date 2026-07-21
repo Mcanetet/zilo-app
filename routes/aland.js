@@ -67,7 +67,8 @@ router.post('/client/start', requireRole('client'), requireModule('client_aland'
 
     const greetingTemplate = isSupport
       ? (config.supportGreeting
-        || 'Hola, soy Aland IA. Estoy aquí para ayudarte con Fundez. Cuéntame si es un tema de servicio o de pagos y te oriento.')
+        || aland.DEFAULT_CONFIG.supportGreeting
+        || 'Hola, soy Aland IA, soporte de Fundez. Dime si tu consulta es de servicio, pagos o una solicitud en curso y te indico el siguiente paso.')
       : (config.greetingMessage || config.greeting || aland.DEFAULT_CONFIG.greetingMessage);
 
     const greeting = String(greetingTemplate).replace('{service}', serviceName);

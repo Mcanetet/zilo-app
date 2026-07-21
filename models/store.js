@@ -1060,6 +1060,7 @@ function markAdditionalPaymentApproved(requestId, paymentId) {
   }
 
   repository.persist(() => repository.saveRequest(request), `pago ajuste ${requestId}`);
+  afterEvent((ev) => ev.onAdditionalPaymentApproved?.(request, charge));
   return request;
 }
 
@@ -2779,6 +2780,7 @@ function updateTechStatus(requestId, technicianId, techStatus) {
   }
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   if (techStatus === 'en_camino') afterEvent((ev) => ev.onTechnicianEnRoute(request));
+  if (techStatus === 'en_sitio') afterEvent((ev) => ev.onTechnicianOnSite?.(request));
   return request;
 }
 
@@ -2898,6 +2900,13 @@ function respondSiteBudget(requestId, clientId, approved) {
     sr.workNotes = 'Presupuesto rechazado por el cliente. Visita finalizada.';
   }
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  afterEvent((ev) => {
+    ev.onBudgetResponded?.(request, {
+      approved: Boolean(approved),
+      amount: sr.budgetAmount,
+      pendingPayment: Boolean(additionalCharge)
+    });
+  });
   return { success: true, request, approved, additionalCharge };
 }
 
@@ -3022,6 +3031,12 @@ function respondActivityChange(requestId, clientId, approved) {
   }
 
   repository.persist(() => repository.saveRequest(request), `respuesta cambio ${requestId}`);
+  afterEvent((ev) => {
+    ev.onActivityChangeResolved?.(request, change, {
+      approved: Boolean(approved),
+      pendingPayment: Boolean(additionalCharge)
+    });
+  });
   return { success: true, request, approved, activityChange: change, additionalCharge };
 }
 
@@ -3046,6 +3061,7 @@ function addSiteMaterial(requestId, technicianId, { description, amount, receipt
     addedAt: new Date().toISOString()
   });
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
+  afterEvent((ev) => ev.onMaterialAdded?.(request, sr.materials[sr.materials.length - 1]));
   return { success: true, request, material: sr.materials[sr.materials.length - 1] };
 }
 
@@ -3217,7 +3233,12 @@ function respondNoProviderChoice(requestId, { clientId, tokenHash, choice } = {}
   request.noProviderChoiceTokenHash = null;
   repository.persist(() => repository.saveRequest(request), `respuesta sin socio ${requestId}`);
   if (normalizedChoice === 'continue') {
-    afterEvent((ev) => ev.onServiceSearching(request));
+    afterEvent((ev) => {
+      ev.onKeepSearching?.(request);
+      ev.onServiceSearching(request);
+    });
+  } else if (normalizedChoice === 'refund') {
+    afterEvent((ev) => ev.onRefundRequested?.(request));
   }
   return { success: true, choice: normalizedChoice, request };
 }
@@ -3723,6 +3744,7 @@ function markPayoutPaid(requestId) {
   req.payoutStatus = 'pagado';
   req.payoutPaidAt = new Date().toISOString();
   repository.persist(() => repository.saveRequest(req), `solicitud ${requestId}`);
+  afterEvent((ev) => ev.onPayoutPaid?.(req));
   return req;
 }
 

@@ -2003,22 +2003,31 @@
     florenciaAgenda.innerHTML = items.map((item) => {
       const c = item.content || {};
       const hashtags = (c.hashtags || []).map((h) => `#${String(h).replace(/^#/, '')}`).join(' ');
+      const safeTitle = String(item.title || 'florencia').replace(/[^\w\-]+/g, '_').slice(0, 40);
       const image = item.imageUrl
-        ? `<img src="${escapeHtml(item.imageUrl)}" alt="" class="w-full sm:w-36 h-36 object-cover rounded-xl border border-gray-200 shrink-0">`
+        ? `<a href="${escapeHtml(item.imageUrl)}" target="_blank" rel="noopener" class="block shrink-0" title="Abrir imagen">
+             <img src="${escapeHtml(item.imageUrl)}" alt="" class="w-full sm:w-36 h-36 object-cover rounded-xl border border-gray-200">
+           </a>`
         : '<div class="w-full sm:w-36 h-24 sm:h-36 rounded-xl bg-gradient-to-br from-fuchsia-100 to-violet-100 flex items-center justify-center text-xs text-fuchsia-700 shrink-0">Imagen pendiente</div>';
       const manage = canFlorenciaManage && item.status !== 'published'
-        ? `<button data-florencia-image="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-fuchsia-200 text-fuchsia-700 text-xs">${item.imageUrl ? 'Regenerar imagen' : 'Generar imagen'}</button>
-           <button data-florencia-edit="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs">Editar</button>`
+        ? `<button type="button" data-florencia-image="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-fuchsia-200 text-fuchsia-700 text-xs">${item.imageUrl ? 'Regenerar imagen' : 'Generar imagen'}</button>
+           <button type="button" data-florencia-edit="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs">Editar</button>`
         : '';
       const approve = canFlorenciaApprove && item.status === 'pending_approval'
-        ? `<button data-florencia-approve="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs">Aprobar</button>
-           <button data-florencia-reject="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs">Rechazar</button>`
+        ? `<button type="button" data-florencia-approve="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs">Aprobar</button>
+           <button type="button" data-florencia-reject="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs">Rechazar</button>`
         : '';
       const publish = canFlorenciaPublish && item.status === 'approved' && connections[item.channel]
-        ? `<button data-florencia-publish="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-fuchsia-600 text-white text-xs">Publicar ahora</button>`
+        ? `<button type="button" data-florencia-publish="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-fuchsia-600 text-white text-xs">Publicar ahora</button>`
         : (item.status === 'approved' && !connections[item.channel]
-          ? '<span class="text-[10px] text-amber-700 self-center">Aprobada · descarga/carga manual o configura la conexión</span>'
+          ? '<span class="text-[10px] text-amber-700 self-center">Aprobada · usa Descargar para publicar a mano o configura la conexión</span>'
           : '');
+      const downloads = `
+        ${item.imageUrl
+          ? `<button type="button" data-florencia-download-image="${item.id}" data-url="${escapeHtml(item.imageUrl)}" data-filename="florencia-${escapeHtml(item.channel)}-${escapeHtml(safeTitle)}.png" class="px-2.5 py-1.5 rounded-lg bg-zilo-accent text-white text-xs font-medium">Descargar imagen</button>`
+          : ''}
+        <button type="button" data-florencia-download-copy="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs font-medium">Descargar texto</button>
+        <button type="button" data-florencia-copy-clipboard="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs">Copiar texto</button>`;
       return `<article class="p-4 rounded-2xl bg-zilo-card border border-gray-200" data-florencia-item="${item.id}">
         <div class="flex flex-col sm:flex-row gap-4">
           ${image}
@@ -2034,11 +2043,11 @@
               </div>
             </div>
             ${c.subject ? `<p class="text-xs font-semibold mb-1">Asunto: ${escapeHtml(c.subject)}</p>` : ''}
-            <p class="text-xs text-gray-700 whitespace-pre-wrap mb-2">${escapeHtml(c.copy || '')}</p>
-            ${c.cta ? `<p class="text-xs font-semibold text-zilo-accent">${escapeHtml(c.cta)}</p>` : ''}
-            ${hashtags ? `<p class="text-[11px] text-fuchsia-700 mt-1">${escapeHtml(hashtags)}</p>` : ''}
+            <p class="text-xs text-gray-700 whitespace-pre-wrap mb-2" data-role="florencia-copy">${escapeHtml(c.copy || '')}</p>
+            ${c.cta ? `<p class="text-xs font-semibold text-zilo-accent" data-role="florencia-cta">${escapeHtml(c.cta)}</p>` : ''}
+            ${hashtags ? `<p class="text-[11px] text-fuchsia-700 mt-1" data-role="florencia-hashtags">${escapeHtml(hashtags)}</p>` : ''}
             ${item.error ? `<p class="text-[11px] text-red-600 mt-2">${escapeHtml(item.error)}</p>` : ''}
-            <div class="flex flex-wrap gap-2 mt-3">${manage}${approve}${publish}</div>
+            <div class="flex flex-wrap gap-2 mt-3">${downloads}${manage}${approve}${publish}</div>
           </div>
         </div>
       </article>`;
@@ -2089,6 +2098,79 @@
   florenciaAgenda?.addEventListener('click', async (event) => {
     const button = event.target.closest('button');
     if (!button) return;
+
+    async function downloadBlob(url, filename) {
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('No se pudo descargar el archivo');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename || 'florencia-asset';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+    }
+
+    function buildCopyPack(card) {
+      const title = card?.querySelector('h4')?.textContent?.trim() || 'Pieza Florencia';
+      const channel = card?.querySelector('.text-fuchsia-700.uppercase')?.textContent?.trim() || '';
+      const copy = card?.querySelector('[data-role="florencia-copy"]')?.textContent || '';
+      const cta = card?.querySelector('[data-role="florencia-cta"]')?.textContent || '';
+      const tags = card?.querySelector('[data-role="florencia-hashtags"]')?.textContent || '';
+      return [
+        'Florencia IA · Fundez',
+        channel ? `Canal: ${channel}` : '',
+        `Título: ${title}`,
+        '',
+        copy,
+        cta ? `\nCTA: ${cta}` : '',
+        tags ? `\n${tags}` : ''
+      ].filter(Boolean).join('\n').trim();
+    }
+
+    if (button.dataset.florenciaDownloadImage) {
+      button.disabled = true;
+      try {
+        await downloadBlob(button.dataset.url, button.dataset.filename || 'florencia.png');
+        FundezNotify.show('Imagen descargada', 'success');
+      } catch (err) {
+        FundezNotify.show(err.message || 'No se pudo descargar la imagen', 'error');
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+
+    if (button.dataset.florenciaDownloadCopy) {
+      const card = button.closest('[data-florencia-item]');
+      const pack = buildCopyPack(card);
+      const blob = new Blob([pack], { type: 'text/plain;charset=utf-8' });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `florencia-${button.dataset.florenciaDownloadCopy}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+      FundezNotify.show('Texto descargado', 'success');
+      return;
+    }
+
+    if (button.dataset.florenciaCopyClipboard) {
+      const card = button.closest('[data-florencia-item]');
+      const pack = buildCopyPack(card);
+      try {
+        await navigator.clipboard.writeText(pack);
+        FundezNotify.show('Texto copiado al portapapeles', 'success');
+      } catch (_) {
+        FundezNotify.show('No se pudo copiar. Usa Descargar texto.', 'warning');
+      }
+      return;
+    }
+
     const id = button.dataset.florenciaImage
       || button.dataset.florenciaApprove
       || button.dataset.florenciaReject
@@ -2098,7 +2180,7 @@
 
     if (button.dataset.florenciaEdit) {
       const card = button.closest('[data-florencia-item]');
-      const copy = prompt('Edita el texto de la pieza:', card?.querySelector('.whitespace-pre-wrap')?.textContent || '');
+      const copy = prompt('Edita el texto de la pieza:', card?.querySelector('[data-role="florencia-copy"]')?.textContent || '');
       if (copy == null) return;
       button.disabled = true;
       try {

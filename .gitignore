@@ -23,3 +23,5 @@ public/uploads/providers/*
 !public/uploads/providers/.gitkeep
 public/uploads/requests/*
 !public/uploads/requests/.gitkeep
+public/uploads/marketing/*
+!public/uploads/marketing/.gitkeep

@@ -35,8 +35,14 @@
         <input type="email" id="email" name="email" required autocomplete="email" placeholder="<%= t('auth.email_placeholder') %>" class="zilo-input">
       </div>
       <div>
-        <label for="password" class="zilo-label block mb-1.5"><%= t('auth.password') %></label>
-        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" class="zilo-input">
+        <%- include('partials/password-field', {
+          id: 'password',
+          name: 'password',
+          label: t('auth.password'),
+          hint: t('auth.password_hint'),
+          autocomplete: 'current-password',
+          required: true
+        }) %>
       </div>
       <label class="flex items-center gap-2 text-sm text-zilo-muted cursor-pointer select-none">
         <input type="checkbox" id="remember" name="remember" value="1" class="rounded accent-[#2563EB] shrink-0">

@@ -76,8 +76,15 @@
         <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="+56 9 1234 5678" class="zilo-input" value="<%= form.phone || '' %>">
       </div>
       <div>
-        <label for="password" class="zilo-label block mb-1.5"><%= t('register.password') %> <span class="text-zilo-muted normal-case"><%= t('register.password_hint') %></span></label>
-        <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password" placeholder="••••••••" class="zilo-input">
+        <%- include('partials/password-field', {
+          id: 'password',
+          name: 'password',
+          label: t('register.password'),
+          hint: t('register.password_hint'),
+          autocomplete: 'new-password',
+          required: true,
+          minlength: 10
+        }) %>
       </div>
 
       <div id="clientBillingFields" class="space-y-3 p-4 rounded-xl border border-zilo-border bg-zilo-bg/30">

@@ -145,6 +145,35 @@
   box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
 }
 
+.password-field-input {
+  padding-right: 2.75rem;
+}
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #6B7280;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.password-toggle:hover {
+  color: var(--zilo-accent);
+  background: rgba(37, 99, 235, 0.06);
+}
+.password-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
 .zilo-health-ring {
   position: relative;
   width: 120px;

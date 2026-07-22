@@ -131,6 +131,21 @@
     return text.length > max ? `${text.slice(0, max - 1)}…` : text;
   }
 
+  function formatRequestWhen(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleString(undefined, {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (_) {
+      return '';
+    }
+  }
+
   function renderWorkWall() {
     if (!workWallList) return;
     const items = [...wallItems.values()];
@@ -141,6 +156,10 @@
 
     items.forEach(data => {
       const req = data.request || {};
+      const when = formatRequestWhen(req.searchingAt || req.createdAt || req.paidAt);
+      const whenHtml = when
+        ? `<p class="text-[10px] text-zilo-muted mb-1">${t('provider.js.requested_at')}: ${escapeHtml(when)}</p>`
+        : '';
       const urgency = req.urgencyTierLabel
         ? `<p class="text-[10px] text-orange-600 mb-1">${t('provider.js.urgency')}: ${escapeHtml(req.urgencyTierLabel)}</p>`
         : '';
@@ -153,7 +172,7 @@
         : '';
       const thumbUrl = req.clientPhotoUrl || req.clientBrandPhotoUrl || '';
       const thumbHtml = thumbUrl
-        ? `<img src="${escapeHtml(thumbUrl)}" alt="" class="w-14 h-14 rounded-xl object-cover border border-zilo-border shrink-0" loading="lazy">`
+        ? `<img src="${escapeHtml(thumbUrl)}" alt="" class="w-14 h-14 rounded-xl object-cover border border-zilo-border shrink-0" loading="lazy" onerror="this.style.display='none'">`
         : '';
 
       const card = document.createElement('article');
@@ -172,6 +191,7 @@
           </div>
         </div>
         <p class="text-xs text-zilo-muted mb-1 truncate">${escapeHtml(req.address)}</p>
+        ${whenHtml}
         ${urgency}
         ${notesHtml}
         <p class="text-xs font-semibold text-zilo-success mb-3">${t('provider.js.your_payout')}: ${fmt(req.providerPayout ?? req.estimatedVisit)}</p>
@@ -256,7 +276,7 @@
       payoutHint.className = 'text-[10px] text-zilo-muted mb-3';
       priceEl.insertAdjacentElement('afterend', payoutHint);
     }
-    payoutHint.textContent = t('provider.payout_until_complete');
+    payoutHint.textContent = t('provider.js.payout_until_complete');
     document.getElementById('modalNotes').textContent = data.request.notes || t('provider.js.no_details');
 
     const photosEl = document.getElementById('modalClientPhotos');
@@ -267,7 +287,7 @@
           <div>
             <p class="zilo-label mb-1">Foto del problema</p>
             <a href="${data.request.clientPhotoUrl}" target="_blank" rel="noopener">
-              <img src="${data.request.clientPhotoUrl}" alt="Problema" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border">
+              <img src="${data.request.clientPhotoUrl}" alt="Problema" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border" onerror="this.closest('div').innerHTML='<p class=\\'text-xs text-zilo-muted p-3 rounded-xl border border-zilo-border bg-zilo-bg\\'>La foto no está disponible en el servidor (puede haberse perdido en un despliegue). Pide al cliente que la reenvíe por el chat.</p>'">
             </a>
           </div>`);
       }
@@ -276,7 +296,7 @@
           <div>
             <p class="zilo-label mb-1">Foto de la marca</p>
             <a href="${data.request.clientBrandPhotoUrl}" target="_blank" rel="noopener">
-              <img src="${data.request.clientBrandPhotoUrl}" alt="Marca" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border">
+              <img src="${data.request.clientBrandPhotoUrl}" alt="Marca" class="w-full max-h-36 object-cover rounded-xl border border-zilo-border" onerror="this.closest('div').innerHTML='<p class=\\'text-xs text-zilo-muted p-3 rounded-xl border border-zilo-border bg-zilo-bg\\'>Foto de marca no disponible.</p>'">
             </a>
           </div>`);
       } else if (data.request.brandNotVisible) {
@@ -289,6 +309,22 @@
         photosEl.innerHTML = '';
         photosEl.classList.add('hidden');
       }
+    }
+
+    let whenEl = document.getElementById('modalRequestedAt');
+    if (!whenEl) {
+      const notesEl = document.getElementById('modalNotes');
+      whenEl = document.createElement('p');
+      whenEl.id = 'modalRequestedAt';
+      whenEl.className = 'text-[11px] text-zilo-muted mb-2 hidden';
+      notesEl.parentNode.insertBefore(whenEl, notesEl);
+    }
+    const when = formatRequestWhen(data.request.searchingAt || data.request.createdAt || data.request.paidAt);
+    if (when) {
+      whenEl.textContent = `${t('provider.js.requested_at')}: ${when}`;
+      whenEl.classList.remove('hidden');
+    } else {
+      whenEl.classList.add('hidden');
     }
 
     let urgencyEl = document.getElementById('modalUrgency');
@@ -354,16 +390,10 @@
     closeModal();
     activeRequestId = requestId;
     startLocationWatch();
-    FundezNotify.show(t('provider.js.job_taken_exclaim'), 'success');
-    const canOpenMando = Boolean(document.querySelector('[href="/proveedor/mando"]'))
-      || window.location.pathname.includes('/proveedor/mando');
-    if (canOpenMando || document.querySelector('#activeJobsList')) {
-      setTimeout(() => {
-        window.location.href = '/proveedor/mando';
-      }, 600);
-    } else {
-      setTimeout(() => location.reload(), 800);
-    }
+    FundezNotify.show(t('provider.js.job_taken_chat'), 'success');
+    setTimeout(() => {
+      window.location.href = `/proveedor/mando?chat=${encodeURIComponent(requestId)}`;
+    }, 700);
   }
 
   socket.on('connect', () => {

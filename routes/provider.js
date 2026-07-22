@@ -485,6 +485,24 @@ router.post('/asignar/:requestId', requireRole('provider'), requireModule('provi
   });
 });
 
+router.get('/chat/:requestId', requireRole('provider'), (req, res) => {
+  const result = store.getRequestChat(req.params.requestId, req.session.user);
+  if (result.error) return res.status(result.error === 'No autorizado' ? 403 : 404).json(result);
+  res.json(result);
+});
+
+router.post('/chat/:requestId', requireRole('provider'), (req, res) => {
+  const result = store.postRequestChatMessage(req.params.requestId, req.session.user, req.body?.body || req.body?.message);
+  if (result.error) return res.status(400).json(result);
+  const io = req.app.get('io');
+  io.emit(`request_chat_${result.requestId}`, { message: result.message });
+  io.emit(`request_update_${result.requestId}`, {
+    request: store.requests.find((r) => r.id === result.requestId),
+    chatMessage: result.message
+  });
+  res.json(result);
+});
+
 router.post('/factura/:requestId/registrar', requireRole('provider'), (req, res) => {
   const request = store.getAllRequests().find((item) => item.id === req.params.requestId);
   if (!request || request.providerId !== req.session.user.id) {

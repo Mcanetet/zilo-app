@@ -2530,12 +2530,90 @@ function tryAcceptRequest(requestId, userId) {
     request.noProviderRespondedAt = new Date().toISOString();
     request.noProviderChoiceTokenHash = null;
   }
+
+  ensureRequestChat(request);
+  const openerName = user.role === 'provider' ? user.name : (getUserById(request.providerId)?.name || user.name);
+  appendChatMessage(request, {
+    senderType: 'system',
+    senderId: null,
+    senderName: 'Fundez',
+    body: `${openerName} tomó el servicio. Ya pueden coordinar por este chat.`
+  });
+
   repository.persist(() => repository.saveRequest(request), `solicitud ${requestId}`);
   afterEvent((ev) => {
     ev.onProviderAssigned(request);
     if (request.technicianId) ev.onTechnicianAssigned(request);
   });
   return { success: true, request };
+}
+
+function ensureRequestChat(request) {
+  if (!request) return;
+  if (!Array.isArray(request.chatMessages)) request.chatMessages = [];
+}
+
+function appendChatMessage(request, { senderType, senderId, senderName, body }) {
+  ensureRequestChat(request);
+  const text = String(body || '').trim().slice(0, 1000);
+  if (!text) return null;
+  const message = {
+    id: `msg-${uuidv4().slice(0, 10)}`,
+    senderType,
+    senderId: senderId || null,
+    senderName: senderName || senderType,
+    body: text,
+    createdAt: new Date().toISOString()
+  };
+  request.chatMessages.push(message);
+  if (request.chatMessages.length > 200) {
+    request.chatMessages = request.chatMessages.slice(-200);
+  }
+  return message;
+}
+
+function canAccessRequestChat(request, user) {
+  if (!request || !user) return false;
+  if (['assigned', 'in_progress', 'completed'].includes(request.status) === false) return false;
+  if (user.role === 'client' && request.clientId === user.id) return true;
+  if (user.role === 'provider' && request.providerId === user.id) return true;
+  if (user.role === 'tecnico' && request.technicianId === user.id) return true;
+  if (user.role === 'tecnico' && user.parentId && request.providerId === user.parentId) return true;
+  return false;
+}
+
+function getRequestChat(requestId, user) {
+  const request = requests.find((r) => r.id === requestId);
+  if (!request) return { error: 'Solicitud no encontrada' };
+  if (!canAccessRequestChat(request, user)) return { error: 'No autorizado' };
+  ensureRequestChat(request);
+  return {
+    success: true,
+    requestId: request.id,
+    messages: request.chatMessages,
+    peerName: user.role === 'client'
+      ? (getUserById(request.providerId)?.name || 'Socio')
+      : (getUserById(request.clientId)?.name || request.clientName || 'Cliente')
+  };
+}
+
+function postRequestChatMessage(requestId, user, body) {
+  const request = requests.find((r) => r.id === requestId);
+  if (!request) return { error: 'Solicitud no encontrada' };
+  if (!canAccessRequestChat(request, user)) return { error: 'No autorizado' };
+  if (!['assigned', 'in_progress'].includes(request.status)) {
+    return { error: 'El chat solo está disponible mientras el servicio está activo.' };
+  }
+  const senderType = user.role === 'client' ? 'client' : (user.role === 'tecnico' ? 'tecnico' : 'provider');
+  const message = appendChatMessage(request, {
+    senderType,
+    senderId: user.id,
+    senderName: user.name,
+    body
+  });
+  if (!message) return { error: 'Escribe un mensaje.' };
+  repository.persist(() => repository.saveRequest(request), `chat solicitud ${requestId}`);
+  return { success: true, message, requestId: request.id };
 }
 
 function assignProvider(requestId, providerId, { technicianId = null, actorRole = 'admin' } = {}) {
@@ -4096,6 +4174,8 @@ module.exports = {
   getPendingRequestsForProvider,
   getWorkWallItems,
   tryAcceptRequest,
+  getRequestChat,
+  postRequestChatMessage,
   getOnlineTechnicians,
   setTechnicianOnline,
   providerSockets,

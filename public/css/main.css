@@ -174,6 +174,68 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 }
 
+.zilo-select-tech {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border: 1.5px solid rgba(37, 99, 235, 0.35);
+  background-color: #F8FAFF;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%232563EB' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.1rem;
+  appearance: none;
+  -webkit-appearance: none;
+  color: var(--zilo-text);
+  font-weight: 500;
+}
+.zilo-select-tech:focus {
+  border-color: rgba(37, 99, 235, 0.7);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+.zilo-select-tech:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.job-chat-bubble {
+  max-width: 85%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.job-chat-bubble--mine {
+  margin-left: auto;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--zilo-text);
+  border-bottom-right-radius: 0.25rem;
+}
+.job-chat-bubble--theirs {
+  margin-right: auto;
+  background: #F3F4F6;
+  color: var(--zilo-text);
+  border-bottom-left-radius: 0.25rem;
+}
+.job-chat-bubble--system {
+  margin: 0 auto;
+  max-width: 95%;
+  background: transparent;
+  color: var(--zilo-muted);
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 0.25rem 0.5rem;
+}
+.job-chat-meta {
+  display: block;
+  font-size: 0.625rem;
+  color: var(--zilo-muted);
+  margin-bottom: 0.2rem;
+}
+
 .zilo-health-ring {
   position: relative;
   width: 120px;

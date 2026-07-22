@@ -98,6 +98,26 @@ function pedroLocationShare() {
   };
 }
 
+/** Expediente completo para el técnico demo (requisito del muro). */
+function demoTechnicianVerification() {
+  return {
+    status: 'complete',
+    photo: 'demo',
+    idCardFront: 'demo',
+    idCardBack: 'demo',
+    criminalRecord: 'demo',
+    studyCertificates: [
+      { url: 'demo', label: 'Certificado técnico demo', uploadedAt: '2025-10-01T12:00:00.000Z' }
+    ],
+    otherCertificates: [],
+    updatedAt: '2025-10-01T12:00:00.000Z'
+  };
+}
+
+function demoServiceIds() {
+  return SEED_SERVICES.filter((s) => s.enabled !== false).map((s) => s.id);
+}
+
 const SEED_USERS = [
   {
     id: 'client-1',
@@ -130,12 +150,13 @@ const SEED_USERS = [
     name: 'Pedro Gómez',
     role: 'provider',
     phone: '+56 9 2234 5678',
-    specialties: ['gasfiter'],
+    // Cobertura amplia solo en demo para probar el muro con pedidos externos
+    specialties: demoServiceIds(),
     rating: 4.8,
     reviewsCount: 94,
     online: false,
     avatar: 'PG',
-    bio: 'Gásfiter maestro con 10 años de experiencia en edificios y hogares de Santiago.',
+    bio: 'Socio demo Fundez con cobertura de prueba en todos los servicios del catálogo.',
     reviews: [
       { author: 'Camila T.', rating: 5, text: 'Excelente disposición, solucionó la filtración del lavaplatos muy rápido', date: '2025-05-18' },
       { author: 'Diego M.', rating: 5, text: 'Muy puntual y dejó todo limpio después del trabajo.', date: '2025-04-30' },
@@ -144,6 +165,27 @@ const SEED_USERS = [
     verification: pedroVerification(),
     locationShare: pedroLocationShare(),
     providerContract: demoApprovedContract('Pedro Gómez', '12.345.678-9')
+  },
+  {
+    id: 'tecnico-pedro-demo',
+    email: 'tecnico.pedro@fundez.cl',
+    password: 'tecnico123',
+    name: 'Luis Demo',
+    role: 'tecnico',
+    parentId: 'provider-pedro',
+    phone: '+56 9 2234 5679',
+    specialties: demoServiceIds(),
+    rating: 4.7,
+    reviewsCount: 12,
+    online: false,
+    avatar: 'LD',
+    bio: 'Técnico demo con expediente completo para pruebas del muro.',
+    reviews: [],
+    verification: demoTechnicianVerification(),
+    locationShare: pedroLocationShare(),
+    active: true,
+    memberSince: '2025-10-01',
+    emailVerifiedAt: '2025-10-01T12:00:00.000Z'
   },
   {
     id: 'provider-marta',
@@ -734,7 +776,7 @@ async function ensureDemoUsers() {
     console.log('✓ Seed de usuarios demo omitido (modo producción)');
     return;
   }
-  const DEMO_IDS = new Set(['client-1', 'provider-pedro']);
+  const DEMO_IDS = new Set(['client-1', 'provider-pedro', 'tecnico-pedro-demo']);
   for (const user of SEED_USERS) {
     if (user.role === 'admin') continue;
     const exists = await db.query('SELECT id, email_verified_at FROM users WHERE id = ? LIMIT 1', [user.id]);
@@ -750,10 +792,65 @@ async function ensureDemoUsers() {
     }
     const hashed = await hashPassword(user.password);
     const toSave = DEMO_IDS.has(user.id)
-      ? { ...user, password: hashed, emailVerifiedAt: new Date().toISOString() }
+      ? { ...user, password: hashed, emailVerifiedAt: user.emailVerifiedAt || new Date().toISOString() }
       : { ...user, password: hashed };
     await saveUser(toSave);
   }
+
+  // El muro exige técnico con expediente completo + especialidad.
+  // Sincroniza cobertura demo aunque Pedro ya existiera sin técnicos.
+  await syncDemoProviderCoverage();
+}
+
+/**
+ * Asegura que el socio demo pueda ver y tomar pedidos del muro:
+ * todas las especialidades del catálogo + técnico con expediente completo.
+ */
+async function syncDemoProviderCoverage() {
+  const specialtyIds = demoServiceIds();
+  const verifiedAt = new Date().toISOString();
+
+  const pedroRes = await db.query('SELECT * FROM users WHERE id = ? LIMIT 1', ['provider-pedro']);
+  if (pedroRes.rows.length) {
+    const pedro = rowToUser(pedroRes.rows[0]);
+    pedro.specialties = specialtyIds;
+    pedro.verification = pedroVerification();
+    pedro.locationShare = pedroLocationShare();
+    pedro.providerContract = demoApprovedContract('Pedro Gómez', '12.345.678-9');
+    pedro.active = true;
+    pedro.emailVerifiedAt = pedro.emailVerifiedAt || verifiedAt;
+    pedro.bio = pedro.bio || 'Socio demo Fundez con cobertura de prueba en todos los servicios del catálogo.';
+    await saveUser(pedro);
+  }
+
+  const techSeed = SEED_USERS.find((u) => u.id === 'tecnico-pedro-demo');
+  if (!techSeed) return;
+
+  const techRes = await db.query('SELECT * FROM users WHERE id = ? LIMIT 1', ['tecnico-pedro-demo']);
+  if (techRes.rows.length) {
+    const tech = rowToUser(techRes.rows[0]);
+    tech.parentId = 'provider-pedro';
+    tech.role = 'tecnico';
+    tech.specialties = specialtyIds;
+    tech.verification = demoTechnicianVerification();
+    tech.locationShare = pedroLocationShare();
+    tech.active = true;
+    tech.emailVerifiedAt = tech.emailVerifiedAt || verifiedAt;
+    tech.phone = tech.phone || techSeed.phone;
+    tech.bio = techSeed.bio;
+    await saveUser(tech);
+    return;
+  }
+
+  await saveUser({
+    ...techSeed,
+    specialties: specialtyIds,
+    verification: demoTechnicianVerification(),
+    locationShare: pedroLocationShare(),
+    password: await hashPassword(techSeed.password),
+    emailVerifiedAt: verifiedAt,
+    active: true
+  });
 }
 
 async function ensureDemoExtras() {

@@ -57,11 +57,20 @@
             <% if (r.urgencyTierLabel) { %>
               <p class="text-[10px] text-orange-600 mb-2">Urgencia: <%= r.urgencyTierLabel %></p>
             <% } %>
+            <% const requestedAt = r.searchingAt || r.createdAt || r.paidAt; %>
+            <% if (requestedAt) { %>
+              <p class="text-[10px] text-zilo-muted mb-2">Pedido: <%= new Date(requestedAt).toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %></p>
+            <% } %>
             <% if (r.notes) { %>
               <p class="text-[11px] text-zilo-muted italic mb-3 p-2 rounded-lg bg-zilo-bg/80 border border-zilo-border line-clamp-2"><%= r.notes %></p>
             <% } %>
+            <% if (r.clientPhotoUrl) { %>
+              <a href="<%= r.clientPhotoUrl %>" target="_blank" rel="noopener" class="block mb-3">
+                <img src="<%= r.clientPhotoUrl %>" alt="Foto del cliente" class="w-full max-h-32 object-cover rounded-xl border border-zilo-border" onerror="this.parentElement.style.display='none'">
+              </a>
+            <% } %>
 
-            <div data-role="assign-area">
+            <div data-role="assign-area" class="mt-3 space-y-2">
               <% if (r.technicianId) { %>
                 <div class="flex items-center justify-between gap-2">
                   <p class="text-xs">Técnico: <strong data-role="tech-name"><%= r.technicianName %></strong></p>
@@ -71,24 +80,54 @@
                 </div>
               <% } else if (technicians.length > 0) { %>
                 <% const eligibleTechs = technicians.filter(t => Array.isArray(t.specialties) && t.specialties.includes(r.serviceId)); %>
-                <div class="flex items-center gap-2">
-                  <select class="zilo-input !py-2 flex-1 text-sm" data-role="tech-select">
-                    <option value=""><%= eligibleTechs.length ? 'Elegir técnico…' : 'Sin técnico para este servicio' %></option>
+                <div class="space-y-2">
+                  <label class="zilo-label block !text-[10px]" for="tech-select-<%= r.id %>">Buscar y elegir técnico</label>
+                  <select id="tech-select-<%= r.id %>" class="zilo-select-tech zilo-input text-sm" data-role="tech-select" <%= eligibleTechs.length ? '' : 'disabled' %>>
+                    <option value=""><%= eligibleTechs.length ? 'Toca aquí para ver tu equipo…' : 'Sin técnico para este servicio' %></option>
                     <% eligibleTechs.forEach(t => { %>
                       <option value="<%= t.id %>"><%= t.name %></option>
                     <% }); %>
                   </select>
-                  <button type="button" class="zilo-btn-primary !py-2 !px-4 !text-sm" data-role="assign-btn" data-id="<%= r.id %>" <%= eligibleTechs.length ? '' : 'disabled' %>>Asignar</button>
+                  <button type="button" class="zilo-btn-primary w-full !py-3 !text-sm" data-role="assign-btn" data-id="<%= r.id %>" <%= eligibleTechs.length ? '' : 'disabled' %>>Asignar técnico</button>
+                  <% if (!eligibleTechs.length) { %>
+                    <a href="/proveedor/equipo" class="block text-center text-[11px] text-zilo-accent underline">Activar un técnico con esta especialidad</a>
+                  <% } %>
                 </div>
               <% } else { %>
-                <a href="/proveedor/equipo" class="block text-center zilo-btn-ghost !py-2 !text-xs">Agregar técnico para asignar</a>
+                <a href="/proveedor/equipo" class="block text-center zilo-btn-ghost !py-3 !text-sm">Agregar técnico para asignar</a>
               <% } %>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-zilo-border" data-role="chat-area">
+              <button type="button" class="zilo-btn-ghost w-full !py-2.5 !text-sm" data-role="open-chat" data-id="<%= r.id %>" data-client="<%= r.clientName || 'Cliente' %>">
+                Mensajes con el cliente
+              </button>
             </div>
           </div>
         <% }); %>
       </div>
     <% } %>
   </main>
+</div>
+
+<div id="jobChatModal" class="fixed inset-0 z-[80] hidden">
+  <div class="absolute inset-0 bg-black/40" data-role="chat-backdrop"></div>
+  <div class="absolute inset-x-0 bottom-0 max-w-lg mx-auto bg-white rounded-t-3xl border border-zilo-border shadow-xl flex flex-col" style="max-height: 85vh;">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-zilo-border">
+      <div>
+        <p class="zilo-label !text-[9px]">Chat del servicio</p>
+        <h2 id="jobChatTitle" class="text-sm font-semibold">Cliente</h2>
+      </div>
+      <button type="button" class="zilo-icon-btn" data-role="chat-close" aria-label="Cerrar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="jobChatThread" class="flex-1 overflow-y-auto px-5 py-4 space-y-2 min-h-[220px]"></div>
+    <form id="jobChatForm" class="p-4 border-t border-zilo-border flex gap-2">
+      <input id="jobChatInput" type="text" maxlength="1000" autocomplete="off" placeholder="Escribe un mensaje al cliente…" class="zilo-input flex-1 !py-2.5 text-sm">
+      <button type="submit" class="zilo-btn-primary !py-2.5 !px-4 !text-sm shrink-0">Enviar</button>
+    </form>
+  </div>
 </div>
 
 <%- include('../partials/footer', { pageScript: '/js/mando.js' }) %>

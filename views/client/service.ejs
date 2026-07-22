@@ -341,8 +341,23 @@
         <div id="reviewsList" class="space-y-2 mb-4"></div>
         <a id="providerPhone" href="tel:" class="zilo-btn-ghost w-full mb-2"><%= t('client.service.call_tech') %></a>
         <a id="providerEmail" href="mailto:" class="hidden zilo-btn-ghost w-full mb-2 !text-xs"><%= t('client.service.email_tech') %></a>
+        <button type="button" id="openJobChatBtn" class="hidden zilo-btn-primary w-full mb-2 !text-sm">Mensajes con el socio</button>
         <a id="whatsappSupport" href="#aland-support" data-open-aland class="zilo-btn-ghost w-full text-violet-700 border-violet-500/25"><%= t('client.service.concierge') %></a>
       </div>
+
+      <section id="jobChatPanel" class="hidden p-5 rounded-2xl zilo-card-premium">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <p class="zilo-label !text-[9px]">Chat del servicio</p>
+            <h3 id="jobChatPeer" class="text-sm font-semibold">Socio</h3>
+          </div>
+        </div>
+        <div id="jobChatThread" class="max-h-64 overflow-y-auto space-y-2 mb-3 min-h-[120px]"></div>
+        <form id="jobChatForm" class="flex gap-2">
+          <input id="jobChatInput" type="text" maxlength="1000" autocomplete="off" placeholder="Escribe al socio…" class="zilo-input flex-1 !py-2.5 text-sm">
+          <button type="submit" class="zilo-btn-primary !py-2.5 !px-4 !text-sm shrink-0">Enviar</button>
+        </form>
+      </section>
     </section>
   </main>
 </div>

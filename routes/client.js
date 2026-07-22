@@ -371,15 +371,27 @@ router.post('/solicitar', requireRole('client'), requireModule('client_solicitar
     const fs = require('fs');
     const path = require('path');
     const moveTempPhoto = async (url, prefix, field) => {
-      if (!url || !url.includes('/tmp-')) return;
+      if (!url) return;
+      if (!url.includes('/tmp-')) {
+        // Ya está en destino final; verificar que el archivo exista
+        const finalPath = path.join(__dirname, '../public', url);
+        if (!fs.existsSync(finalPath)) {
+          console.warn(`[uploads] Foto ausente en disco: ${url}`);
+          request[field] = null;
+        }
+        return;
+      }
       const oldPath = path.join(__dirname, '../public', url);
       const newDir = path.join(__dirname, '../public/uploads/requests', request.id);
       fs.mkdirSync(newDir, { recursive: true });
-      const newName = `${prefix}-${Date.now()}${path.extname(oldPath)}`;
+      const newName = `${prefix}-${Date.now()}${path.extname(oldPath) || '.jpg'}`;
       const newPath = path.join(newDir, newName);
       if (fs.existsSync(oldPath)) {
         fs.renameSync(oldPath, newPath);
         request[field] = `/uploads/requests/${request.id}/${newName}`;
+      } else {
+        console.warn(`[uploads] Temp foto no encontrada: ${url}`);
+        request[field] = null;
       }
     };
     await moveTempPhoto(clientPhotoUrl, 'cliente', 'clientPhotoUrl');
@@ -492,6 +504,24 @@ router.post('/resena/:id', requireRole('client'), (req, res) => {
   });
   if (result.error) return res.status(400).json({ success: false, error: result.error });
   res.json({ success: true, review: result.review });
+});
+
+router.get('/chat/:requestId', requireRole('client'), (req, res) => {
+  const result = store.getRequestChat(req.params.requestId, req.session.user);
+  if (result.error) return res.status(result.error === 'No autorizado' ? 403 : 404).json(result);
+  res.json(result);
+});
+
+router.post('/chat/:requestId', requireRole('client'), (req, res) => {
+  const result = store.postRequestChatMessage(req.params.requestId, req.session.user, req.body?.body || req.body?.message);
+  if (result.error) return res.status(400).json(result);
+  const io = req.app.get('io');
+  io.emit(`request_chat_${result.requestId}`, { message: result.message });
+  io.emit(`request_update_${result.requestId}`, {
+    request: store.requests.find((r) => r.id === result.requestId),
+    chatMessage: result.message
+  });
+  res.json(result);
 });
 
 module.exports = router;

@@ -236,29 +236,38 @@ ON DUPLICATE KEY UPDATE id = id;
 -- ---------- Usuarios demo ----------
 
 INSERT INTO users (
-  id, email, password, name, role, phone, address, referral_code,
+  id, email, password, name, role, parent_id, phone, address, referral_code,
   zilo_points, credits_clp, referrals_count, services_count,
   used_welcome_promo, used_referral, member_since,
   onboarding_completed, onboarding_completed_at,
   specialties, rating, reviews_count, online, avatar, bio, reviews, verification, location_share
 ) VALUES
 (
-  'client-1', 'cliente@fundez.cl', 'cliente123', 'María González', 'client',
+  'client-1', 'cliente@fundez.cl', 'cliente123', 'María González', 'client', NULL,
   '+56 9 8765 4321', 'Av. Providencia 2650, Providencia, Santiago', 'MARIA2026',
   350, 5000, 2, 4, 0, 0, '2025-11-01', 0, NULL,
   '[]', NULL, 0, 0, NULL, NULL, '[]', NULL, NULL
 ),
 (
-  'provider-pedro', 'pedro@fundez.cl', 'proveedor123', 'Pedro Gómez', 'provider',
+  'provider-pedro', 'pedro@fundez.cl', 'proveedor123', 'Pedro Gómez', 'provider', NULL,
   '+56 9 2234 5678', NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, 0, NULL,
-  '["gasfiter"]', 4.80, 94, 0, 'PG',
-  'Gásfiter maestro con 10 años de experiencia en edificios y hogares de Santiago.',
+  '["electrico","gasfiter","cerrajero","termos","lavavajillas","lavadora","calderas","generadores"]', 4.80, 94, 0, 'PG',
+  'Socio demo Fundez con cobertura de prueba en todos los servicios del catálogo.',
   '[{"author":"Camila T.","rating":5,"text":"Excelente disposición, solucionó la filtración del lavaplatos muy rápido","date":"2025-05-18"},{"author":"Diego M.","rating":5,"text":"Muy puntual y dejó todo limpio después del trabajo.","date":"2025-04-30"},{"author":"Sofía L.","rating":4,"text":"Buen precio y trabajo bien hecho en la cañería.","date":"2025-04-12"}]',
   '{"status":"verified","idCardFront":"demo","idCardBack":"demo","certificates":[],"selfie":null,"faceVerified":true,"faceScore":94,"faceVerifiedAt":"2025-10-01T12:00:00.000Z","submittedAt":"2025-10-01T12:00:00.000Z"}',
   '{"consent":true,"consentAt":"2025-10-01T12:00:00.000Z","lat":-33.442,"lng":-70.654,"updatedAt":"2025-10-01T12:00:00.000Z"}'
 ),
 (
-  'provider-marta', 'marta@fundez.cl', 'proveedor123', 'Marta Quiroz', 'provider',
+  'tecnico-pedro-demo', 'tecnico.pedro@fundez.cl', 'tecnico123', 'Luis Demo', 'tecnico', 'provider-pedro',
+  '+56 9 2234 5679', NULL, NULL, 0, 0, 0, 0, 0, 0, '2025-10-01', 0, NULL,
+  '["electrico","gasfiter","cerrajero","termos","lavavajillas","lavadora","calderas","generadores"]', 4.70, 12, 0, 'LD',
+  'Técnico demo con expediente completo para pruebas del muro.',
+  '[]',
+  '{"status":"complete","photo":"demo","idCardFront":"demo","idCardBack":"demo","criminalRecord":"demo","studyCertificates":[{"url":"demo","label":"Certificado técnico demo","uploadedAt":"2025-10-01T12:00:00.000Z"}],"otherCertificates":[],"updatedAt":"2025-10-01T12:00:00.000Z"}',
+  '{"consent":true,"consentAt":"2025-10-01T12:00:00.000Z","lat":-33.442,"lng":-70.654,"updatedAt":"2025-10-01T12:00:00.000Z"}'
+),
+(
+  'provider-marta', 'marta@fundez.cl', 'proveedor123', 'Marta Quiroz', 'provider', NULL,
   '+56 9 3345 6789', NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, 0, NULL,
   '["electrico"]', 4.90, 112, 0, 'MQ',
   'Electricista certificada SEC. Especialista en instalaciones residenciales y comerciales.',
@@ -267,7 +276,7 @@ INSERT INTO users (
   '{"consent":false,"consentAt":null,"lat":null,"lng":null,"updatedAt":null}'
 ),
 (
-  'provider-juan', 'juancarlos@fundez.cl', 'proveedor123', 'Juan Carlos', 'provider',
+  'provider-juan', 'juancarlos@fundez.cl', 'proveedor123', 'Juan Carlos', 'provider', NULL,
   '+56 9 4456 7890', NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, 0, NULL,
   '["cerrajero"]', 4.70, 78, 0, 'JC',
   'Cerrajero profesional 24/7. Apertura sin daños y cambio de cerraduras de seguridad.',
@@ -276,7 +285,7 @@ INSERT INTO users (
   '{"consent":false,"consentAt":null,"lat":null,"lng":null,"updatedAt":null}'
 ),
 (
-  'provider-ana', 'ana@fundez.cl', 'proveedor123', 'Ana Rojas', 'provider',
+  'provider-ana', 'ana@fundez.cl', 'proveedor123', 'Ana Rojas', 'provider', NULL,
   '+56 9 5567 8901', NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, 0, NULL,
   '["termos","lavavajillas","lavadora"]', 4.90, 67, 0, 'AR',
   'Técnica certificada en electrodomésticos. Especialista en termos, lavadoras y lavavajillas.',
@@ -285,12 +294,13 @@ INSERT INTO users (
   '{"consent":false,"consentAt":null,"lat":null,"lng":null,"updatedAt":null}'
 ),
 (
-  'admin-1', 'admin@fundez.cl', 'admin123', 'Admin Fundez', 'admin',
+  'admin-1', 'admin@fundez.cl', 'admin123', 'Admin Fundez', 'admin', NULL,
   '+56 9 0000 0000', NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, 0, NULL,
   '[]', NULL, 0, 0, NULL, NULL, '[]', NULL, NULL
 )
 ON DUPLICATE KEY UPDATE
   email = VALUES(email), password = VALUES(password), name = VALUES(name), role = VALUES(role),
+  parent_id = VALUES(parent_id),
   phone = VALUES(phone), address = VALUES(address), referral_code = VALUES(referral_code),
   zilo_points = VALUES(zilo_points), credits_clp = VALUES(credits_clp),
   referrals_count = VALUES(referrals_count), services_count = VALUES(services_count),

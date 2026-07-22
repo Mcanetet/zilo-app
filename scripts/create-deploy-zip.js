@@ -19,7 +19,8 @@ const excludes = [
   'data/backup-config.json',
   'zilo-hostinger.zip',
   '.DS_Store',
-  'public/uploads/providers/*'
+  'public/uploads/providers/*',
+  'public/uploads/requests/*'
 ];
 
 const args = excludes.map((e) => `-x "${e}"`).join(' ');

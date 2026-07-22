@@ -641,6 +641,112 @@
   document.getElementById('btnApproveActivityChange')?.addEventListener('click', () => respondActivityChange(true));
   document.getElementById('btnRejectActivityChange')?.addEventListener('click', () => respondActivityChange(false));
 
+  function escapeChatHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatChatTime(iso) {
+    try {
+      return new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function renderJobChatMessage(msg) {
+    const isSystem = msg.senderType === 'system';
+    const isMine = !isSystem && msg.senderType === 'client';
+    const cls = isSystem ? 'job-chat-bubble--system' : (isMine ? 'job-chat-bubble--mine' : 'job-chat-bubble--theirs');
+    const meta = isSystem
+      ? ''
+      : `<span class="job-chat-meta">${escapeChatHtml(msg.senderName || '')} · ${escapeChatHtml(formatChatTime(msg.createdAt))}</span>`;
+    return `<div class="job-chat-bubble ${cls}" data-msg-id="${escapeChatHtml(msg.id)}">${meta}${escapeChatHtml(msg.body)}</div>`;
+  }
+
+  function appendJobChatMessage(msg) {
+    const thread = document.getElementById('jobChatThread');
+    if (!thread || !msg?.id) return;
+    if (thread.querySelector(`[data-msg-id="${msg.id}"]`)) return;
+    const empty = thread.querySelector('.text-zilo-muted.text-center');
+    if (empty) empty.remove();
+    thread.insertAdjacentHTML('beforeend', renderJobChatMessage(msg));
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  async function setupJobChat(requestId, providerName) {
+    const btn = document.getElementById('openJobChatBtn');
+    const panel = document.getElementById('jobChatPanel');
+    const peer = document.getElementById('jobChatPeer');
+    const form = document.getElementById('jobChatForm');
+    const input = document.getElementById('jobChatInput');
+    const thread = document.getElementById('jobChatThread');
+    if (!btn || !panel || !requestId) return;
+
+    btn.classList.remove('hidden');
+    if (peer) peer.textContent = providerName || 'Socio';
+
+    const loadChat = async () => {
+      try {
+        const res = await fetch(`/cliente/chat/${requestId}`);
+        const data = await res.json();
+        if (!res.ok || !data.success) return;
+        if (peer && data.peerName) peer.textContent = data.peerName;
+        if (thread) {
+          thread.innerHTML = (data.messages || []).map(renderJobChatMessage).join('')
+            || '<p class="text-xs text-zilo-muted text-center">Sin mensajes aún. Escribe para coordinar con el socio.</p>';
+          thread.scrollTop = thread.scrollHeight;
+        }
+      } catch (_) { /* ignore */ }
+    };
+
+    btn.onclick = async () => {
+      panel.classList.remove('hidden');
+      await loadChat();
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      input?.focus();
+    };
+
+    if (!form || form.dataset.bound === '1') {
+      await loadChat();
+      return;
+    }
+    form.dataset.bound = '1';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = input?.value.trim();
+      if (!body) return;
+      input.value = '';
+      try {
+        const res = await fetch(`/cliente/chat/${requestId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ body })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo enviar');
+        appendJobChatMessage(data.message);
+      } catch (err) {
+        FundezNotify.show(err.message || 'No se pudo enviar', 'error');
+      }
+    });
+
+    if (typeof socket !== 'undefined' && socket) {
+      socket.off(`request_chat_${requestId}`);
+      socket.on(`request_chat_${requestId}`, (payload) => {
+        if (payload?.message) {
+          panel.classList.remove('hidden');
+          appendJobChatMessage(payload.message);
+        }
+      });
+    }
+
+    await loadChat();
+  }
+
   function showProvider(provider, request) {
     if (request?.id) currentRequestId = request.id;
 
@@ -665,6 +771,7 @@
       showActivityChangeBanner(request);
       showAdditionalPaymentBanner(request);
       renderCompletionSummary(request.clientTotals, request.vouchers);
+      setupJobChat(request.id, provider.name);
     }
     const waBtn = document.getElementById('whatsappSupport');
     if (waBtn) {
@@ -777,6 +884,11 @@
         hideNoProviderChoice();
         showProvider(payload.provider, payload.request);
       } else if (payload.request) {
+        if (payload.chatMessage) {
+          const panel = document.getElementById('jobChatPanel');
+          panel?.classList.remove('hidden');
+          appendJobChatMessage(payload.chatMessage);
+        }
         if (payload.request.noProviderDecisionStatus === 'pending') {
           if (trackingLoaderInterval) clearInterval(trackingLoaderInterval);
           showNoProviderChoice(payload.request);

@@ -392,10 +392,45 @@ router.post('/florencia/items/:id/image', requireRole('admin'), requireAdminPerm
   try {
     const item = await florencia.getItem(req.params.id);
     if (!item) return res.status(404).json({ success: false, error: 'Pieza no encontrada' });
-    const updated = await florencia.generateImage(item);
+    const updated = await florencia.generateImage(item, {
+      extraInstructions: String(req.body?.notes || req.body?.extraInstructions || '').slice(0, 800)
+    });
     res.json({ success: true, item: updated });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/florencia/chat', requireRole('admin'), requireAdminPermission('florencia.view'), async (req, res) => {
+  try {
+    const messages = await florencia.listChatMessages({
+      itemId: req.query.itemId || null,
+      limit: req.query.limit || 80
+    });
+    let item = null;
+    if (req.query.itemId) item = await florencia.getItem(req.query.itemId);
+    res.json({ success: true, messages, item });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/florencia/chat', requireRole('admin'), requireAdminPermission('florencia.manage'), async (req, res) => {
+  try {
+    const result = await florencia.chatWithFlorencia(store, {
+      message: req.body.message,
+      itemId: req.body.itemId || null
+    });
+    store.logSecurityEvent('florencia_chat', String(req.body.itemId || 'general').slice(0, 80), req);
+    if (result.item) {
+      req.app.get('io')?.to('aland_admin').emit('florencia_update', {
+        type: result.regenerated ? 'image' : 'edit',
+        item: result.item
+      });
+    }
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
@@ -450,6 +485,18 @@ router.post('/florencia/items/:id/publish', requireRole('admin'), requireAdminPe
   }
 });
 
+
+router.get('/openai-usage', requireRole('admin'), requireAdminPermission('openai.usage.view'), async (req, res) => {
+  try {
+    const openaiUsage = require('../lib/openaiUsage');
+    const summary = await openaiUsage.getUsageSummary({
+      days: req.query.days || 30
+    });
+    res.json({ success: true, ...summary });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 router.get('/modo', requireRole('admin'), requireAdminPermission('seguridad.view', 'equipo.manage'), (req, res) => {
   res.json({ success: true, ...getPublicStatus(), suggestedAdminPath: require('../lib/appMode').suggestAdminPath() });

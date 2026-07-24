@@ -1687,7 +1687,7 @@ function attachProviderRegistrationDocuments(provider, {
 
 async function registerUser({
   name, email, password, phone, role, address, addressLat, addressLng, addressPlaceId, specialties,
-  addressUnit, addressCommune, companyRut, companyLegalName, repRut, providerDocuments,
+  addressUnit, addressRegion, addressCommune, companyRut, companyLegalName, repRut, providerDocuments,
   clientBillingType, clientRut, clientLegalName, clientGiro
 }) {
   name = (name || '').trim();
@@ -1737,7 +1737,8 @@ async function registerUser({
   }
   if (unit.length < 2) return { errorKey: 'register.error_address_unit_required' };
 
-  const communeMeta = addressCommune ? getCommune('region-metropolitana', addressCommune) : null;
+  const regionCode = String(addressRegion || '').trim() || 'region-metropolitana';
+  const communeMeta = addressCommune ? getCommune(regionCode, addressCommune) : null;
   if (!communeMeta) return { errorKey: 'register.error_commune_required' };
 
   const lat = parseFloat(addressLat);

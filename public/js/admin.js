@@ -20,6 +20,7 @@
     whatsapp: 'WhatsApp',
     aland: 'Aland IA',
     florencia: 'Florencia IA',
+    'consumo-ia': 'Consumo OpenAI',
     mensajes: 'Mensajes',
     usuarios: 'Clientes y socios',
     datos: 'Datos',
@@ -2010,9 +2011,12 @@
            </a>`
         : '<div class="w-full sm:w-36 h-24 sm:h-36 rounded-xl bg-gradient-to-br from-fuchsia-100 to-violet-100 flex items-center justify-center text-xs text-fuchsia-700 shrink-0">Imagen pendiente</div>';
       const manage = canFlorenciaManage && item.status !== 'published'
-        ? `<button type="button" data-florencia-image="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-fuchsia-200 text-fuchsia-700 text-xs">${item.imageUrl ? 'Regenerar imagen' : 'Generar imagen'}</button>
+        ? `<button type="button" data-florencia-chat="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-700 text-xs">Hablar con Florencia</button>
+           <button type="button" data-florencia-image="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-fuchsia-200 text-fuchsia-700 text-xs">${item.imageUrl ? 'Regenerar imagen' : 'Generar imagen'}</button>
            <button type="button" data-florencia-edit="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs">Editar</button>`
-        : '';
+        : (canFlorenciaManage
+          ? `<button type="button" data-florencia-chat="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-700 text-xs">Hablar con Florencia</button>`
+          : '');
       const approve = canFlorenciaApprove && item.status === 'pending_approval'
         ? `<button type="button" data-florencia-approve="${item.id}" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs">Aprobar</button>
            <button type="button" data-florencia-reject="${item.id}" class="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs">Rechazar</button>`
@@ -2171,6 +2175,12 @@
       return;
     }
 
+    if (button.dataset.florenciaChat) {
+      const card = button.closest('[data-florencia-item]');
+      openFlorenciaChat(button.dataset.florenciaChat, card?.querySelector('h4')?.textContent?.trim() || '');
+      return;
+    }
+
     const id = button.dataset.florenciaImage
       || button.dataset.florenciaApprove
       || button.dataset.florenciaReject
@@ -2238,10 +2248,227 @@
 
   florenciaFilter?.addEventListener('change', loadFlorenciaAgenda);
   document.getElementById('btnFlorenciaReload')?.addEventListener('click', loadFlorenciaAgenda);
+
+  const florenciaChatPanel = document.getElementById('florenciaChatPanel');
+  const florenciaChatThread = document.getElementById('florenciaChatThread');
+  const florenciaChatForm = document.getElementById('florenciaChatForm');
+  const florenciaChatItemId = document.getElementById('florenciaChatItemId');
+  const florenciaChatContext = document.getElementById('florenciaChatContext');
+  const btnFlorenciaChatClearItem = document.getElementById('btnFlorenciaChatClearItem');
+  const canFlorenciaChat = florenciaChatPanel?.dataset.canChat === '1';
+
+  function renderFlorenciaChat(messages = []) {
+    if (!florenciaChatThread) return;
+    if (!messages.length) {
+      florenciaChatThread.innerHTML = '<p class="text-gray-500 text-center py-6">Cuéntale a Florencia qué quieres cambiar en el copy o en la imagen.</p>';
+      return;
+    }
+    florenciaChatThread.innerHTML = messages.map((msg) => {
+      const mine = msg.role === 'user';
+      const applied = Array.isArray(msg.meta?.applied) && msg.meta.applied.length
+        ? `<p class="text-[10px] mt-1 opacity-80">${msg.meta.regenerated ? 'Imagen regenerada · ' : ''}Cambios: ${escapeHtml(msg.meta.applied.map((a) => a.type).join(', '))}</p>`
+        : '';
+      return `<div class="flex ${mine ? 'justify-end' : 'justify-start'}">
+        <div class="max-w-[85%] px-3 py-2 rounded-2xl ${mine ? 'bg-fuchsia-600 text-white' : 'bg-white border border-gray-200 text-gray-800'}">
+          <p class="text-[10px] font-semibold mb-0.5 ${mine ? 'text-fuchsia-100' : 'text-fuchsia-700'}">${mine ? 'Tú' : 'Florencia'}</p>
+          <p class="whitespace-pre-wrap leading-relaxed">${escapeHtml(msg.body || '')}</p>
+          ${applied}
+        </div>
+      </div>`;
+    }).join('');
+    florenciaChatThread.scrollTop = florenciaChatThread.scrollHeight;
+  }
+
+  async function loadFlorenciaChat() {
+    if (!florenciaChatThread) return;
+    const itemId = florenciaChatItemId?.value || '';
+    try {
+      const res = await adminFetch(`/florencia/chat${itemId ? `?itemId=${encodeURIComponent(itemId)}` : ''}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo cargar el chat');
+      renderFlorenciaChat(data.messages || []);
+      if (data.item && florenciaChatContext) {
+        florenciaChatContext.textContent = `Pieza: ${data.item.title || data.item.id}`;
+      }
+    } catch (err) {
+      florenciaChatThread.innerHTML = `<p class="text-red-600">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  function openFlorenciaChat(itemId, title = '') {
+    if (!florenciaChatPanel) return;
+    if (florenciaChatItemId) florenciaChatItemId.value = itemId || '';
+    if (florenciaChatContext) {
+      florenciaChatContext.textContent = itemId
+        ? `Pieza: ${title || itemId}`
+        : 'Chat general';
+    }
+    btnFlorenciaChatClearItem?.classList.toggle('hidden', !itemId);
+    florenciaChatPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    loadFlorenciaChat();
+    document.getElementById('florenciaChatInput')?.focus();
+  }
+
+  btnFlorenciaChatClearItem?.addEventListener('click', () => openFlorenciaChat('', ''));
+
+  florenciaChatForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!canFlorenciaChat) return;
+    const input = document.getElementById('florenciaChatInput');
+    const message = String(input?.value || '').trim();
+    if (!message) return;
+    const button = florenciaChatForm.querySelector('button[type="submit"]');
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Florencia piensa…';
+    try {
+      const res = await adminFetch('/florencia/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          itemId: florenciaChatItemId?.value || null
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo enviar');
+      input.value = '';
+      renderFlorenciaChat(data.messages || []);
+      if (data.item || data.regenerated || (data.applied && data.applied.length)) {
+        await loadFlorenciaAgenda();
+        const bits = [];
+        if (data.applied?.length) bits.push('copy/imagen actualizados');
+        if (data.regenerated) bits.push('nueva imagen generada');
+        FundezNotify.show(bits.length ? `Florencia: ${bits.join(' · ')}` : 'Florencia respondió', 'success');
+      }
+    } catch (err) {
+      FundezNotify.show(err.message, 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  });
+
   if (florenciaAgenda) {
     loadFlorenciaAgenda();
+    loadFlorenciaChat();
     socket.on('florencia_update', loadFlorenciaAgenda);
   }
+
+  /* ——— Consumo OpenAI ——— */
+  const openaiUsagePanel = document.querySelector('[data-panel="consumo-ia"]');
+  const openaiUsageDays = document.getElementById('openaiUsageDays');
+
+  function formatUsd(n) {
+    const value = Number(n) || 0;
+    if (value < 0.01 && value > 0) return `$${value.toFixed(4)}`;
+    return `$${value.toFixed(2)}`;
+  }
+
+  function renderOpenaiUsage(data) {
+    const totals = data.totals || {};
+    const set = (key, value) => {
+      const el = document.querySelector(`[data-usage="${key}"]`);
+      if (el) el.textContent = value;
+    };
+    set('totalTokens', formatTokens(totals.totalTokens));
+    set('splitTokens', `${formatTokens(totals.promptTokens)} / ${formatTokens(totals.completionTokens)}`);
+    set('images', String(totals.images || 0));
+    set('costUsd', formatUsd(totals.costUsd));
+
+    const legacyNote = document.getElementById('openaiUsageLegacyNote');
+    if (legacyNote) {
+      if (data.legacyNote) {
+        legacyNote.textContent = data.legacyNote;
+        legacyNote.classList.remove('hidden');
+      } else {
+        legacyNote.classList.add('hidden');
+      }
+    }
+
+    const agentsBox = document.getElementById('openaiUsageByAgent');
+    if (agentsBox) {
+      agentsBox.innerHTML = (data.byAgent || []).map((agent) => {
+        const legacy = agent.legacy?.totalTokens
+          ? `<p class="text-[10px] text-amber-700 mt-2">Histórico Aland: ${formatTokens(agent.legacy.totalTokens)} tok</p>`
+          : '';
+        return `<article class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <p class="text-sm font-semibold mb-1">${escapeHtml(agent.label || agent.agent)}</p>
+          <p class="text-2xl font-bold text-sky-700">${formatTokens(agent.totalTokens)}</p>
+          <p class="text-[11px] text-gray-500 mt-1">${agent.requests || 0} llamadas · ${agent.images || 0} img · ${formatUsd(agent.costUsd)}</p>
+          <p class="text-[10px] text-gray-500 mt-1">Prompt ${formatTokens(agent.promptTokens)} · Completion ${formatTokens(agent.completionTokens)}</p>
+          ${legacy}
+        </article>`;
+      }).join('') || '<p class="text-xs text-gray-500">Sin consumo en este periodo.</p>';
+    }
+
+    const opsBox = document.getElementById('openaiUsageByOperation');
+    if (opsBox) {
+      opsBox.innerHTML = (data.byOperation || []).length
+        ? data.byOperation.map((row) => `<div class="flex justify-between gap-3 py-1.5 border-b border-gray-50">
+            <span><span class="font-medium capitalize">${escapeHtml(row.agent)}</span> · ${escapeHtml(row.operation)}</span>
+            <span class="text-gray-600">${formatTokens(row.totalTokens)} tok${row.images ? ` · ${row.images} img` : ''}</span>
+          </div>`).join('')
+        : '<p class="text-gray-500">Sin operaciones registradas.</p>';
+    }
+
+    const dayBox = document.getElementById('openaiUsageByDay');
+    if (dayBox) {
+      const byDay = {};
+      for (const row of (data.byDay || [])) {
+        if (!byDay[row.day]) byDay[row.day] = { day: row.day, totalTokens: 0, images: 0 };
+        byDay[row.day].totalTokens += row.totalTokens || 0;
+        byDay[row.day].images += row.images || 0;
+      }
+      const days = Object.values(byDay).sort((a, b) => String(a.day).localeCompare(String(b.day)));
+      const max = Math.max(1, ...days.map((d) => d.totalTokens));
+      dayBox.innerHTML = days.length
+        ? days.map((d) => {
+          const pct = Math.max(4, Math.round((d.totalTokens / max) * 100));
+          return `<div>
+            <div class="flex justify-between mb-0.5"><span>${escapeHtml(d.day)}</span><span>${formatTokens(d.totalTokens)}</span></div>
+            <div class="h-1.5 rounded-full bg-gray-100 overflow-hidden"><div class="h-full bg-sky-500 rounded-full" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('')
+        : '<p class="text-gray-500">Sin actividad diaria aún.</p>';
+    }
+
+    const recentBody = document.getElementById('openaiUsageRecent');
+    if (recentBody) {
+      recentBody.innerHTML = (data.recent || []).length
+        ? data.recent.map((row) => {
+          const when = row.createdAt ? new Date(row.createdAt).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+          return `<tr class="border-b border-gray-50">
+            <td class="py-2 pr-3 whitespace-nowrap">${escapeHtml(when)}</td>
+            <td class="py-2 pr-3">${escapeHtml(row.label || row.agent)}</td>
+            <td class="py-2 pr-3">${escapeHtml(row.operation || '—')}</td>
+            <td class="py-2 pr-3 font-mono text-[10px]">${escapeHtml(row.model || '—')}${row.estimated ? ' *' : ''}</td>
+            <td class="py-2 pr-3 text-right">${formatTokens(row.totalTokens)}</td>
+            <td class="py-2 pr-3 text-right">${row.images || 0}</td>
+            <td class="py-2 text-right">${formatUsd(row.costUsd)}</td>
+          </tr>`;
+        }).join('')
+        : '<tr><td colspan="7" class="py-4 text-center text-gray-500">Todavía no hay registros. Se empiezan a guardar con cada llamada a OpenAI.</td></tr>';
+    }
+  }
+
+  async function loadOpenaiUsage() {
+    if (!openaiUsagePanel) return;
+    try {
+      const days = openaiUsageDays?.value || '30';
+      const res = await adminFetch(`/openai-usage?days=${encodeURIComponent(days)}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo cargar el consumo');
+      renderOpenaiUsage(data);
+    } catch (err) {
+      const agentsBox = document.getElementById('openaiUsageByAgent');
+      if (agentsBox) agentsBox.innerHTML = `<p class="text-xs text-red-600">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  openaiUsageDays?.addEventListener('change', loadOpenaiUsage);
+  document.getElementById('btnOpenaiUsageReload')?.addEventListener('click', loadOpenaiUsage);
+  if (openaiUsagePanel) loadOpenaiUsage();
 
   document.querySelectorAll('.btn-retry-dte').forEach((btn) => {
     btn.addEventListener('click', async () => {

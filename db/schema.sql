@@ -328,6 +328,35 @@ CREATE TABLE IF NOT EXISTS florencia_marketing_items (
   INDEX idx_florencia_channel (channel)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS florencia_chat_messages (
+  id VARCHAR(64) PRIMARY KEY,
+  item_id VARCHAR(64) NULL,
+  role ENUM('user','assistant','system') NOT NULL,
+  body TEXT NOT NULL,
+  meta JSON NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_florencia_chat_created (created_at),
+  INDEX idx_florencia_chat_item (item_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS openai_usage_logs (
+  id VARCHAR(64) PRIMARY KEY,
+  agent VARCHAR(64) NOT NULL,
+  operation VARCHAR(64) NOT NULL DEFAULT 'chat',
+  model VARCHAR(120) NULL,
+  prompt_tokens INT NOT NULL DEFAULT 0,
+  completion_tokens INT NOT NULL DEFAULT 0,
+  total_tokens INT NOT NULL DEFAULT 0,
+  images INT NOT NULL DEFAULT 0,
+  estimated TINYINT(1) NOT NULL DEFAULT 0,
+  cost_usd DECIMAL(12, 6) NOT NULL DEFAULT 0,
+  meta JSON NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_openai_usage_agent_date (agent, created_at),
+  INDEX idx_openai_usage_created (created_at),
+  INDEX idx_openai_usage_operation (operation)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ALTER TABLE users ADD COLUMN address_lat DECIMAL(10, 7) NULL;
 ALTER TABLE users ADD COLUMN address_lng DECIMAL(10, 7) NULL;
 ALTER TABLE users ADD COLUMN address_place_id VARCHAR(32) NULL;

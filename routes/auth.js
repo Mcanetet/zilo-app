@@ -114,7 +114,7 @@ router.post('/login', rateLimitLogin(12), async (req, res) => {
 });
 
 const { buildPageMeta } = require('../lib/seo');
-const { getCommune, getRegionCommunes } = require('../lib/chile-geo');
+const { getCommune, getRegionCommunes, getRegionsCatalog } = require('../lib/chile-geo');
 const { buildCoverageResult } = require('../lib/coverage');
 const {
   searchAddressSuggestions,
@@ -124,8 +124,6 @@ const {
   coordsMatchAddress
 } = require('../lib/geocode');
 
-const REGISTRATION_REGION = 'region-metropolitana';
-
 function wantsJson(req) {
   return req.is('application/json') || (req.get('Accept') || '').includes('application/json');
 }
@@ -133,12 +131,14 @@ function wantsJson(req) {
 function registerRenderOptions(req, extra = {}) {
   const form = extra.form || {};
   const pageId = form.role === 'provider' || req.query.role === 'provider' ? 'register_provider' : 'register';
+  const selectedRegion = form.addressRegion || '';
   return {
     services: store.getActiveServices(),
     referralCode: req.session.pendingReferral || null,
     useMap: true,
     pageScript: '/js/register-address.js',
-    registrationCommunes: getRegionCommunes(REGISTRATION_REGION),
+    registrationRegions: getRegionsCatalog().map((r) => ({ code: r.code, name: r.name })),
+    registrationCommunes: selectedRegion ? getRegionCommunes(selectedRegion) : [],
     seo: buildPageMeta(pageId, req),
     ...extra
   };
@@ -162,6 +162,7 @@ function registerFormFromBody(body) {
     addressLat: body.address_lat || body.addressLat,
     addressLng: body.address_lng || body.addressLng,
     addressPlaceId: body.address_place_id || body.addressPlaceId,
+    addressRegion: body.address_region || body.addressRegion,
     addressCommune: body.address_commune || body.addressCommune,
     specialties: (Array.isArray(rawSpecialties) ? rawSpecialties : [rawSpecialties]).filter(Boolean),
     companyRut: body.company_rut || body.companyRut,
@@ -174,8 +175,22 @@ function registerFormFromBody(body) {
   };
 }
 
-router.get('/registro/comunas/:communeCode', async (req, res) => {
-  const commune = getCommune(REGISTRATION_REGION, req.params.communeCode);
+function resolveRegistrationCommune(regionCode, communeCode) {
+  if (!regionCode || !communeCode) return null;
+  return getCommune(String(regionCode).trim(), String(communeCode).trim());
+}
+
+router.get('/registro/regiones/:regionCode/comunas', (req, res) => {
+  const communes = getRegionCommunes(req.params.regionCode);
+  if (!communes.length) return res.status(404).json({ error: 'region_not_found', communes: [] });
+  res.json({
+    regionCode: req.params.regionCode,
+    communes: communes.map((c) => ({ code: c.code, name: c.name }))
+  });
+});
+
+router.get('/registro/comunas/:regionCode/:communeCode', async (req, res) => {
+  const commune = resolveRegistrationCommune(req.params.regionCode, req.params.communeCode);
   if (!commune) return res.status(404).json({ error: 'commune_not_found' });
 
   const center = await geocodeCommuneCenter(commune.name, commune.regionName);
@@ -184,6 +199,8 @@ router.get('/registro/comunas/:communeCode', async (req, res) => {
   res.json({
     code: commune.code,
     name: commune.name,
+    regionCode: commune.regionCode,
+    regionName: commune.regionName,
     lat: center.lat,
     lng: center.lng,
     coverage: {
@@ -200,9 +217,10 @@ router.get('/registro/comunas/:communeCode', async (req, res) => {
 router.get('/registro/direcciones', async (req, res) => {
   const q = (req.query.q || '').trim();
   const communeCode = (req.query.commune || '').trim();
-  if (q.length < 3 || !communeCode) return res.json({ suggestions: [] });
+  const regionCode = (req.query.region || '').trim();
+  if (q.length < 3 || !communeCode || !regionCode) return res.json({ suggestions: [] });
 
-  const commune = getCommune(REGISTRATION_REGION, communeCode);
+  const commune = resolveRegistrationCommune(regionCode, communeCode);
   if (!commune) return res.json({ suggestions: [] });
 
   const suggestions = await searchAddressSuggestions(q, {
@@ -213,11 +231,11 @@ router.get('/registro/direcciones', async (req, res) => {
 });
 
 router.post('/registro/direcciones/validar', async (req, res) => {
-  const { address, lat, lng, communeCode } = req.body || {};
+  const { address, lat, lng, communeCode, regionCode } = req.body || {};
   const addr = (address || '').trim();
   if (!addr) return res.status(400).json({ error: 'address_required' });
 
-  const commune = communeCode ? getCommune(REGISTRATION_REGION, communeCode) : null;
+  const commune = resolveRegistrationCommune(regionCode, communeCode);
   if (!commune) {
     return res.status(400).json({
       success: false,
@@ -284,7 +302,7 @@ router.get('/registro', (req, res) => {
 
 router.post('/registro', async (req, res) => {
   const form = registerFormFromBody(req.body);
-  const { name, email, password, phone, role, address, addressUnit, addressLat, addressLng, addressPlaceId, addressCommune, specialties,
+  const { name, email, password, phone, role, address, addressUnit, addressLat, addressLng, addressPlaceId, addressRegion, addressCommune, specialties,
     companyRut, companyLegalName, repRut, clientBillingType, clientRut, clientLegalName, clientGiro } = form;
   const providerDocuments = req.body.provider_documents || req.body.providerDocuments;
 
@@ -301,7 +319,7 @@ router.post('/registro', async (req, res) => {
 
   const result = await store.registerUser({
     name, email, password, phone, role, address,
-    addressUnit, addressLat, addressLng, addressPlaceId, addressCommune, specialties,
+    addressUnit, addressLat, addressLng, addressPlaceId, addressRegion, addressCommune, specialties,
     companyRut, companyLegalName, repRut, providerDocuments,
     clientBillingType, clientRut, clientLegalName, clientGiro
   });

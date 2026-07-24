@@ -1613,6 +1613,35 @@ function hasPerm(key) {
 
       <div id="florenciaStrategy" class="hidden p-4 rounded-2xl bg-zilo-card border border-gray-200 mb-4"></div>
 
+      <% if (hasPerm('florencia.manage') || hasPerm('florencia.view')) { %>
+      <div id="florenciaChatPanel" class="p-4 rounded-2xl bg-zilo-card border border-fuchsia-200 mb-4"
+        data-can-chat="<%= hasPerm('florencia.manage') ? '1' : '0' %>">
+        <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <div>
+            <p class="text-sm font-semibold">Chat con Florencia</p>
+            <p class="text-[11px] text-gray-500">Pídele que corrija copy, quite logos/texto de la imagen o regenere la foto.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="florenciaChatContext" class="text-[11px] px-2 py-1 rounded-full bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-100">Chat general</span>
+            <button type="button" id="btnFlorenciaChatClearItem" class="hidden px-2.5 py-1 rounded-lg border border-gray-200 text-[11px]">Quitar pieza</button>
+          </div>
+        </div>
+        <div id="florenciaChatThread" class="h-64 overflow-y-auto space-y-2 mb-3 p-3 rounded-xl bg-zilo-bg border border-gray-100 text-xs"></div>
+        <% if (hasPerm('florencia.manage')) { %>
+        <form id="florenciaChatForm" class="flex gap-2">
+          <input type="hidden" name="itemId" id="florenciaChatItemId" value="">
+          <input type="text" name="message" id="florenciaChatInput" maxlength="4000"
+            placeholder="Ej: la imagen salió con logo inventado, regenera sin texto ni marcas…"
+            class="flex-1 px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm" required>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-fuchsia-600 text-white text-sm font-semibold shrink-0">Enviar</button>
+        </form>
+        <p class="text-[10px] text-gray-500 mt-2">Tip: usa “Hablar con Florencia” en una pieza para vincular el chat a esa foto/texto.</p>
+        <% } else { %>
+        <p class="text-[11px] text-gray-500">Solo lectura: necesitas permiso de gestión para escribirle a Florencia.</p>
+        <% } %>
+      </div>
+      <% } %>
+
       <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div>
           <p class="text-sm font-semibold">Agenda editorial</p>
@@ -1635,6 +1664,80 @@ function hasPerm(key) {
         data-can-approve="<%= hasPerm('florencia.approve') ? '1' : '0' %>"
         data-can-publish="<%= hasPerm('florencia.publish') ? '1' : '0' %>">
         <p class="text-xs text-gray-500">Cargando agenda…</p>
+      </div>
+    </section>
+
+    <!-- CONSUMO OPENAI -->
+    <section class="<%= panelClass('consumo-ia') %>" data-panel="consumo-ia">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <p class="zilo-label text-sky-700 mb-1">OpenAI</p>
+          <h3 class="text-xl font-semibold">Consumo de tokens por agente</h3>
+          <p class="text-xs text-gray-500 mt-1">Aland, Florencia y otras llamadas registradas. El costo USD es una estimación de referencia, no la factura de OpenAI.</p>
+        </div>
+        <div class="flex gap-2 items-center">
+          <select id="openaiUsageDays" class="px-3 py-2 rounded-xl bg-zilo-bg border border-gray-200 text-sm">
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="365">Último año</option>
+          </select>
+          <button type="button" id="btnOpenaiUsageReload" class="px-3 py-2 rounded-xl border border-gray-200 text-sm">Actualizar</button>
+        </div>
+      </div>
+
+      <div id="openaiUsageTotals" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div class="p-4 rounded-2xl bg-sky-50 border border-sky-200">
+          <p class="text-[10px] uppercase text-gray-500">Tokens (periodo)</p>
+          <p class="text-lg font-semibold" data-usage="totalTokens">—</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <p class="text-[10px] uppercase text-gray-500">Prompt / Completion</p>
+          <p class="text-lg font-semibold" data-usage="splitTokens">—</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <p class="text-[10px] uppercase text-gray-500">Imágenes</p>
+          <p class="text-lg font-semibold" data-usage="images">—</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+          <p class="text-[10px] uppercase text-gray-500">Costo est. USD</p>
+          <p class="text-lg font-semibold" data-usage="costUsd">—</p>
+        </div>
+      </div>
+
+      <p id="openaiUsageLegacyNote" class="hidden text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4"></p>
+
+      <div id="openaiUsageByAgent" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4"></div>
+
+      <div class="grid lg:grid-cols-2 gap-4 mb-4">
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <p class="text-sm font-semibold mb-3">Por operación</p>
+          <div id="openaiUsageByOperation" class="space-y-2 text-xs"></div>
+        </div>
+        <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+          <p class="text-sm font-semibold mb-3">Últimos 14 días (tokens)</p>
+          <div id="openaiUsageByDay" class="space-y-1.5 text-xs max-h-64 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-zilo-card border border-gray-200">
+        <p class="text-sm font-semibold mb-3">Actividad reciente</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-gray-500 border-b border-gray-100">
+                <th class="py-2 pr-3 font-medium">Fecha</th>
+                <th class="py-2 pr-3 font-medium">Agente</th>
+                <th class="py-2 pr-3 font-medium">Operación</th>
+                <th class="py-2 pr-3 font-medium">Modelo</th>
+                <th class="py-2 pr-3 font-medium text-right">Tokens</th>
+                <th class="py-2 pr-3 font-medium text-right">Img</th>
+                <th class="py-2 font-medium text-right">USD est.</th>
+              </tr>
+            </thead>
+            <tbody id="openaiUsageRecent"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 

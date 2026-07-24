@@ -8,6 +8,7 @@
   }
 
   const communeSelect = document.getElementById('address_commune');
+  const regionSelect = document.getElementById('address_region');
   const latInput = document.getElementById('address_lat');
   const lngInput = document.getElementById('address_lng');
   const placeInput = document.getElementById('address_place_id');
@@ -103,7 +104,6 @@
       });
     }
     if (label) {
-      const map = FundezMap?.maps?.registerAddressMap;
       const marker = FundezMap?.markers?.registerAddressMap?.destination;
       if (marker) marker.bindPopup(label);
     }
@@ -188,12 +188,74 @@
     addressInput.setAttribute('aria-expanded', 'false');
   }
 
+  function getRegionCode() {
+    return regionSelect ? regionSelect.value : '';
+  }
+
   function getCommuneCode() {
     return communeSelect ? communeSelect.value : '';
   }
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function resetCommuneOptions(placeholder) {
+    if (!communeSelect) return;
+    communeSelect.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>`;
+    communeSelect.value = '';
+    communeSelect.disabled = true;
+  }
+
+  function fillCommuneOptions(communes, selectedCode) {
+    if (!communeSelect) return;
+    const options = [`<option value="">${escapeHtml(t('register.commune_placeholder'))}</option>`]
+      .concat((communes || []).map((c) => (
+        `<option value="${escapeHtml(c.code)}"${selectedCode === c.code ? ' selected' : ''}>${escapeHtml(c.name)}</option>`
+      )));
+    communeSelect.innerHTML = options.join('');
+    communeSelect.disabled = false;
+  }
+
+  async function loadRegionCommunes(regionCode, { preserveCommune = '' } = {}) {
+    selectedCommune = null;
+    setAddressFieldEnabled(false);
+    addressInput.value = '';
+    hideSuggestions();
+    hideCoverage();
+    clearAddressSelection();
+
+    if (!regionCode) {
+      resetCommuneOptions(t('register.commune_region_first'));
+      resetMapToDefault();
+      return;
+    }
+
+    resetCommuneOptions(t('register.commune_loading'));
+    try {
+      const res = await fetch(`/registro/regiones/${encodeURIComponent(regionCode)}/comunas`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'region_error');
+      fillCommuneOptions(data.communes || [], preserveCommune);
+      if (preserveCommune && communeSelect?.value === preserveCommune) {
+        await loadCommune(preserveCommune);
+      } else {
+        resetMapToDefault();
+        setMapStatus('');
+      }
+    } catch (_) {
+      resetCommuneOptions(t('register.commune_placeholder'));
+      setMapStatus(t('register.address_search_fail'));
+    }
+  }
+
   async function loadCommune(code) {
-    if (!code) {
+    const regionCode = getRegionCode();
+    if (!code || !regionCode) {
       selectedCommune = null;
       setAddressFieldEnabled(false);
       addressInput.value = '';
@@ -205,7 +267,9 @@
 
     setMapStatus(t('register.commune_loading'));
     try {
-      const res = await fetch(`/registro/comunas/${encodeURIComponent(code)}`);
+      const res = await fetch(
+        `/registro/comunas/${encodeURIComponent(regionCode)}/${encodeURIComponent(code)}`
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'commune_error');
 
@@ -213,7 +277,8 @@
         code: data.code,
         name: data.name,
         lat: data.lat,
-        lng: data.lng
+        lng: data.lng,
+        regionCode: data.regionCode || regionCode
       };
 
       setAddressFieldEnabled(true);
@@ -248,6 +313,7 @@
         lat: item.lat,
         lng: item.lng,
         placeId: item.placeId,
+        regionCode: getRegionCode(),
         communeCode: getCommuneCode()
       })
     })
@@ -303,24 +369,19 @@
     });
   }
 
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
   async function fetchSuggestions(query) {
     const communeCode = getCommuneCode();
-    if (!communeCode) {
-      setMapStatus(t('register.validation_commune_required'));
+    const regionCode = getRegionCode();
+    if (!regionCode || !communeCode) {
+      setMapStatus(!regionCode
+        ? t('register.validation_region_required')
+        : t('register.validation_commune_required'));
       return;
     }
 
     try {
       const res = await fetch(
-        `/registro/direcciones?q=${encodeURIComponent(query)}&commune=${encodeURIComponent(communeCode)}`
+        `/registro/direcciones?q=${encodeURIComponent(query)}&region=${encodeURIComponent(regionCode)}&commune=${encodeURIComponent(communeCode)}`
       );
       const data = await res.json();
       renderSuggestions(data.suggestions || []);
@@ -331,6 +392,13 @@
       setMapStatus(t('register.address_search_fail'));
       hideSuggestions();
     }
+  }
+
+  if (regionSelect) {
+    regionSelect.addEventListener('change', () => {
+      regionSelect.setCustomValidity('');
+      loadRegionCommunes(regionSelect.value);
+    });
   }
 
   if (communeSelect) {
@@ -418,9 +486,18 @@
   roleInputs.forEach((r) => r.addEventListener('change', syncAddressCopy));
 
   form.addEventListener('submit', (e) => {
+    if (!getRegionCode()) {
+      e.preventDefault();
+      if (regionSelect) {
+        regionSelect.setCustomValidity(t('register.validation_region_required'));
+        regionSelect.reportValidity();
+      }
+      return;
+    }
     if (!getCommuneCode()) {
       e.preventDefault();
       if (communeSelect) {
+        communeSelect.disabled = false;
         communeSelect.setCustomValidity(t('register.validation_commune_required'));
         communeSelect.reportValidity();
       }
@@ -438,6 +515,7 @@
       unitInput.reportValidity();
       return;
     }
+    if (regionSelect) regionSelect.setCustomValidity('');
     if (communeSelect) communeSelect.setCustomValidity('');
     addressInput.setCustomValidity('');
     if (unitInput) unitInput.setCustomValidity('');
@@ -445,6 +523,10 @@
 
   form.addEventListener('invalid', (event) => {
     const field = event.target;
+    if (field === regionSelect) {
+      field.setCustomValidity(t('register.validation_region_required'));
+      return;
+    }
     if (field === communeSelect) {
       field.setCustomValidity(t('register.validation_commune_required'));
       return;
@@ -459,6 +541,7 @@
   }, true);
 
   addressInput.addEventListener('input', () => addressInput.setCustomValidity(''));
+  if (regionSelect) regionSelect.addEventListener('change', () => regionSelect.setCustomValidity(''));
   if (communeSelect) communeSelect.addEventListener('change', () => communeSelect.setCustomValidity(''));
   if (unitInput) unitInput.addEventListener('input', () => unitInput.setCustomValidity(''));
 
@@ -471,13 +554,23 @@
     syncAddressCopy();
 
     const savedAddress = addressInput.value.trim();
+    const regionCode = getRegionCode();
     const communeCode = getCommuneCode();
-    if (communeCode) {
-      await loadCommune(communeCode);
+
+    if (regionCode) {
+      if (communeSelect && communeSelect.options.length <= 1) {
+        await loadRegionCommunes(regionCode, { preserveCommune: communeCode });
+      } else if (communeCode) {
+        communeSelect.disabled = false;
+        await loadCommune(communeCode);
+      } else {
+        communeSelect.disabled = false;
+      }
+
       if (savedAddress) addressInput.value = savedAddress;
 
       const hasCoords = latInput && latInput.value && lngInput && lngInput.value;
-      if (hasCoords) {
+      if (hasCoords && communeCode) {
         showMapAt(
           parseFloat(latInput.value),
           parseFloat(lngInput.value),
@@ -488,8 +581,10 @@
         enablePinAdjustment(addressInput.value);
         addressConfirmed = true;
         lastSelectedLabel = addressInput.value.trim();
+        setAddressFieldEnabled(true);
       }
     } else {
+      resetCommuneOptions(t('register.commune_region_first'));
       setAddressFieldEnabled(false);
       resetMapToDefault();
     }

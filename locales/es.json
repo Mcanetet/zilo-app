@@ -225,6 +225,7 @@
   "register.doc_uploaded": "Archivo listo",
   "register.submitting": "Creando cuenta…",
   "register.submit": "Crear cuenta",
+  "register.error_address_timeout": "La validación de dirección tardó demasiado. Intenta de nuevo en unos segundos.",
   "register.has_account": "¿Ya tienes cuenta?",
   "register.referral_credit": "$5.000 de crédito al registrarte",
   "register.validation_required": "Completa este campo para crear una cuenta.",

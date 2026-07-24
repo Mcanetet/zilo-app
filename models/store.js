@@ -1748,15 +1748,29 @@ async function registerUser({
   }
 
   const fullAddr = withCommuneContext(addr, communeMeta.name);
-  const geo = await geocodeAddress(fullAddr, { strict: true, communeName: communeMeta.name });
+  let geo;
+  try {
+    geo = await geocodeAddress(fullAddr, { strict: true, communeName: communeMeta.name });
+  } catch (err) {
+    console.error('[registro] geocode:', err.message);
+    return { errorKey: 'register.error_address_timeout' };
+  }
   if (!geo.found || !geo.hasStreetNumber) return { errorKey: 'register.error_address_street_number' };
 
-  const coordCheck = await coordsMatchAddress({
-    lat,
-    lng,
-    geo,
-    communeName: communeMeta.name
-  });
+  let coordCheck;
+  try {
+    coordCheck = await coordsMatchAddress({
+      lat,
+      lng,
+      geo,
+      communeName: communeMeta.name
+    });
+  } catch (err) {
+    console.error('[registro] coords:', err.message);
+    // Si Nominatim falla al validar, aceptamos coords del cliente cuando el geocode encontró la dirección.
+    const distKm = haversineKm(lat, lng, geo.lat, geo.lng);
+    coordCheck = distKm <= 2.5 ? { ok: true, distKm } : { ok: false, distKm };
+  }
   if (!coordCheck.ok) return { errorKey: 'register.error_address_mismatch' };
 
   const coverage = buildCoverageResult(communeMeta, coverageMap);
@@ -3672,10 +3686,10 @@ async function issueEmailVerification(userId, { locale = 'es' } = {}) {
   if (!user || isEmailVerified(user)) return { skipped: true };
   if (isDemoAccount(user)) return { skipped: true, demo: true };
 
-  const sent = await emailVerification.sendVerificationEmail(user, { locale });
-  user.emailVerificationCodeHash = sent.codeHash;
-  user.emailVerificationExpiresAt = sent.expiresAt;
-  user.emailVerificationSentAt = sent.sentAt;
+  const prepared = emailVerification.prepareVerification(user, { locale });
+  user.emailVerificationCodeHash = prepared.codeHash;
+  user.emailVerificationExpiresAt = prepared.expiresAt;
+  user.emailVerificationSentAt = prepared.sentAt;
 
   try {
     await repository.saveUser(user);
@@ -3684,15 +3698,36 @@ async function issueEmailVerification(userId, { locale = 'es' } = {}) {
     return { error: 'No se pudo enviar el código. Intenta más tarde.' };
   }
 
-  if (sent.mailResult?.error) {
+  let mailResult = null;
+  try {
+    const mailPromise = emailVerification.dispatchVerificationEmail(user, prepared)
+      .catch((err) => {
+        console.error('[verify:error]', err.message);
+        return { error: err.message || 'mail_error' };
+      });
+    mailResult = await Promise.race([
+      mailPromise,
+      new Promise((resolve) => setTimeout(() => resolve({ pending: true }), 8000))
+    ]);
+  } catch (err) {
+    console.error('[verify:error]', err.message);
+    mailResult = { error: err.message || 'mail_error' };
+  }
+
+  if (mailResult?.pending) {
+    // El envío sigue en curso en segundo plano; el código ya está guardado.
+    return { success: true, sentAt: prepared.sentAt, pending: true };
+  }
+
+  if (mailResult?.error) {
     return {
-      error: `No pudimos enviar el correo (${sent.mailResult.error}). Revisa spam, espera un minuto y pulsa Reenviar.`,
-      sentAt: sent.sentAt,
-      mailError: sent.mailResult.error
+      error: `No pudimos enviar el correo (${mailResult.error}). Revisa spam, espera un minuto y pulsa Reenviar.`,
+      sentAt: prepared.sentAt,
+      mailError: mailResult.error
     };
   }
 
-  return { success: true, sentAt: sent.sentAt, demo: sent.mailResult?.demo };
+  return { success: true, sentAt: prepared.sentAt, demo: Boolean(mailResult?.demo) };
 }
 
 async function verifyEmailCode(userId, code) {

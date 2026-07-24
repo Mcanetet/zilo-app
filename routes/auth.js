@@ -301,6 +301,7 @@ router.get('/registro', (req, res) => {
 });
 
 router.post('/registro', async (req, res) => {
+  try {
   const form = registerFormFromBody(req.body);
   const { name, email, password, phone, role, address, addressUnit, addressLat, addressLng, addressPlaceId, addressRegion, addressCommune, specialties,
     companyRut, companyLegalName, repRut, clientBillingType, clientRut, clientLegalName, clientGiro } = form;
@@ -392,14 +393,28 @@ router.post('/registro', async (req, res) => {
     delete req.session.pendingReferral;
   }
 
-  const issue = await store.issueEmailVerification(user.id, { locale: req.locale || 'es' });
+  // No bloquear el redirect si el SMTP tarda: el código ya se guarda antes de enviar
+  let issue = { success: true };
+  try {
+    issue = await store.issueEmailVerification(user.id, { locale: req.locale || 'es' });
+  } catch (err) {
+    console.error('[registro] verificación email:', err.message);
+    issue = { error: err.message || 'mail_error' };
+  }
+
   if (wantsJson(req)) {
     return res.json({
       success: true,
-      redirect: '/verificar-email',
+      redirect: issue.error && !issue.demo && !issue.pending
+        ? '/verificar-email?mail=error'
+        : (issue.demo ? '/verificar-email?mail=demo' : (issue.pending ? '/verificar-email?mail=pending' : '/verificar-email')),
       mailDemo: Boolean(issue.demo),
-      mailError: issue.error || null
+      mailError: issue.error || null,
+      mailPending: Boolean(issue.pending)
     });
+  }
+  if (issue.pending) {
+    return res.redirect('/verificar-email?mail=pending');
   }
   if (issue.error && !issue.demo) {
     return res.redirect('/verificar-email?mail=error');
@@ -407,7 +422,18 @@ router.post('/registro', async (req, res) => {
   if (issue.demo) {
     return res.redirect('/verificar-email?mail=demo');
   }
-  res.redirect('/verificar-email');
+  return res.redirect('/verificar-email');
+  } catch (err) {
+    console.error('[registro] error inesperado:', err);
+    const form = registerFormFromBody(req.body || {});
+    const message = req.t('register.error_generic') || 'No se pudo crear la cuenta. Intenta nuevamente.';
+    if (wantsJson(req)) return res.status(500).json({ error: message });
+    return res.status(500).render('registro', registerRenderOptions(req, {
+      title: 'Crear cuenta',
+      error: message,
+      form
+    }));
+  }
 });
 
 router.get('/verificar-email', (req, res) => {
@@ -427,6 +453,8 @@ router.get('/verificar-email', (req, res) => {
     error = 'No pudimos enviar el correo de verificación. Revisa spam o pulsa Reenviar. Si el problema continúa, el SMTP de Hostinger puede estar rechazando el envío (revisa /health?smtp=1).';
   } else if (req.query.mail === 'demo') {
     success = 'Modo demo: faltan SMTP_HOST / SMTP_USER / SMTP_PASS en el servidor. El código está en los logs ([verify:demo]).';
+  } else if (req.query.mail === 'pending') {
+    success = 'Tu cuenta ya está creada. El correo puede tardar unos segundos; si no llega, pulsa Reenviar código.';
   }
 
   res.render('verificar-email', {

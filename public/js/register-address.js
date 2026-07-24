@@ -515,10 +515,35 @@
       unitInput.reportValidity();
       return;
     }
-    if (regionSelect) regionSelect.setCustomValidity('');
-    if (communeSelect) communeSelect.setCustomValidity('');
+    if (regionSelect) {
+      regionSelect.disabled = false;
+      regionSelect.setCustomValidity('');
+    }
+    if (communeSelect) {
+      communeSelect.disabled = false;
+      communeSelect.setCustomValidity('');
+    }
+    addressInput.disabled = false;
     addressInput.setCustomValidity('');
     if (unitInput) unitInput.setCustomValidity('');
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn && !submitBtn.dataset.submitting) {
+      submitBtn.dataset.submitting = '1';
+      submitBtn.dataset.originalLabel = submitBtn.textContent || '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = t('register.submitting') || 'Creando cuenta…';
+      setTimeout(() => {
+        if (!submitBtn.dataset.submitting) return;
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.originalLabel || t('register.submit') || 'Crear cuenta';
+        delete submitBtn.dataset.submitting;
+        setMapStatus(t('register.error_address_timeout') || 'La creación está tardando. Intenta de nuevo.');
+        if (typeof FundezNotify !== 'undefined') {
+          FundezNotify.show(t('register.error_address_timeout') || 'La creación está tardando. Intenta de nuevo.', 'warning');
+        }
+      }, 45000);
+    }
   });
 
   form.addEventListener('invalid', (event) => {
